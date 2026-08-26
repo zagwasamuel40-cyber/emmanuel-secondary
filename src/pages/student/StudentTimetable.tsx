@@ -1,10 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui";
-import { Clock, Calendar as CalendarIcon } from "lucide-react";
+import { Clock, Calendar as CalendarIcon, Download, FileText } from "lucide-react";
 
 export default function StudentTimetable() {
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
   const [activeDay, setActiveDay] = useState("Monday");
+  const [timetableFile, setTimetableFile] = useState<{name: string, url: string, size: string} | null>(null);
+
+  useEffect(() => {
+    const storedTime = localStorage.getItem("ess_timetable");
+    if (storedTime) {
+      try { setTimetableFile(JSON.parse(storedTime)); } catch (e) {}
+    }
+  }, []);
 
   const timetable: Record<string, { time: string; subject: string; teacher: string; type: string }[]> = {
     "Monday": [
@@ -52,6 +60,28 @@ export default function StudentTimetable() {
         <h2 className="text-2xl font-bold font-heading text-slate-900">Class Timetable</h2>
         <p className="text-slate-500 text-sm mt-1">View your daily schedule for the week.</p>
       </div>
+
+      {timetableFile && (
+        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+              <CalendarIcon size={24} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-900">Official Class Timetable</p>
+              <p className="text-xs text-slate-500 mb-1">Download the full timetable document uploaded by the admin.</p>
+              <p className="text-xs text-emerald-700 font-semibold">{timetableFile.name} ({timetableFile.size})</p>
+            </div>
+          </div>
+          <a 
+            href={timetableFile.url} 
+            download={timetableFile.name}
+            className="inline-flex w-full sm:w-auto justify-center items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-sm font-bold rounded-lg text-white transition-colors shadow-sm"
+          >
+            <Download size={16} /> Download Timetable
+          </a>
+        </div>
+      )}
 
       <Card className="border-0 shadow-sm overflow-hidden bg-white">
         <div className="flex flex-col sm:flex-row border-b border-slate-200">

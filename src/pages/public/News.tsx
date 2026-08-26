@@ -1,8 +1,8 @@
 import { usePortalSettings } from "../../data/portalSettingsData";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, Button } from "@/src/components/ui";
 import { useAnnouncements, Announcement } from "@/src/data/announcementsData";
-import { Bell, Calendar, Sparkles, X, Image as ImageIcon } from "lucide-react";
+import { Bell, Calendar, Sparkles, X, Image as ImageIcon, FileText, Download } from "lucide-react";
 
 const staticNewsItems = [
   {
@@ -35,6 +35,14 @@ export default function News() {
   const [portalSettings] = usePortalSettings();
   const [announcements] = useAnnouncements();
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const [newsletterFile, setNewsletterFile] = useState<{name: string, url: string, size: string} | null>(null);
+
+  useEffect(() => {
+    const storedNews = localStorage.getItem("ess_newsletter");
+    if (storedNews) {
+      try { setNewsletterFile(JSON.parse(storedNews)); } catch (e) {}
+    }
+  }, []);
 
   // Combine posted active announcements with static news items
   const activeAnnouncements = announcements
@@ -53,13 +61,38 @@ export default function News() {
 
   return (
     <div className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-      <div className="text-center max-w-3xl mx-auto">
+      <div className="text-center max-w-3xl mx-auto mb-10">
         <span className="px-3 py-1 rounded-full bg-brand-50 text-brand-700 text-xs font-bold uppercase tracking-wider mb-3 inline-block">
           School News & Updates
         </span>
         <h1 className="font-heading text-4xl font-extrabold text-slate-900 mb-4">Latest News & Announcements</h1>
         <p className="text-slate-600 text-lg">Stay updated with official announcements, news, and academic events at {portalSettings.schoolName}.</p>
       </div>
+
+      {newsletterFile && (
+        <Card className="border-0 shadow-md bg-gradient-to-r from-brand-900 to-indigo-900 text-white overflow-hidden relative">
+          <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-[url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=1000')] bg-cover bg-center opacity-10 mix-blend-overlay"></div>
+          <CardContent className="p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative z-10">
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center shrink-0 border border-white/20">
+                <FileText size={28} className="text-brand-300" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold font-heading mb-1">Official School Newsletter</h3>
+                <p className="text-brand-100/80 text-sm max-w-md">Download the latest newsletter document for important academic updates, events, and school announcements.</p>
+                <p className="text-xs text-brand-300 mt-2 font-medium">{newsletterFile.name} &middot; {newsletterFile.size}</p>
+              </div>
+            </div>
+            <a 
+              href={newsletterFile.url}
+              download={newsletterFile.name}
+              className="shrink-0 flex items-center gap-2 bg-white text-brand-900 px-6 py-3 rounded-xl font-bold hover:bg-brand-50 transition-colors shadow-sm"
+            >
+              <Download size={18} /> Download Now
+            </a>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {allNews.map(item => (

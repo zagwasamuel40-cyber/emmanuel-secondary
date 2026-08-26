@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@/src/components/ui";
 import { Layout, Eye, Settings, MessageSquare, Plus, Trash2, X, CheckCircle2, Bell, Sparkles, Palette, Shield, Building, Globe, Phone, Mail, Award, Edit3, Image as ImageIcon, Save } from "lucide-react";
 import { useAnnouncements, Announcement } from "../data/announcementsData";
 import { useResultsRelease, isResultReleased } from "../data/resultsReleaseData";
 import { useSessions } from "../data/sessionsData";
 import { usePortalSettings, PortalSettings } from "../data/portalSettingsData";
-import { FileText, Upload } from "lucide-react";
+import { FileText, Upload, Calendar as CalendarIcon, Download, UploadCloud } from "lucide-react";
 import { useGallery } from "../data/galleryData";
 import { Camera } from "lucide-react";
 import { useComments } from "../data/commentsData";
@@ -97,6 +97,61 @@ export default function StudentPortalManager() {
 
 
   // Gallery Form State
+  const [newsletterFile, setNewsletterFile] = useState<{name: string, url: string, size: string} | null>(null);
+  const [timetableFile, setTimetableFile] = useState<{name: string, url: string, size: string} | null>(null);
+  const newsletterInputRef = useRef<HTMLInputElement>(null);
+  const timetableInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const storedNews = localStorage.getItem("ess_newsletter");
+    if (storedNews) {
+      try { setNewsletterFile(JSON.parse(storedNews)); } catch (e) {}
+    }
+    const storedTime = localStorage.getItem("ess_timetable");
+    if (storedTime) {
+      try { setTimetableFile(JSON.parse(storedTime)); } catch (e) {}
+    }
+  }, []);
+
+  const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'newsletter' | 'timetable') => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        const fileData = {
+          name: file.name,
+          size: (file.size / 1024 / 1024).toFixed(2) + " MB",
+          url: dataUrl
+        };
+        if (type === 'newsletter') {
+          setNewsletterFile(fileData);
+          localStorage.setItem("ess_newsletter", JSON.stringify(fileData));
+          setSuccessMsg("Newsletter uploaded successfully!");
+        } else {
+          setTimetableFile(fileData);
+          localStorage.setItem("ess_timetable", JSON.stringify(fileData));
+          setSuccessMsg("Timetable uploaded successfully!");
+        }
+        setTimeout(() => setSuccessMsg(""), 3500);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeDocument = (type: 'newsletter' | 'timetable') => {
+    if (type === 'newsletter') {
+      setNewsletterFile(null);
+      localStorage.removeItem("ess_newsletter");
+      setSuccessMsg("Newsletter removed.");
+    } else {
+      setTimetableFile(null);
+      localStorage.removeItem("ess_timetable");
+      setSuccessMsg("Timetable removed.");
+    }
+    setTimeout(() => setSuccessMsg(""), 3500);
+  };
+
   const [newGalleryUrl, setNewGalleryUrl] = useState("");
   const [newGalleryCaption, setNewGalleryCaption] = useState("");
   const [newGalleryCategory, setNewGalleryCategory] = useState<"Staff" | "Facilities" | "Events" | "Students" | "Other">("Staff");
@@ -597,6 +652,121 @@ export default function StudentPortalManager() {
               </div>
             </CardContent>
           </Card>
+
+          {/* DOCUMENT & TIMETABLE UPLOAD */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-3 border-b border-slate-100">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileText size={18} className="text-blue-600" /> Upload School Newsletter
+                </CardTitle>
+                <p className="text-xs text-slate-500">Upload the latest newsletter document (PDF, Word) for students to download.</p>
+              </CardHeader>
+              <CardContent className="p-4">
+                {newsletterFile ? (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                        <FileText size={20} />
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                        <p className="text-sm font-bold text-slate-900 truncate">{newsletterFile.name}</p>
+                        <p className="text-xs text-slate-500">{newsletterFile.size} &middot; Uploaded</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <a 
+                        href={newsletterFile.url} 
+                        download={newsletterFile.name}
+                        className="flex-1 inline-flex justify-center items-center gap-2 h-9 px-3 rounded-lg bg-white border border-slate-200 text-sm font-medium hover:bg-slate-50 text-slate-700 transition-colors"
+                      >
+                        <Download size={14} /> Download
+                      </a>
+                      <button 
+                        onClick={() => removeDocument('newsletter')}
+                        className="h-9 px-3 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors flex items-center justify-center"
+                        title="Remove Document"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => newsletterInputRef.current?.click()}>
+                    <input 
+                      type="file" 
+                      ref={newsletterInputRef}
+                      className="hidden" 
+                      accept=".pdf,.doc,.docx" 
+                      onChange={(e) => handleDocumentUpload(e, 'newsletter')} 
+                    />
+                    <UploadCloud size={32} className="mx-auto text-slate-400 group-hover:text-blue-500 mb-3 transition-colors" />
+                    <p className="text-sm font-bold text-slate-900 mb-1">Upload Newsletter</p>
+                    <p className="text-xs text-slate-500">PDF or Word (Max 5MB)</p>
+                    <Button size="sm" variant="outline" className="mt-4 rounded-full bg-white font-medium text-xs">
+                      Browse Files
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-3 border-b border-slate-100">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CalendarIcon size={18} className="text-emerald-600" /> Upload Class Timetable
+                </CardTitle>
+                <p className="text-xs text-slate-500">Upload the official timetable document for students to view or download.</p>
+              </CardHeader>
+              <CardContent className="p-4">
+                {timetableFile ? (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                        <CalendarIcon size={20} />
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                        <p className="text-sm font-bold text-slate-900 truncate">{timetableFile.name}</p>
+                        <p className="text-xs text-slate-500">{timetableFile.size} &middot; Uploaded</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <a 
+                        href={timetableFile.url} 
+                        download={timetableFile.name}
+                        className="flex-1 inline-flex justify-center items-center gap-2 h-9 px-3 rounded-lg bg-white border border-slate-200 text-sm font-medium hover:bg-slate-50 text-slate-700 transition-colors"
+                      >
+                        <Download size={14} /> Download
+                      </a>
+                      <button 
+                        onClick={() => removeDocument('timetable')}
+                        className="h-9 px-3 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors flex items-center justify-center"
+                        title="Remove Document"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => timetableInputRef.current?.click()}>
+                    <input 
+                      type="file" 
+                      ref={timetableInputRef}
+                      className="hidden" 
+                      accept=".pdf,.doc,.docx,.jpg,.png" 
+                      onChange={(e) => handleDocumentUpload(e, 'timetable')} 
+                    />
+                    <UploadCloud size={32} className="mx-auto text-slate-400 group-hover:text-emerald-500 mb-3 transition-colors" />
+                    <p className="text-sm font-bold text-slate-900 mb-1">Upload Timetable</p>
+                    <p className="text-xs text-slate-500">PDF, Word, or Image (Max 5MB)</p>
+                    <Button size="sm" variant="outline" className="mt-4 rounded-full bg-white font-medium text-xs">
+                      Browse Files
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
 
