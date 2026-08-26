@@ -1,0 +1,6 @@
+{
+  "name": "Emmanuel Secondary School SMS",
+  "description": "Professional School Management System for Emmanuel Secondary School, Makurdi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
