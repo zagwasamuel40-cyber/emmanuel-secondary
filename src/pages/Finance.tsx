@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@/src/components/ui";
 import { DollarSign, CreditCard, TrendingUp, TrendingDown, Download, Plus, X, UploadCloud, FileText, Trash2 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useSessions, TERMS } from "../data/sessionsData";
 
 const revenueData = [
   { name: 'First Term', revenue: 45000000, expenses: 12000000 },
@@ -28,19 +29,36 @@ export default function Finance() {
   });
 
   // Fee Breakdown State
-  const [feeBreakdownFile, setFeeBreakdownFile] = useState<{ name: string, url: string, size: string } | null>(null);
+  const [sessions, , currentSession] = useSessions();
+  const [feeBreakdowns, setFeeBreakdowns] = useState<any[]>([]);
+  const [isFeeUploadModalOpen, setIsFeeUploadModalOpen] = useState(false);
+  const [uploadData, setUploadData] = useState({
+    targetClass: "JSS 1",
+    session: currentSession || "2025/2026",
+    term: TERMS[0],
+    fileData: null as any
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem("ess_fee_breakdown");
+    const stored = localStorage.getItem("ess_fee_breakdowns");
     if (stored) {
       try {
-        setFeeBreakdownFile(JSON.parse(stored));
+        setFeeBreakdowns(JSON.parse(stored));
       } catch (e) {
-        console.error("Failed to parse fee breakdown", e);
+        console.error("Failed to parse fee breakdowns", e);
+      }
+    } else {
+      // Migrate old data if present
+      const oldStored = localStorage.getItem("ess_fee_breakdown");
+      if (oldStored) {
+        try {
+          const oldData = JSON.parse(oldStored);
+          setFeeBreakdowns([{ ...oldData, id: Date.now().toString(), targetClass: "All Classes", session: currentSession || "2025/2026", term: TERMS[0] }]);
+        } catch (e) {}
       }
     }
-  }, []);
+  }, [currentSession]);
 
   const handleRecordPayment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,16 +86,40 @@ export default function Finance() {
           size: (file.size / 1024 / 1024).toFixed(2) + " MB",
           url: dataUrl
         };
-        setFeeBreakdownFile(fileData);
-        localStorage.setItem("ess_fee_breakdown", JSON.stringify(fileData));
+        setUploadData(prev => ({ ...prev, fileData }));
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const removeFeeBreakdown = () => {
-    setFeeBreakdownFile(null);
-    localStorage.removeItem("ess_fee_breakdown");
+  const saveFeeBreakdown = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadData.fileData) return;
+    
+    const newBreakdown = {
+      id: Date.now().toString(),
+      ...uploadData.fileData,
+      targetClass: uploadData.targetClass,
+      session: uploadData.session,
+      term: uploadData.term
+    };
+    
+    const updated = [newBreakdown, ...feeBreakdowns];
+    setFeeBreakdowns(updated);
+    localStorage.setItem("ess_fee_breakdowns", JSON.stringify(updated));
+    
+    setIsFeeUploadModalOpen(false);
+    setUploadData(prev => ({ ...prev, fileData: null }));
+  };
+
+  const removeFeeBreakdown = (id: string) => {
+    const updated = feeBreakdowns.filter(f => f.id !== id);
+    setFeeBreakdowns(updated);
+    if (updated.length > 0) {
+      localStorage.setItem("ess_fee_breakdowns", JSON.stringify(updated));
+    } else {
+      localStorage.removeItem("ess_fee_breakdowns");
+    }
   };
 
   return (
@@ -250,59 +292,144 @@ export default function Finance() {
 
           {/* School Fee Breakdown Upload */}
           <Card className="border-0 shadow-sm shrink-0">
-            <CardHeader className="pb-3 border-b border-slate-100">
-              <CardTitle>School Fee Breakdown</CardTitle>
+            <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+              <CardTitle>School Fee Breakdowns</CardTitle>
+              <Button variant="outline" size="sm" className="h-8 gap-1 rounded-lg" onClick={() => setIsFeeUploadModalOpen(true)}>
+                <Plus size={14} /> Upload
+              </Button>
             </CardHeader>
-            <CardContent className="p-4">
-              {feeBreakdownFile ? (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                      <FileText size={20} />
+            <CardContent className="p-4 flex flex-col gap-4">
+              {feeBreakdowns.length > 0 ? (
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                  {feeBreakdowns.map(fb => (
+                    <div key={fb.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                          <FileText size={20} />
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                          <p className="text-sm font-bold text-slate-900 truncate">{fb.targetClass} - {fb.term}</p>
+                          <p className="text-xs text-slate-500">{fb.session} &middot; {fb.name} ({fb.size})</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <a 
+                          href={fb.url} 
+                          download={fb.name}
+                          className="flex-1 inline-flex justify-center items-center gap-2 h-8 px-3 rounded-lg bg-white border border-slate-200 text-xs font-medium hover:bg-slate-50 text-brand-600 transition-colors"
+                        >
+                          <Download size={14} /> Download
+                        </a>
+                        <button 
+                          onClick={() => removeFeeBreakdown(fb.id)}
+                          className="h-8 px-3 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors flex items-center justify-center"
+                          title="Remove Breakdown"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex-1 overflow-hidden">
-                      <p className="text-sm font-bold text-slate-900 truncate">{feeBreakdownFile.name}</p>
-                      <p className="text-xs text-slate-500">{feeBreakdownFile.size} &middot; Uploaded</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <a 
-                      href={feeBreakdownFile.url} 
-                      download={feeBreakdownFile.name}
-                      className="flex-1 inline-flex justify-center items-center gap-2 h-9 px-3 rounded-lg bg-white border border-slate-200 text-sm font-medium hover:bg-slate-50 text-brand-600 transition-colors"
-                    >
-                      <Download size={14} /> Download
-                    </a>
-                    <button 
-                      onClick={removeFeeBreakdown}
-                      className="h-9 px-3 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors flex items-center justify-center"
-                      title="Remove Breakdown"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                  ))}
                 </div>
               ) : (
-                <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef}
-                    className="hidden" 
-                    accept=".pdf,.doc,.docx,.jpg,.png,.csv,.xlsx" 
-                    onChange={handleFileUpload} 
-                  />
+                <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => setIsFeeUploadModalOpen(true)}>
                   <UploadCloud size={32} className="mx-auto text-slate-400 group-hover:text-brand-500 mb-3 transition-colors" />
-                  <p className="text-sm font-bold text-slate-900 mb-1">Upload Fee Breakdown</p>
-                  <p className="text-xs text-slate-500">PDF, Excel, or Word (Max 5MB)</p>
-                  <Button size="sm" variant="outline" className="mt-4 rounded-full bg-white font-medium text-xs">
-                    Browse Files
-                  </Button>
+                  <p className="text-sm font-bold text-slate-900 mb-1">No Fee Breakdowns</p>
+                  <p className="text-xs text-slate-500">Click to upload fee scheme for a class</p>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Fee Breakdown Upload Modal */}
+      {isFeeUploadModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <Card className="w-full max-w-md border-0 shadow-2xl">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-4">
+              <CardTitle>Upload Fee Scheme</CardTitle>
+              <button onClick={() => setIsFeeUploadModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </CardHeader>
+            <CardContent className="p-6">
+              <form onSubmit={saveFeeBreakdown} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Class</Label>
+                    <select 
+                      className="flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      value={uploadData.targetClass}
+                      onChange={(e) => setUploadData({...uploadData, targetClass: e.target.value})}
+                    >
+                      <option value="All Classes">All Classes</option>
+                      <option value="JSS 1">JSS 1</option>
+                      <option value="JSS 2">JSS 2</option>
+                      <option value="JSS 3">JSS 3</option>
+                      <option value="SSS 1">SSS 1</option>
+                      <option value="SSS 2">SSS 2</option>
+                      <option value="SSS 3">SSS 3</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Term</Label>
+                    <select 
+                      className="flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      value={uploadData.term}
+                      onChange={(e) => setUploadData({...uploadData, term: e.target.value})}
+                    >
+                      {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Academic Session</Label>
+                  <select 
+                    className="flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    value={uploadData.session}
+                    onChange={(e) => setUploadData({...uploadData, session: e.target.value})}
+                  >
+                    {sessions.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Document File</Label>
+                  {uploadData.fileData ? (
+                    <div className="bg-blue-50 text-blue-700 p-3 rounded-lg flex items-center justify-between text-sm font-medium border border-blue-100">
+                      <div className="truncate flex-1">{uploadData.fileData.name} ({uploadData.fileData.size})</div>
+                      <button type="button" onClick={() => setUploadData({...uploadData, fileData: null})} className="text-blue-500 hover:text-blue-700 ml-2">
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                      <input 
+                        type="file" 
+                        ref={fileInputRef}
+                        className="hidden" 
+                        accept=".pdf,.doc,.docx,.jpg,.png,.csv,.xlsx" 
+                        onChange={handleFileUpload} 
+                        required
+                      />
+                      <UploadCloud size={24} className="mx-auto text-slate-400 group-hover:text-brand-500 mb-2 transition-colors" />
+                      <p className="text-sm font-medium text-slate-700">Click to browse files</p>
+                      <p className="text-xs text-slate-500 mt-1">PDF, Excel, Word (Max 5MB)</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 flex justify-end gap-3">
+                  <Button type="button" variant="outline" onClick={() => setIsFeeUploadModalOpen(false)}>Cancel</Button>
+                  <Button type="submit" variant="brand" disabled={!uploadData.fileData}>Save Fee Scheme</Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Record Payment Modal */}
       {isRecordModalOpen && (

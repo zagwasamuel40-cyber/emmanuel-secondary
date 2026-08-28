@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation, Navigate } from "react-router-dom";
+import { Outlet, Link, useLocation, Navigate, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, 
   Users, 
@@ -35,11 +35,19 @@ const navigation = [
 
 export default function DashboardLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const role = localStorage.getItem('userRole') || 'admin';
   const [portalSettings] = usePortalSettings();
   const isStaff = role === 'teacher' || role === 'staff';
   const isSuperAdmin = role === 'superadmin' || role === 'super_admin' || role === 'admission_admin';
   const isPortalAdmin = role === 'portaladmin' || role === 'portal_admin';
+
+  const handleLogout = () => {
+    localStorage.removeItem('loggedInUserId');
+    localStorage.removeItem('loggedInStudentId');
+    localStorage.removeItem('userRole');
+    navigate('/');
+  };
 
   const allowedStaffPaths = ['/dashboard/students', '/dashboard/enrollment', '/dashboard/examinations', '/dashboard/profile'];
   const allowedSuperAdminPaths = ['/dashboard/admissions', '/dashboard/enrollment', '/dashboard/profile'];
@@ -74,9 +82,9 @@ export default function DashboardLayout() {
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
       <aside className="w-full md:w-64 bg-slate-900 text-slate-300 md:min-h-screen flex-shrink-0 flex flex-col print:hidden">
         <div className="h-16 flex items-center px-6 bg-slate-950/50 justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={handleLogout} title="Click to logout">
             {portalSettings.logoUrl && <img src={portalSettings.logoUrl} alt="School Logo" className="w-8 h-8 rounded-full object-cover" />}
-            <span className="font-heading font-bold text-white text-sm tracking-wide line-clamp-1" title={portalSettings.schoolName}>
+            <span className="font-heading font-bold text-white text-sm tracking-wide line-clamp-1">
               {portalSettings.schoolName || "Admin Dashboard"}
             </span>
           </div>
@@ -101,10 +109,10 @@ export default function DashboardLayout() {
           })}
         </nav>
         <div className="p-4 border-t border-slate-800">
-          <Link to="/" className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:text-white transition-colors">
+          <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:text-white transition-colors w-full text-left">
             <LogOut size={18} className="text-slate-400" />
             Sign Out
-          </Link>
+          </button>
         </div>
       </aside>
 

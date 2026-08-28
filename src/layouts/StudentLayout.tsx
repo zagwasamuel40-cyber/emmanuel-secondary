@@ -1,6 +1,7 @@
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useStudents } from "../data/studentsData";
+import { usePortalSettings } from "../data/portalSettingsData";
 import { 
   Home, 
   BookOpen, 
@@ -22,6 +23,8 @@ const navigation = [
 
 export default function StudentLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [portalSettings] = usePortalSettings();
   const [students] = useStudents();
   const [student, setStudent] = useState<any>(null);
 
@@ -36,11 +39,21 @@ export default function StudentLayout() {
     }
   }, [students]);
 
+  const handleLogout = () => {
+    localStorage.removeItem('loggedInUserId');
+    localStorage.removeItem('loggedInStudentId');
+    localStorage.removeItem('userRole');
+    navigate('/');
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
       <aside className="w-full md:w-64 bg-brand-900 text-slate-300 md:min-h-screen flex-shrink-0 flex flex-col print:hidden">
-        <div className="h-16 flex items-center px-6 bg-brand-950/50">
-          <span className="font-heading font-bold text-white text-lg tracking-wide">Student Portal</span>
+        <div className="h-16 flex items-center px-6 bg-brand-950/50 justify-between">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={handleLogout} title="Click to logout">
+            {portalSettings.logoUrl && <img src={portalSettings.logoUrl} alt="School Logo" className="w-8 h-8 rounded-full object-cover" />}
+            <span className="font-heading font-bold text-white text-lg tracking-wide line-clamp-1">Student Portal</span>
+          </div>
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
           {navigation.map((item) => {
@@ -62,10 +75,10 @@ export default function StudentLayout() {
           })}
         </nav>
         <div className="p-4 border-t border-brand-800">
-          <Link to="/" className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:text-white transition-colors">
+          <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:text-white transition-colors w-full text-left">
             <LogOut size={18} className="text-brand-300" />
             Sign Out
-          </Link>
+          </button>
         </div>
       </aside>
 

@@ -1,22 +1,36 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, Button } from "@/src/components/ui";
 import { CreditCard, Download, ShieldCheck, CheckCircle2, FileText } from "lucide-react";
+import { useStudents } from "../../data/studentsData";
 
 export default function StudentFees() {
   const [isPaid, setIsPaid] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [feeBreakdownFile, setFeeBreakdownFile] = useState<{ name: string, url: string, size: string } | null>(null);
+  const [feeBreakdowns, setFeeBreakdowns] = useState<any[]>([]);
+  
+  const [students] = useStudents();
+  const loggedInId = localStorage.getItem('loggedInStudentId');
+  const currentStudent = students.find(s => s.id === loggedInId || s.name.toLowerCase().includes((loggedInId || '').toLowerCase()));
+  const studentClass = currentStudent?.class || "JSS 1";
 
   useEffect(() => {
-    const stored = localStorage.getItem("ess_fee_breakdown");
+    const stored = localStorage.getItem("ess_fee_breakdowns");
     if (stored) {
       try {
-        setFeeBreakdownFile(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        setFeeBreakdowns(parsed.filter((f: any) => f.targetClass === studentClass || f.targetClass === "All Classes"));
       } catch (e) {
-        console.error("Failed to parse fee breakdown", e);
+        console.error("Failed to parse fee breakdowns", e);
+      }
+    } else {
+      const oldStored = localStorage.getItem("ess_fee_breakdown");
+      if (oldStored) {
+        try {
+          setFeeBreakdowns([{ ...JSON.parse(oldStored), id: 'old', targetClass: "All Classes", term: "Current Term", session: "Current Session" }]);
+        } catch (e) {}
       }
     }
-  }, []);
+  }, [studentClass]);
 
   const handlePayment = () => {
     setProcessing(true);
@@ -78,24 +92,29 @@ export default function StudentFees() {
                   </table>
                 </div>
 
-                {feeBreakdownFile && (
-                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                        <FileText size={20} />
+                {feeBreakdowns.length > 0 && (
+                  <div className="space-y-3 mt-6">
+                    <h4 className="font-bold text-slate-900 text-sm">Official Fee Documents</h4>
+                    {feeBreakdowns.map((fb, idx) => (
+                      <div key={idx} className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                            <FileText size={20} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-slate-900">Fee Scheme: {fb.term} ({fb.session})</p>
+                            <p className="text-xs text-slate-500">{fb.name} &middot; {fb.size}</p>
+                          </div>
+                        </div>
+                        <a 
+                          href={fb.url} 
+                          download={fb.name}
+                          className="inline-flex justify-center items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-sm font-medium rounded-lg text-brand-600 transition-colors shrink-0 shadow-sm"
+                        >
+                          <Download size={16} /> Download
+                        </a>
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-900">Official Fee Breakdown Document</p>
-                        <p className="text-xs text-slate-500">{feeBreakdownFile.name} ({feeBreakdownFile.size})</p>
-                      </div>
-                    </div>
-                    <a 
-                      href={feeBreakdownFile.url} 
-                      download={feeBreakdownFile.name}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-sm font-medium rounded-lg text-brand-600 transition-colors shrink-0 shadow-sm"
-                    >
-                      <Download size={16} /> Download
-                    </a>
+                    ))}
                   </div>
                 )}
               </CardContent>
