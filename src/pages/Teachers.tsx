@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useStudents } from "../data/studentsData";
+import { useTeachers, Teacher } from "../data/teachersData";
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@/src/components/ui";
 import { 
   Search, Plus, Filter, Edit, Trash2, X, Eye, 
@@ -9,23 +10,6 @@ import {
   Check, Layers, BarChart3, Calculator, ListOrdered, ArrowRight, RefreshCw, FileCheck,
   ShieldCheck, ShieldAlert, Lock, Unlock, User, UserCog, Hash, KeyRound, Copy
 } from "lucide-react";
-
-// Teacher Record Interface
-interface Teacher {
-  id: string; // Staff Number / ID
-  name: string;
-  department: string;
-  role: string;
-  status: 'Active' | 'On Leave' | 'Inactive';
-  email: string;
-  phone: string;
-  address: string;
-  subjects: string[];
-  assignedClasses: string[];
-  password: string;
-  systemRole?: 'Teacher' | 'Admin' | 'Admission Officer' | 'Portal Admin' | 'Super Admin';
-  passportUrl?: string;
-}
 
 // Student Record Interface for Enrollment & Results
 interface Student {
@@ -58,65 +42,6 @@ interface ScoreRecord {
   remark: string;
   position?: string;
 }
-
-const initialTeachers: Teacher[] = [
-  {
-    id: "TCH/2026/001",
-    name: "Dr. Samuel Okoh",
-    department: "Sciences",
-    role: "Senior Master & HOD Science",
-    status: "Active",
-    email: "s.okoh@staff.ess.edu.ng",
-    phone: "+234 803 456 7890",
-    address: "24 Executive Quarters, Makurdi, Benue State",
-    subjects: ["Physics", "Further Mathematics"],
-    assignedClasses: ["SSS 2A", "SSS 3A"],
-    password: "teacher123",
-    systemRole: 'Admin'
-  },
-  {
-    id: "TCH/2026/002",
-    name: "Mrs. Victoria Danjuma",
-    department: "Mathematics",
-    role: "Class Teacher - SSS 1B",
-    status: "Active",
-    email: "v.danjuma@staff.ess.edu.ng",
-    phone: "+234 802 345 6789",
-    address: "12 GRA Extension, Makurdi",
-    subjects: ["General Mathematics"],
-    assignedClasses: ["SSS 1A", "SSS 1B", "JSS 3C"],
-    password: "teacher123",
-    systemRole: 'Teacher'
-  },
-  {
-    id: "TCH/2026/003",
-    name: "Mr. Chukwuma Eze",
-    department: "Arts & Humanities",
-    role: "Subject Teacher & Sports Master",
-    status: "Active",
-    email: "c.eze@staff.ess.edu.ng",
-    phone: "+234 805 678 9012",
-    address: "45 Modern Market Road, Makurdi",
-    subjects: ["English Language", "Literature in English"],
-    assignedClasses: ["JSS 1A", "JSS 2B", "SSS 2C"],
-    password: "teacher123",
-    systemRole: 'Teacher'
-  },
-  {
-    id: "TCH/2026/004",
-    name: "Mrs. Fatima Bello",
-    department: "Commercials",
-    role: "HOD Commercial Department",
-    status: "Active",
-    email: "f.bello@staff.ess.edu.ng",
-    phone: "+234 807 890 1234",
-    address: "10 Wurukum Avenue, Makurdi",
-    subjects: ["Financial Accounting", "Economics"],
-    assignedClasses: ["SSS 2B", "SSS 3B"],
-    password: "teacher123",
-    systemRole: 'Admin'
-  }
-];
 
 const initialStudentsList: Student[] = [
   { id: "ESS/2026/001", name: "Oluwaseun Adebayo", class: "SSS 3A", gender: "Male", parentNumber: "+234 803 123 4567", address: "14 High Street, Makurdi", enrollmentStatus: "Active Student", status: "Active", fees: "Paid" },
@@ -153,7 +78,7 @@ export default function Teachers() {
   const [activeMainTab, setActiveMainTab] = useState<"dashboard" | "directory">("dashboard");
 
   // Selected Logged-in Staff perspective
-  const [teachers, setTeachers] = useState<Teacher[]>(initialTeachers);
+  const [teachers, setTeachers] = useTeachers();
   const [activeStaffId, setActiveStaffId] = useState<string>("TCH/2026/001");
   const currentStaff = teachers.find(t => t.id === activeStaffId) || teachers[0];
 
@@ -217,6 +142,7 @@ export default function Teachers() {
     password: string;
     isAdmin: boolean;
     customId: string;
+    passportUrl?: string;
   }>({
     name: "",
     department: "Sciences",
@@ -228,7 +154,7 @@ export default function Teachers() {
     subjects: ["Mathematics"],
     assignedClasses: ["SSS 1A"],
     password: "pass" + Math.floor(1000 + Math.random() * 9000),
-    systemRole: 'Teacher',
+    isAdmin: false,
     customId: ""
   });
 
@@ -250,7 +176,7 @@ export default function Teachers() {
       subjects: createStaffForm.subjects,
       assignedClasses: createStaffForm.assignedClasses,
       password: createStaffForm.password || "teacher123",
-      systemRole: createStaffForm.systemRole as any,
+      systemRole: createStaffForm.isAdmin ? 'Admin' : 'Teacher',
       passportUrl: createStaffForm.passportUrl
     };
 
@@ -267,8 +193,9 @@ export default function Teachers() {
       subjects: ["Mathematics"],
       assignedClasses: ["SSS 1A"],
       password: "pass" + Math.floor(1000 + Math.random() * 9000),
-      systemRole: 'Teacher',
-      customId: ""
+      isAdmin: false,
+      customId: "",
+      passportUrl: undefined
     });
 
     setNotificationMsg(`Success: Created Staff Profile for ${newStaffMember.name} (${newStaffMember.id})!`);

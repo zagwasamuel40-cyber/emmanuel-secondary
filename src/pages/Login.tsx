@@ -1,15 +1,20 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { BookOpen, User, Lock, ArrowRight, CheckCircle2, Shield, GraduationCap, Users, Sparkles } from "lucide-react";
+import { BookOpen, User, Lock, ArrowRight, CheckCircle2, Shield, GraduationCap, Users, Sparkles, AlertCircle } from "lucide-react";
 import { usePortalSettings } from "../data/portalSettingsData";
+import { useTeachers } from "../data/teachersData";
+import { useStudents } from "../data/studentsData";
 import { Button, Card, CardContent, Input, Label } from "@/src/components/ui";
 
 export default function Login() {
   const [portalSettings] = usePortalSettings();
+  const [teachers] = useTeachers();
+  const [students] = useStudents();
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   // Forgot Password State
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
@@ -86,26 +91,76 @@ export default function Login() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    const role = detectRole(identifier || 'admin');
-    if (role === 'student') {
-      localStorage.setItem('loggedInStudentId', identifier);
-    }
-    localStorage.setItem('userRole', role);
+    setErrorMsg("");
 
     setTimeout(() => {
-      setLoading(false);
-      if (role === 'student') {
-        navigate('/student');
-      } else if (role === 'teacher') {
-        navigate('/dashboard/students');
-      } else if (role === 'superadmin') {
-        navigate('/dashboard/admissions');
-      } else if (role === 'portaladmin') {
-        navigate('/dashboard/portal-manager');
-      } else {
-        navigate('/dashboard');
+      const searchId = identifier.trim().toLowerCase();
+      
+      // Check teachers
+      const matchedTeacher = teachers.find(t => 
+        t.id.toLowerCase() === searchId || 
+        t.email.toLowerCase() === searchId
+      );
+
+      if (matchedTeacher) {
+        if (matchedTeacher.password === password) {
+          localStorage.setItem('loggedInUserId', matchedTeacher.id);
+          let role = 'teacher';
+          
+          if (matchedTeacher.systemRole === 'Admin' || matchedTeacher.systemRole === 'Super Admin') {
+            role = 'admin';
+          } else if (matchedTeacher.systemRole === 'Admission Officer') {
+            role = 'superadmin';
+          } else if (matchedTeacher.systemRole === 'Portal Admin') {
+            role = 'portaladmin';
+          }
+          
+          localStorage.setItem('userRole', role);
+          setLoading(false);
+          
+          if (role === 'teacher') navigate('/dashboard/students');
+          else if (role === 'superadmin') navigate('/dashboard/admissions');
+          else if (role === 'portaladmin') navigate('/dashboard/portal-manager');
+          else navigate('/dashboard'); // admin has full access
+          return;
+        } else {
+          setLoading(false);
+          setErrorMsg("Invalid password for staff account.");
+          return;
+        }
       }
+
+      // Check students (Basic mock check for now)
+      const matchedStudent = students.find(s => 
+        s.id.toLowerCase() === searchId
+      );
+
+      if (matchedStudent) {
+        // Students might not have passwords in the initial mock data, we just check if ID matches
+        // But if you want a basic password check for demo:
+        if (password === 'password123') {
+          localStorage.setItem('loggedInStudentId', matchedStudent.id);
+          localStorage.setItem('userRole', 'student');
+          setLoading(false);
+          navigate('/student');
+          return;
+        } else {
+          setLoading(false);
+          setErrorMsg("Invalid password for student account.");
+          return;
+        }
+      }
+      
+      // Fallback for hardcoded admin if not in DB (for safety)
+      if (searchId === 'admin' || searchId === 'admin@ess.edu.ng') {
+        localStorage.setItem('userRole', 'admin');
+        setLoading(false);
+        navigate('/dashboard');
+        return;
+      }
+
+      setLoading(false);
+      setErrorMsg("Account not found. Please check your credentials.");
     }, 800);
   };
 
@@ -241,6 +296,12 @@ export default function Login() {
         <Card className="border-0 shadow-xl shadow-slate-200/50">
           <CardContent className="p-8">
             <form className="space-y-5" onSubmit={handleLogin}>
+              {errorMsg && (
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3 rounded-lg flex items-start gap-2 text-sm font-medium">
+                  <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                  <p>{errorMsg}</p>
+                </div>
+              )}
               <div className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
