@@ -7,7 +7,7 @@ import { useSessions, TERMS } from "../data/sessionsData";
 import { useAssignments } from "../data/assignmentsData";
 import { useExams, Exam, Question, defaultQuestionsMap } from "../data/examsData";
 
-import { Sparkles } from "lucide-react";
+import { Sparkles , Download } from "lucide-react";
 
 import { 
   BookOpen, GraduationCap, Award, Calendar, FileText, Plus, BookCheck, X, 
@@ -74,7 +74,9 @@ export default function Academics() {
     passMark: "50",
     questionsCount: "5",
     aiMode: true
-  });
+  , topics: '', accessCode: ''});
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [notificationMsg, setNotificationMsg] = useState('');
 
   // Question Form State (for question editor)
   const [newQuestion, setNewQuestion] = useState({
@@ -93,9 +95,70 @@ export default function Academics() {
   const [timeRemaining, setTimeRemaining] = useState(0); // in seconds
   const [cbtScore, setCbtScore] = useState({ score: 0, total: 0, percentage: 0 });
 
+  const downloadCbt = (exam: Exam) => {
+    if (!exam.questions || exam.questions.length === 0) {
+      setNotificationMsg("No questions available to download.");
+      setTimeout(() => setNotificationMsg(""), 3000);
+      return;
+    }
+    const lines = [`${exam.title} - ${exam.subject} CBT Questions`, ""];
+    exam.questions.forEach((q, i) => {
+      lines.push(`Q${i + 1}: ${q.text}`);
+      q.options.forEach((opt, oi) => {
+        lines.push(`  ${String.fromCharCode(65 + oi)}. ${opt}`);
+      });
+      lines.push(`  Correct Answer: ${q.options[q.correctOption]}`);
+      lines.push("");
+    });
+    const blob = new Blob([lines.join("\n")], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${exam.title}_CBT.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+
   // Handle Exam Creation
-  const handleCreateExam = (e: React.FormEvent) => {
+  
+  const handleCreateExam = async (e: React.FormEvent) => {
     e.preventDefault();
+    let generatedQuestions = [...defaultQuestionsMap.default];
+    if (newExam.aiMode) {
+        setIsGenerating(true);
+        setNotificationMsg("Generating CBT questions using AI...");
+        try {
+            const response = await fetch("/api/generate-questions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    className: newExam.targetClass, 
+                    subject: newExam.subject, 
+                    count: parseInt(newExam.questionsCount) || 10,
+                    topics: newExam.topics 
+                })
+            });
+            const data = await response.json();
+            if (response.ok && data.questions && Array.isArray(data.questions)) {
+                generatedQuestions = data.questions.map((q, index) => ({
+                    id: index + 1,
+                    text: q.text,
+                    options: q.options,
+                    correctOption: q.options.indexOf(q.answer) !== -1 ? q.options.indexOf(q.answer) : 0
+                }));
+                setNotificationMsg("Successfully generated CBT questions!");
+            } else {
+                setNotificationMsg("AI generation failed, using fallback questions.");
+            }
+        } catch (error) {
+            console.error(error);
+            setNotificationMsg("AI generation failed, using fallback questions.");
+        }
+        setIsGenerating(false);
+        setTimeout(() => setNotificationMsg(""), 3000);
+    }
+
     const newId = exams.length ? Math.max(...exams.map(e => e.id)) + 1 : 1;
     
     const formattedDate = new Date(newExam.date).toLocaleDateString('en-US', {
@@ -114,7 +177,8 @@ export default function Academics() {
       duration: parseInt(newExam.duration) || 45,
       passMark: parseInt(newExam.passMark) || 50,
       status: "Upcoming",
-      questions: [...defaultQuestionsMap.default] // auto-populated with sample questions so CBT is ready!
+      questions: generatedQuestions,
+      accessCode: newExam.accessCode
     };
 
     setExams([createdExam, ...exams]);
@@ -123,13 +187,19 @@ export default function Academics() {
       title: "",
       subject: "Mathematics",
       targetClass: "SSS 3A",
+      session: "2025/2026",
+      term: "First Term",
       type: "CBT",
       date: new Date().toISOString().split('T')[0],
       duration: "45",
       passMark: "50",
-      questionsCount: "5"
+      questionsCount: "5",
+      aiMode: true,
+      topics: "",
+      accessCode: ""
     });
   };
+
 
   // Handle Exam Update
   const handleUpdateExam = (e: React.FormEvent) => {
@@ -235,6 +305,13 @@ export default function Academics() {
 
   return (
     <div className="space-y-6">
+
+      {notificationMsg && (
+        <div className="fixed bottom-4 right-4 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-xl z-[60] flex items-center gap-2">
+          <span>{notificationMsg}</span>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold font-heading text-slate-900">Academic & CBT Management</h2>
@@ -397,6 +474,14 @@ export default function Academics() {
                     >
                       <Play size={14} /> Take / Test CBT
                     </Button>
+                    
+                    <button 
+                      onClick={() => downloadCbt(exam)} 
+                      className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                      title="Download CBT Questions"
+                    >
+                      <Download size={16} />
+                    </button>
                     <button 
                       onClick={() => setQuestionModalExam(exam)} 
                       className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
@@ -651,7 +736,29 @@ export default function Academics() {
                     </Label>
                   </div>
                 </div>
+                
                 <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="topics">Topics (Optional, for AI)</Label>
+                    <Input 
+                      id="topics" 
+                      value={newExam.topics}
+                      onChange={(e) => setNewExam({...newExam, topics: e.target.value})}
+                      placeholder="e.g. Algebra, Geometry"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="accessCode">Access Code (PIN) (Optional)</Label>
+                    <Input 
+                      id="accessCode" 
+                      value={newExam.accessCode}
+                      onChange={(e) => setNewExam({...newExam, accessCode: e.target.value})}
+                      placeholder="e.g. 1234"
+                    />
+                  </div>
+                </div>
+
+<div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="duration">Duration (Minutes)</Label>
                     <Input 
@@ -685,7 +792,8 @@ export default function Academics() {
                   <Button type="button" variant="outline" className="w-full" onClick={() => setIsCreateModalOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" variant="brand" className="w-full">
+                  <Button type="submit" variant="brand" className="w-full" disabled={isGenerating}>
+                    {isGenerating ? "Generating..." : "Save & Publish CBT Exam"}
                     Save & Publish CBT Exam
                   </Button>
                 </div>

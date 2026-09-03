@@ -99,6 +99,8 @@ export default function Examinations() {
   
   const isStaff = userRoles.includes('Teacher');
   const isExaminationAdmin = userRoles.includes('Examination Admin');
+  const isGeneralAdmin = userRoles.includes('General Admin') || userRoles.includes('Admin') || userRoles.includes('Super Admin');
+  const hasAdminAccess = isExaminationAdmin || isGeneralAdmin || !isStaff;
   const [sessions] = useSessions();
   const SESSIONS = sessions;
   const [scores, setScores] = useScores();
@@ -626,7 +628,7 @@ export default function Examinations() {
           </p>
         </div>
 
-        {!isStaff && (
+        {hasAdminAccess && (
           <div className="flex flex-wrap items-center gap-2">
             <Button 
               variant="outline" 
@@ -814,7 +816,7 @@ export default function Examinations() {
             </div>
 
 
-          {!isStaff && (
+          {hasAdminAccess && (
             <>
               {/* ADMIN SECTION 2: RESULTS & BROADSHEETS */}
               <div className="space-y-2 pt-1 border-t border-slate-800">

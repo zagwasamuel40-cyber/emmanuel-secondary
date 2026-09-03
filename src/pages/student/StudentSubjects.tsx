@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, Button, Label } from "@/src/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, Button, Label, Input } from "@/src/components/ui";
 import { useCbtQuestions } from "../../data/cbtQuestions";
 import { StudentReportCard } from "../../components/StudentReportCard";
 import { 
@@ -99,6 +99,32 @@ export default function StudentSubjects() {
   const [cbtAnswers, setCbtAnswers] = useState<Record<number, string>>({});
   const [cbtQuestions] = useCbtQuestions();
   const [activeCbtExam, setActiveCbtExam] = useState<any>(null);
+
+  const [pinModalExam, setPinModalExam] = useState<any>(null);
+  const [enteredPin, setEnteredPin] = useState("");
+  const [pinError, setPinError] = useState("");
+
+  const handleStartCbt = (exam: any) => {
+    if (exam.accessCode) {
+      setPinModalExam(exam);
+      setEnteredPin("");
+      setPinError("");
+    } else {
+      setActiveCbtExam(exam); 
+      setExamActive(true);
+    }
+  };
+
+  const handleVerifyPin = () => {
+    if (pinModalExam && enteredPin === pinModalExam.accessCode) {
+      setActiveCbtExam(pinModalExam);
+      setExamActive(true);
+      setPinModalExam(null);
+    } else {
+      setPinError("Invalid Access Code. Please try again or contact your teacher.");
+    }
+  };
+
   
   const loggedInId = localStorage.getItem('loggedInStudentId');
   const currentStudent = students.find(s => s.id === loggedInId || s.name.toLowerCase().includes((loggedInId || '').toLowerCase()));
@@ -297,6 +323,37 @@ export default function StudentSubjects() {
 
   return (
     <div className="space-y-6">
+
+      {pinModalExam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <Card className="w-full max-w-sm border-0 shadow-2xl">
+            <CardHeader className="border-b border-slate-100 pb-4">
+              <CardTitle>Enter Access Code</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <p className="text-sm text-slate-600">
+                This CBT exam requires an access code. Please enter the PIN provided by your teacher.
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="pin">Access Code</Label>
+                <Input 
+                  id="pin" 
+                  value={enteredPin} 
+                  onChange={(e) => setEnteredPin(e.target.value)} 
+                  placeholder="e.g. 1234"
+                  type="password"
+                />
+              </div>
+              {pinError && <p className="text-xs text-red-600">{pinError}</p>}
+              <div className="flex gap-3 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => setPinModalExam(null)}>Cancel</Button>
+                <Button variant="brand" className="flex-1" onClick={handleVerifyPin}>Start CBT</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold font-heading text-slate-900">My Subjects & CBT</h2>
@@ -745,7 +802,7 @@ export default function StudentSubjects() {
                       {examSubmitted ? (
                         <Button variant="outline" className="w-full mt-auto" disabled>Submitted Successfully</Button>
                       ) : (
-                        <Button variant="brand" className="w-full mt-auto" onClick={() => { setActiveCbtExam(exam); setExamActive(true); }}>Start Examination</Button>
+                        <Button variant="brand" className="w-full mt-auto" onClick={() => handleStartCbt(exam)}>Start Examination</Button>
                       )}
                     </div>
                   ))

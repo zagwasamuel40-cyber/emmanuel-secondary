@@ -15,7 +15,7 @@ async function startServer() {
   // AI API Route
   app.post("/api/generate-questions", async (req, res) => {
     try {
-      const { className, subject, count } = req.body;
+      const { className, subject, count, topics } = req.body;
       
       if (!process.env.GEMINI_API_KEY) {
         return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });
@@ -30,7 +30,10 @@ async function startServer() {
         }
       });
       
-      const prompt = `Generate ${count || 10} entrance examination questions for ${className} level students in Nigeria. Subject: ${subject || "General Knowledge (Math & English)"}.`;
+      let prompt = `Generate ${count || 10} examination questions for ${className} level students in Nigeria. Subject: ${subject || "General Knowledge"}.`;
+      if (topics && topics.trim().length > 0) {
+        prompt += ` Focus specifically on the following topics: ${topics}.`;
+      }
       
       const response = await ai.models.generateContent({
         model: "gemini-3.6-flash",

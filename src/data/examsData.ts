@@ -18,6 +18,7 @@ export interface Exam {
   passMark: number; // percentage e.g. 50
   status: string;
   questions: Question[];
+  accessCode?: string;
 }
 
 export const defaultQuestionsMap: Record<string, Question[]> = {
