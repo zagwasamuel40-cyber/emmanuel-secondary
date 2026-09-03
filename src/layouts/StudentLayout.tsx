@@ -46,6 +46,27 @@ export default function StudentLayout() {
     navigate('/');
   };
 
+  const impersonatingName = localStorage.getItem('impersonatingName');
+  
+  const handleStopImpersonating = () => {
+    const originalUserId = localStorage.getItem('originalAdminUserId');
+    const originalRoles = localStorage.getItem('originalAdminRoles');
+    const originalRole = localStorage.getItem('originalAdminRole');
+    
+    if (originalUserId) localStorage.setItem('loggedInUserId', originalUserId);
+    if (originalRoles) localStorage.setItem('userRoles', originalRoles);
+    if (originalRole) localStorage.setItem('userRole', originalRole);
+    
+    localStorage.removeItem('impersonatingName');
+    localStorage.removeItem('impersonatingType');
+    localStorage.removeItem('originalAdminUserId');
+    localStorage.removeItem('originalAdminRoles');
+    localStorage.removeItem('originalAdminRole');
+    localStorage.removeItem('loggedInStudentId');
+    
+    navigate('/dashboard/students');
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
       <aside className="w-full md:w-64 bg-brand-900 text-slate-300 md:min-h-screen flex-shrink-0 flex flex-col print:hidden">
@@ -83,6 +104,20 @@ export default function StudentLayout() {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0">
+        {impersonatingName && (
+          <div className="bg-amber-500 text-amber-950 px-4 py-2 text-sm font-semibold flex items-center justify-between shadow-md print:hidden z-50">
+            <div className="flex items-center gap-2">
+              <User size={18} />
+              <span>Administrator View — You are viewing this account as {impersonatingName}.</span>
+            </div>
+            <button 
+              onClick={handleStopImpersonating}
+              className="px-3 py-1 bg-amber-900 text-amber-50 rounded hover:bg-amber-950 transition-colors text-xs"
+            >
+              Return to Admin Dashboard
+            </button>
+          </div>
+        )}
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 lg:px-8 print:hidden">
           <div className="flex items-center gap-4 flex-1">
             <button className="md:hidden text-slate-500 hover:text-slate-700">

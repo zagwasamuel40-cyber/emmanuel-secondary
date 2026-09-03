@@ -84,7 +84,21 @@ const calculateGrade = (total: number): { grade: string; remark: string } => {
 
 export default function Examinations() {
   const [portalSettings] = usePortalSettings();
-  const isStaff = localStorage.getItem('userRole') === 'teacher' || localStorage.getItem('userRole') === 'staff';
+  let userRoles: string[] = [];
+  try {
+    userRoles = JSON.parse(localStorage.getItem('userRoles') || '[]');
+  } catch (e) {}
+
+  if (userRoles.length === 0) {
+    const r = localStorage.getItem('userRole') || 'admin';
+    if (r === 'admin') userRoles = ['Admin'];
+    else if (r === 'superadmin') userRoles = ['Admission Officer'];
+    else if (r === 'portaladmin') userRoles = ['Portal Admin'];
+    else userRoles = ['Teacher'];
+  }
+  
+  const isStaff = userRoles.includes('Teacher');
+  const isExaminationAdmin = userRoles.includes('Examination Admin');
   const [sessions] = useSessions();
   const SESSIONS = sessions;
   const [scores, setScores] = useScores();

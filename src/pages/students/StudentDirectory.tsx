@@ -17,10 +17,41 @@ export default function StudentDirectory({ students, setStudents }: any) {
     return matchesSearch && matchesStatus;
   });
 
+  const handleImpersonateStudent = (student: any) => {
+    localStorage.setItem('originalAdminUserId', localStorage.getItem('loggedInUserId') || '');
+    localStorage.setItem('originalAdminRoles', localStorage.getItem('userRoles') || '');
+    localStorage.setItem('originalAdminRole', localStorage.getItem('userRole') || '');
+
+    localStorage.setItem('loggedInStudentId', student.id);
+    localStorage.setItem('userRole', 'student');
+    localStorage.setItem('impersonatingName', student.name);
+    localStorage.setItem('impersonatingType', 'student');
+    
+    window.location.href = '/student';
+  };
+
   const handleDelete = (id: string) => {
-    if(window.confirm("Are you sure you want to delete this student?")) {
-      setStudents(students.filter((s: any) => s.id !== id));
-      setSuccessMsg("Student deleted successfully.");
+    if(window.confirm("Are you sure you want to withdraw/deactivate this student? Their historical records and dashboard will be preserved.")) {
+      setStudents(students.map((s: any) => {
+        if (s.id === id) {
+          return { ...s, status: 'Withdrawn' };
+        }
+        return s;
+      }));
+      setSuccessMsg("Student has been marked as Withdrawn. Their records have been preserved.");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    }
+  };
+
+  const handleReactivate = (id: string) => {
+    if(window.confirm("Are you sure you want to reactivate this student account?")) {
+      setStudents(students.map((s: any) => {
+        if (s.id === id) {
+          return { ...s, status: 'Active' };
+        }
+        return s;
+      }));
+      setSuccessMsg("Student account has been reactivated successfully.");
       setTimeout(() => setSuccessMsg(""), 3000);
     }
   };
@@ -52,18 +83,32 @@ export default function StudentDirectory({ students, setStudents }: any) {
 
       <Card className="border-0 shadow-sm">
         <CardHeader className="border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4">
-          <div className="relative max-w-md w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <Input 
-              placeholder="Search by name, ID or class..." 
-              className="pl-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="flex flex-1 w-full gap-4 flex-col sm:flex-row">
+            <div className="relative max-w-md w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <Input 
+                placeholder="Search by name, ID or class..." 
+                className="pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="relative shrink-0 sm:w-48">
+              <select 
+                className="w-full h-10 pl-10 pr-4 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 appearance-none font-medium text-slate-700"
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+              >
+                <option value="All">All Statuses</option>
+                <option value="Active">Active</option>
+                <option value="Graduated">Graduated</option>
+                <option value="Withdrawn">Withdrawn</option>
+                <option value="Suspended">Suspended</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+              <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
           </div>
-          <Button variant="outline" className="gap-2 shrink-0">
-            <Filter size={16} /> Filters
-          </Button>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm text-left">
@@ -94,8 +139,12 @@ export default function StudentDirectory({ students, setStudents }: any) {
                   <td className="px-6 py-4 text-slate-500 font-mono text-xs">{student.id}</td>
                   <td className="px-6 py-4 font-semibold text-slate-900">{student.class}</td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      student.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                      student.status === 'Active' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 
+                      student.status === 'Graduated' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                      student.status === 'Withdrawn' ? 'bg-orange-100 text-orange-800 border-orange-200' :
+                      student.status === 'Suspended' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                      'bg-rose-100 text-rose-800 border-rose-200'
                     }`}>
                       {student.status}
                     </span>
@@ -103,19 +152,36 @@ export default function StudentDirectory({ students, setStudents }: any) {
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-end gap-1.5">
                       <button 
+                        onClick={() => handleImpersonateStudent(student)} 
+                        className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+                        title="View Dashboard"
+                      >
+                        <Eye size={16} />
+                      </button>
+                      <button 
                         onClick={() => setEditingStudent({...student, originalId: student.id})} 
                         className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Edit Name/Admission No."
+                        title="Edit Student"
                       >
                         <Edit size={16} />
                       </button>
-                      <button 
-                        onClick={() => handleDelete(student.id)} 
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                        title="Delete Student"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      {student.status === 'Active' ? (
+                        <button 
+                          onClick={() => handleDelete(student.id)} 
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Withdraw / Deactivate Student"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleReactivate(student.id)} 
+                          className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                          title="Reactivate Student Account"
+                        >
+                          <CheckCircle size={16} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -208,6 +274,9 @@ export default function StudentDirectory({ students, setStudents }: any) {
                     onChange={e => setEditingStudent({...editingStudent, status: e.target.value})}
                   >
                     <option value="Active">Active</option>
+                    <option value="Graduated">Graduated</option>
+                    <option value="Withdrawn">Withdrawn</option>
+                    <option value="Suspended">Suspended</option>
                     <option value="Inactive">Inactive</option>
                   </select>
                 </div>

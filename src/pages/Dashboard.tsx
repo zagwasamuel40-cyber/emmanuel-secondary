@@ -5,6 +5,7 @@ import { useSessions, TERMS } from "../data/sessionsData";
 import { useStudents, useAdmissionApps } from "../data/studentsData";
 import { usePins, PinRecord } from "../data/pinsData";
 import { useInquiries } from "../data/inquiriesData";
+import { useTeachers } from "../data/teachersData";
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@/src/components/ui";
 import { 
   Users, BookOpen, GraduationCap, TrendingUp, Download, Key, ShieldCheck, 
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
+import TeacherDashboard from "./dashboard/TeacherDashboard";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface PinAuditLog {
@@ -50,6 +52,37 @@ const performanceData = [
 export default function Dashboard() {
   const [sessions, setSessions] = useSessions();
   const [students, setStudents] = useStudents();
+  
+  let userRoles: string[] = [];
+  try {
+    userRoles = JSON.parse(localStorage.getItem('userRoles') || '[]');
+  } catch (e) {}
+
+  if (userRoles.length === 0) {
+    const r = localStorage.getItem('userRole') || 'admin';
+    if (r === 'admin') userRoles = ['General Admin'];
+    else if (r === 'superadmin') userRoles = ['Admission Officer'];
+    else if (r === 'portaladmin') userRoles = ['Portal Admin'];
+    else userRoles = ['Teacher'];
+  }
+
+  const isTeacher = userRoles.includes('Teacher');
+  const isExaminationAdmin = userRoles.includes('Examination Admin');
+  const isGeneralAdmin = userRoles.includes('General Admin') || userRoles.includes('Admin') || userRoles.includes('Super Admin');
+  const isPortalAdmin = userRoles.includes('Portal Admin');
+  const isAdmissionOfficer = userRoles.includes('Admission Officer');
+  const isFinanceOfficer = userRoles.includes('Finance/Admin Officer');
+  const isHRAdmin = userRoles.includes('HR/Staff Admin');
+  const isAcademicAdmin = userRoles.includes('Academic Admin');
+
+  const [teachers] = useTeachers();
+  const loggedInUserId = localStorage.getItem('loggedInUserId');
+  const teacher = teachers.find(t => t.id === loggedInUserId);
+
+  const impersonatingName = localStorage.getItem('impersonatingName');
+  const displayName = impersonatingName || (teacher ? teacher.name : "User");
+  const displayTitle = userRoles.join(" | ");
+
   const [admissionApps, setAdmissionApps] = useAdmissionApps();
   const [pins, setPins] = usePins();
   const [newsList, setNewsList] = useNews();
@@ -59,11 +92,16 @@ export default function Dashboard() {
   const SESSIONS = sessions;
 
   const stats = [
-    { title: "Total Students", value: students.length.toLocaleString(), icon: Users, trend: "+12.5%", color: "text-blue-600", bg: "bg-blue-50" },
-    { title: "Active Teachers", value: "148", icon: BookOpen, trend: "+2.4%", color: "text-brand-600", bg: "bg-brand-50" },
-    { title: "Average Score", value: "84.5%", icon: GraduationCap, trend: "+5.1%", color: "text-purple-600", bg: "bg-purple-50" },
-    { title: "Fee Collection", value: "₦45.2M", icon: TrendingUp, trend: "+15.3%", color: "text-amber-600", bg: "bg-amber-50" },
-  ];
+    { title: "Total Students", value: students.length.toLocaleString(), icon: Users, trend: "+12.5%", color: "text-blue-600", bg: "bg-blue-50", show: true },
+    { title: "Active Teachers", value: "148", icon: BookOpen, trend: "+2.4%", color: "text-brand-600", bg: "bg-brand-50", show: isGeneralAdmin || isHRAdmin || isAcademicAdmin },
+    { title: "Average Score", value: "84.5%", icon: GraduationCap, trend: "+5.1%", color: "text-purple-600", bg: "bg-purple-50", show: true },
+    { title: "Fee Collection", value: "₦45.2M", icon: TrendingUp, trend: "+15.3%", color: "text-amber-600", bg: "bg-amber-50", show: isGeneralAdmin || isFinanceOfficer },
+  ].filter(s => s.show);
+
+  const isTeacherOnly = isTeacher && !isGeneralAdmin && !isPortalAdmin && !isExaminationAdmin && !isAdmissionOfficer && !isFinanceOfficer && !isHRAdmin && !isAcademicAdmin;
+  if (isTeacherOnly && teacher) {
+    return <TeacherDashboard teacher={teacher} stats={stats} sessions={SESSIONS} newsList={newsList} />;
+  }
 
   // Handler: Approve Admission
   const handleApproveAdmission = (appId: string) => {
@@ -329,17 +367,26 @@ export default function Dashboard() {
       {/* Dashboard Top Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold font-heading text-slate-900">Dashboard & PIN Control Center</h2>
-          <p className="text-slate-500 text-sm mt-1">Welcome back, Administrator. Manage school metrics and student result checking PINs.</p>
+          <h2 className="text-2xl font-bold font-heading text-slate-900">Dashboard & Control Center</h2>
+          <p className="text-slate-500 text-sm mt-1 flex items-center gap-2">
+            Welcome back, {displayName}. 
+            <span className="inline-flex px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider border border-slate-200">
+              {displayTitle}
+            </span>
+          </p>
         </div>
-        <Button variant="brand" className="gap-2" onClick={() => setIsCreateSessionOpen(true)}>
-          <Plus size={16} />
-          Create Academic Session
-        </Button>
-        <Button variant="outline" className="gap-2 bg-white" onClick={() => window.print()}>
-          <Download size={16} />
-          Print Report / Page
-        </Button>
+        <div className="flex gap-2">
+          {(isGeneralAdmin || isAcademicAdmin) && (
+            <Button variant="brand" className="gap-2" onClick={() => setIsCreateSessionOpen(true)}>
+              <Plus size={16} />
+              Create Academic Session
+            </Button>
+          )}
+          <Button variant="outline" className="gap-2 bg-white" onClick={() => window.print()}>
+            <Download size={16} />
+            Print Report / Page
+          </Button>
+        </div>
       </div>
 
       {notificationMsg && (

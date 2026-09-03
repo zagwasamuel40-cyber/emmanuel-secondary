@@ -1,22 +1,57 @@
 import { useState, useEffect } from "react";
 
+export type SystemRole = 'Teacher' | 'Admin' | 'Admission Officer' | 'Portal Admin' | 'Super Admin' | 'General Admin' | 'Examination Admin' | 'Finance/Admin Officer' | 'HR/Staff Admin' | 'Academic Admin' | 'Library Admin' | 'Inventory Admin';
+
+export type StaffStatus = 'Active' | 'On Leave' | 'Suspended' | 'Terminated' | 'Resigned' | 'Retired' | 'Inactive';
+
 export interface Teacher {
   id: string; // Staff Number / ID
   name: string;
   department: string;
   role: string;
-  status: 'Active' | 'On Leave' | 'Inactive';
+  status: StaffStatus;
   email: string;
   phone: string;
   address: string;
   subjects: string[];
   assignedClasses: string[];
   password: string;
-  systemRole?: 'Teacher' | 'Admin' | 'Admission Officer' | 'Portal Admin' | 'Super Admin';
+  systemRoles: SystemRole[];
   passportUrl?: string;
+  employmentDate?: string;
 }
 
 const initialTeachers: Teacher[] = [
+  {
+    id: "ADM/2026/001",
+    name: "System Administrator",
+    department: "Administration",
+    role: "General Admin",
+    status: "Active",
+    email: "admin@ess.edu.ng",
+    phone: "+234 800 000 0000",
+    address: "Admin Block",
+    subjects: [],
+    assignedClasses: [],
+    password: "admin123",
+    systemRoles: ['Admin', 'Super Admin', 'General Admin', 'HR/Staff Admin'],
+    employmentDate: '2020-01-01'
+  },
+  {
+    id: "TCH/2026/042",
+    name: "Mrs. Grace Adeyemi",
+    department: "Languages",
+    role: "English Teacher",
+    status: "Active",
+    email: "g.adeyemi@staff.ess.edu.ng",
+    phone: "+234 802 345 6789",
+    address: "12 Staff Quarters",
+    subjects: ["English Language"],
+    assignedClasses: ["JSS 1A", "JSS 1B"],
+    password: "teacher123",
+    systemRoles: ['Teacher'],
+    employmentDate: '2022-05-10'
+  },
   {
     id: "TCH/2026/001",
     name: "Dr. Samuel Okoh",
@@ -29,7 +64,8 @@ const initialTeachers: Teacher[] = [
     subjects: ["Physics", "Further Mathematics"],
     assignedClasses: ["SSS 3A", "SSS 3B", "SSS 2A"],
     password: "teacher123",
-    systemRole: 'Admin'
+    systemRoles: ['Teacher', 'Academic Admin'],
+    employmentDate: '2020-01-15'
   }
 ];
 
@@ -37,8 +73,30 @@ export function getStoredTeachers(): Teacher[] {
   const saved = localStorage.getItem("ess_teachers");
   if (saved) {
     try {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      let parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        parsed = parsed.map(t => {
+          if (t.systemRole && !t.systemRoles) {
+            t.systemRoles = [t.systemRole === 'Teacher' ? 'Teacher' : 'Teacher', t.systemRole].filter((v, i, a) => a.indexOf(v) === i);
+            delete t.systemRole;
+          } else if (!t.systemRoles) {
+            t.systemRoles = ['Teacher'];
+          }
+          if (!t.status) {
+             t.status = 'Active';
+          }
+          return t;
+        });
+
+        // Ensure new demo teachers are present if missing
+        initialTeachers.forEach(initial => {
+          if (!parsed.find((t: Teacher) => t.id === initial.id)) {
+            parsed.push(initial);
+          }
+        });
+        
+        return parsed;
+      }
     } catch (e) {}
   }
   return initialTeachers;

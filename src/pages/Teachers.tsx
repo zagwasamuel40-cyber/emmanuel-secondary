@@ -8,7 +8,7 @@ import {
   Briefcase, BookOpen, UserCheck, GraduationCap, Upload, Download, 
   FileSpreadsheet, Sparkles, UserPlus, Printer, Award, FileText, 
   Check, Layers, BarChart3, Calculator, ListOrdered, ArrowRight, RefreshCw, FileCheck,
-  ShieldCheck, ShieldAlert, Lock, Unlock, User, UserCog, Hash, KeyRound, Copy
+  ShieldCheck, ShieldAlert, Lock, Unlock, User, UserCog, UserMinus, Hash, KeyRound, Copy
 } from "lucide-react";
 
 // Student Record Interface for Enrollment & Results
@@ -89,6 +89,7 @@ export default function Teachers() {
   // General Filter & Search
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("All Departments");
+  const [filterStatus, setFilterStatus] = useState("All");
   const [notificationMsg, setNotificationMsg] = useState("");
 
   // Modals for Staff Dashboard & Exam/Enrollment Workflows
@@ -124,6 +125,8 @@ export default function Teachers() {
   const [selectedTeacherForReset, setSelectedTeacherForReset] = useState<Teacher | null>(null);
   const [newPasswordInput, setNewPasswordInput] = useState("");
   const [selectedTeacherForIdChange, setSelectedTeacherForIdChange] = useState<Teacher | null>(null);
+  const [selectedTeacherForStatusChange, setSelectedTeacherForStatusChange] = useState<Teacher | null>(null);
+  const [newStatusInput, setNewStatusInput] = useState<any>("Active");
   const [selectedTeacherForRoleChange, setSelectedTeacherForRoleChange] = useState<Teacher | null>(null);
   const [newRoleInput, setNewRoleInput] = useState<string>("Teacher");
   const [newStaffNumberInput, setNewStaffNumberInput] = useState("");
@@ -176,7 +179,7 @@ export default function Teachers() {
       subjects: createStaffForm.subjects,
       assignedClasses: createStaffForm.assignedClasses,
       password: createStaffForm.password || "teacher123",
-      systemRole: createStaffForm.isAdmin ? 'Admin' : 'Teacher',
+      systemRoles: createStaffForm.isAdmin ? ["Teacher", "Admin"] : ["Teacher"],
       passportUrl: createStaffForm.passportUrl
     };
 
@@ -222,12 +225,80 @@ export default function Teachers() {
   };
 
   
-  // Handler: Assign System Role
+  const logAudit = (action: string, staffName: string, previousRoles: string[], newRoles: string[]) => {
+    const log = {
+      timestamp: new Date().toISOString(),
+      administrator: localStorage.getItem('impersonatingName') || 'System Administrator',
+      action,
+      targetStaff: staffName,
+      previousRoles,
+      newRoles
+    };
+    console.log("[AUDIT LOG]", log);
+    // In a real app, send this to the backend
+  };
+
+  // Handler: Assign System Role (Update Roles Array)
   const handleAssignRole = (teacherId: string, newRole: string) => {
     setTeachers(prev => prev.map(t => {
       if (t.id === teacherId) {
-        setNotificationMsg(`Role updated to ${newRole} for ${t.name}.`);
-        return { ...t, systemRole: newRole as any };
+        setNotificationMsg(`Added ${newRole} role to ${t.name}.`);
+        const roles = t.systemRoles || ['Teacher'];
+        if (!roles.includes(newRole as any)) {
+          const newRoles = [...roles, newRole as any];
+          logAudit('ADD_ROLE', t.name, roles, newRoles);
+          return { ...t, systemRoles: newRoles };
+        }
+        return t;
+      }
+      return t;
+    }));
+    setTimeout(() => setNotificationMsg(""), 4000);
+  };
+
+  const handleRemoveRole = (teacherId: string, roleToRemove: string) => {
+    setTeachers(prev => prev.map(t => {
+      if (t.id === teacherId) {
+        setNotificationMsg(`Removed ${roleToRemove} role from ${t.name}.`);
+        const roles = t.systemRoles || ['Teacher'];
+        const newRoles = roles.filter(r => r !== roleToRemove);
+        logAudit('REMOVE_ROLE', t.name, roles, newRoles);
+        return { ...t, systemRoles: newRoles };
+      }
+      return t;
+    }));
+    setTimeout(() => setNotificationMsg(""), 4000);
+  };
+
+  const handleImpersonateTeacher = (teacher: Teacher) => {
+    localStorage.setItem('originalAdminUserId', localStorage.getItem('loggedInUserId') || '');
+    localStorage.setItem('originalAdminRoles', localStorage.getItem('userRoles') || '');
+    localStorage.setItem('originalAdminRole', localStorage.getItem('userRole') || '');
+
+    localStorage.setItem('loggedInUserId', teacher.id);
+    const roles = teacher.systemRoles || ['Teacher'];
+    localStorage.setItem('userRoles', JSON.stringify(roles));
+    localStorage.setItem('userRole', roles[0] || 'Teacher');
+
+    localStorage.setItem('impersonatingName', teacher.name);
+    localStorage.setItem('impersonatingType', 'teacher');
+    
+    // Determine best initial route
+    if (roles.includes('General Admin') || roles.includes('Admin') || roles.includes('Super Admin')) window.location.href = '/dashboard';
+    else if (roles.includes('Admission Officer')) window.location.href = '/dashboard/admissions';
+    else if (roles.includes('Portal Admin')) window.location.href = '/dashboard/portal-manager';
+    else if (roles.includes('HR/Staff Admin')) window.location.href = '/dashboard/teachers';
+    else if (roles.includes('Examination Admin')) window.location.href = '/dashboard/examinations';
+    else if (roles.includes('Finance/Admin Officer')) window.location.href = '/dashboard/finance';
+    else if (roles.includes('Academic Admin')) window.location.href = '/dashboard/academics';
+    else window.location.href = '/dashboard/students'; // default to teacher
+  };
+
+  const handleChangeStatus = (teacherId: string, newStatus: any) => {
+    setTeachers(prev => prev.map(t => {
+      if (t.id === teacherId) {
+        setNotificationMsg(`Status changed to ${newStatus} for ${t.name}.`);
+        return { ...t, status: newStatus };
       }
       return t;
     }));
@@ -336,7 +407,8 @@ export default function Teachers() {
                           t.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           t.subjects.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesDept = selectedDepartment === "All Departments" || t.department === selectedDepartment;
-    return matchesSearch && matchesDept;
+    const matchesStatus = filterStatus === "All" || t.status === filterStatus;
+    return matchesSearch && matchesDept && matchesStatus;
   });
 
   return (
@@ -493,12 +565,20 @@ export default function Teachers() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-bold text-slate-900">{currentStaff.name}</h3>
-                    {currentStaff.systemRole && currentStaff.systemRole !== "Teacher" && (
+                    {currentStaff.systemRoles?.some(r => r !== "Teacher") && (
                       <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
                         <ShieldCheck size={12} /> Admin Staff
                       </span>
                     )}
-                    <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                    <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                      currentStaff.status === 'Active' 
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
+                        : currentStaff.status === 'On Leave'
+                        ? 'bg-amber-100 text-amber-800 border-amber-200'
+                        : currentStaff.status === 'Suspended'
+                        ? 'bg-orange-100 text-orange-800 border-orange-200'
+                        : 'bg-rose-100 text-rose-800 border-rose-200'
+                    }`}>
                       {currentStaff.status}
                     </span>
                   </div>
@@ -510,6 +590,16 @@ export default function Teachers() {
 
               {/* Staff Quick Action Buttons for Active Logged In Staff */}
               <div className="flex items-center gap-2 flex-wrap">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-1.5 text-xs bg-brand-50 text-brand-800 border-brand-200"
+                  onClick={() => handleImpersonateTeacher(currentStaff)}
+                  title="View Dashboard as this Staff"
+                >
+                  <Eye size={14} /> View Dashboard
+                </Button>
+
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -594,7 +684,7 @@ export default function Teachers() {
                 <div>
                   <p className="text-xs text-slate-500 font-medium">Admin Staff Count</p>
                   <h3 className="text-2xl font-bold text-amber-700">
-                    {teachers.filter(t => t.systemRole && t.systemRole !== "Teacher").length} System Staff
+                    {teachers.filter(t => t.systemRoles?.some(r => r !== "Teacher")).length} System Staff
                   </h3>
                 </div>
               </CardContent>
@@ -749,16 +839,31 @@ export default function Teachers() {
                 />
               </div>
               
-              <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
                 <Filter size={18} className="text-slate-400 shrink-0" />
                 <select 
-                  className="flex h-10 w-full md:w-48 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium"
+                  className="flex h-10 w-full md:w-48 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium shrink-0"
                   value={selectedDepartment}
                   onChange={(e) => setSelectedDepartment(e.target.value)}
                 >
                   {DEPARTMENTS.map(dept => (
                     <option key={dept} value={dept}>{dept}</option>
                   ))}
+                </select>
+                
+                <select 
+                  className="flex h-10 w-full md:w-40 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium shrink-0"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="Active">Active</option>
+                  <option value="On Leave">On Leave</option>
+                  <option value="Suspended">Suspended</option>
+                  <option value="Terminated">Terminated</option>
+                  <option value="Resigned">Resigned</option>
+                  <option value="Retired">Retired</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
             </CardContent>
@@ -799,14 +904,20 @@ export default function Teachers() {
                           <p className="font-medium text-slate-800">{teacher.department}</p>
                           <p className="text-xs text-slate-500">{teacher.role}</p>
                         </td>
-                        <td className="p-4">
-                          {teacher.systemRole && teacher.systemRole !== "Teacher" ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                              <ShieldCheck size={13} /> Admin
+                        <td className="p-4 flex flex-wrap gap-1">
+                          {teacher.systemRoles?.map(role => (
+                            <span key={role} className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                              role === 'Teacher' 
+                                ? 'bg-slate-100 text-slate-600 border-slate-200 font-medium'
+                                : 'bg-amber-100 text-amber-800 border-amber-200'
+                            }`}>
+                              {role !== 'Teacher' && <ShieldCheck size={12} />}
+                              {role}
                             </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                              Standard Staff
+                          ))}
+                          {(!teacher.systemRoles || teacher.systemRoles.length === 0) && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                              Teacher
                             </span>
                           )}
                         </td>
@@ -817,18 +928,31 @@ export default function Teachers() {
                           </div>
                         </td>
                         <td className="p-4">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
                             teacher.status === 'Active' 
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                               : teacher.status === 'On Leave'
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : 'bg-rose-50 text-rose-700 border border-rose-200'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : teacher.status === 'Suspended'
+                              ? 'bg-orange-50 text-orange-700 border-orange-200'
+                              : 'bg-rose-50 text-rose-700 border-rose-200'
                           }`}>
                             {teacher.status}
                           </span>
                         </td>
                         <td className="p-4 text-right">
                           <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            {/* View Dashboard Button */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs gap-1 border-brand-200 text-brand-800 bg-brand-50 hover:bg-brand-100"
+                              onClick={() => handleImpersonateTeacher(teacher)}
+                              title="View Dashboard as this Staff"
+                            >
+                              <Eye size={13} /> View Dashboard
+                            </Button>
+
                             {/* Reset Password Button */}
                             <Button
                               size="sm"
@@ -851,13 +975,28 @@ export default function Teachers() {
                               className="h-8 text-xs gap-1 border-indigo-200 text-indigo-800 bg-indigo-50 hover:bg-indigo-100"
                               onClick={() => {
                                 setSelectedTeacherForRoleChange(teacher);
-                                setNewRoleInput(teacher.systemRole || "Teacher");
+                                setNewRoleInput(teacher.systemRoles?.[0] || "Teacher");
                                 setActiveModal("assign_role");
                               }}
                               title="Assign Role"
                             >
                               <UserCog size={13} />
                               Assign Role
+                            </Button>
+
+                            {/* Change Staff Status */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs gap-1 border-rose-200 text-rose-800 bg-rose-50 hover:bg-rose-100"
+                              onClick={() => {
+                                setSelectedTeacherForStatusChange(teacher);
+                                setNewStatusInput(teacher.status);
+                                setActiveModal("change_status");
+                              }}
+                              title="Change Staff Status"
+                            >
+                              <UserMinus size={13} /> Status
                             </Button>
 
                             {/* Change Staff Numb */}
@@ -1082,7 +1221,7 @@ export default function Teachers() {
                         <div className="text-slate-500">{t.role}</div>
                       </td>
                       <td className="p-2.5">
-                        {t.systemRole && t.systemRole !== "Teacher" ? (
+                        {t.systemRoles?.some(r => r !== "Teacher") ? (
                           <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800">
                             Admin Staff
                           </span>
@@ -1252,7 +1391,7 @@ export default function Teachers() {
                       </td>
                       <td className="p-2.5 font-medium">{t.department}</td>
                       <td className="p-2.5">
-                        {t.systemRole && t.systemRole !== "Teacher" ? (
+                        {t.systemRoles?.some(r => r !== "Teacher") ? (
                           <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
                             Administrative Staff
                           </span>
@@ -1269,7 +1408,7 @@ export default function Teachers() {
                           className="h-8 text-xs font-bold gap-1.5 border-indigo-200 text-indigo-800 bg-indigo-50 hover:bg-indigo-100"
                           onClick={() => {
                             setSelectedTeacherForRoleChange(t);
-                            setNewRoleInput(t.systemRole || "Teacher");
+                            setNewRoleInput(t.systemRoles?.[0] || "Teacher");
                             setActiveModal("assign_role");
                           }}
                         >
@@ -1321,7 +1460,7 @@ export default function Teachers() {
                     <span className="font-mono text-xs font-extrabold text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
                       Staff Numb: {currentStaff.id}
                     </span>
-                    {currentStaff.systemRole && currentStaff.systemRole !== "Teacher" && (
+                    {currentStaff.systemRoles?.some(r => r !== "Teacher") && (
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
                         Admin User
                       </span>
@@ -1338,7 +1477,15 @@ export default function Teachers() {
 
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
                   <span className="text-slate-400 font-medium">Account Status:</span>
-                  <p className="font-bold text-emerald-700 text-sm">{currentStaff.status}</p>
+                  <p className={`font-bold text-sm ${
+                      currentStaff.status === 'Active' 
+                        ? 'text-emerald-700' 
+                        : currentStaff.status === 'On Leave'
+                        ? 'text-amber-700'
+                        : currentStaff.status === 'Suspended'
+                        ? 'text-orange-700'
+                        : 'text-rose-700'
+                  }`}>{currentStaff.status}</p>
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
@@ -1404,21 +1551,103 @@ export default function Teachers() {
                 <p className="text-xs text-slate-500">{selectedTeacherForRoleChange.id}</p>
               </div>
 
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold">Assign System Roles</Label>
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                  {[
+                    'Teacher', 
+                    'General Admin', 
+                    'Examination Admin', 
+                    'Admission Officer', 
+                    'Portal Admin', 
+                    'Finance/Admin Officer', 
+                    'Academic Admin', 
+                    'HR/Staff Admin', 
+                    'Library Admin', 
+                    'Inventory Admin'
+                  ].map(role => {
+                    const hasRole = selectedTeacherForRoleChange.systemRoles?.includes(role as any);
+                    return (
+                      <label key={role} className="flex items-center gap-3 p-2 border rounded-lg hover:bg-slate-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500"
+                          checked={hasRole}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              handleAssignRole(selectedTeacherForRoleChange.id, role);
+                            } else {
+                              handleRemoveRole(selectedTeacherForRoleChange.id, role);
+                            }
+                          }}
+                        />
+                        <span className="text-sm font-medium text-slate-700">{role}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-slate-500 pt-1">
+                  Staff can hold multiple roles simultaneously. Check to assign, uncheck to revoke. Changes are saved immediately.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <Button 
+                  variant="brand"
+                  className="w-full bg-brand-600 hover:bg-brand-700"
+                  onClick={() => {
+                    setActiveModal(null);
+                    setSelectedTeacherForRoleChange(null);
+                  }}
+                >
+                  <Check size={16} className="mr-2" />
+                  Done
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL: CHANGE STAFF STATUS */}
+      {/* ======================================================== */}
+      {activeModal === "change_status" && selectedTeacherForStatusChange && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-sm border-0 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <CardHeader className="bg-rose-950 text-white pb-4 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <UserMinus size={18} className="text-rose-400" />
+                Change Staff Status
+              </CardTitle>
+              <button onClick={() => { setActiveModal(null); setSelectedTeacherForStatusChange(null); }} className="text-rose-400 hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Staff Member</p>
+                <p className="font-bold text-slate-900">{selectedTeacherForStatusChange.name}</p>
+                <p className="text-xs text-slate-500">{selectedTeacherForStatusChange.id}</p>
+              </div>
+
               <div className="space-y-2">
-                <Label className="text-sm font-semibold">Select Access Role</Label>
+                <Label className="text-sm font-semibold">Select Employment Status</Label>
                 <select
                   className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
-                  value={newRoleInput}
-                  onChange={(e) => setNewRoleInput(e.target.value)}
+                  value={newStatusInput}
+                  onChange={(e) => setNewStatusInput(e.target.value)}
                 >
-                  <option value="Teacher">Teacher (Standard)</option>
-                  <option value="Admin">Admin (Full Access)</option>
-                  <option value="Admission Officer">Admission Officer</option>
-                  <option value="Portal Admin">Portal Admin</option>
-                  <option value="Super Admin">Super Admin</option>
+                  <option value="Active">Active</option>
+                  <option value="On Leave">On Leave</option>
+                  <option value="Suspended">Suspended</option>
+                  <option value="Terminated">Terminated</option>
+                  <option value="Resigned">Resigned</option>
+                  <option value="Retired">Retired</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
                 <p className="text-xs text-slate-500 pt-1">
-                  This role determines their system access level across the platform.
+                  Changing status to Terminated, Resigned, Retired, Suspended, or Inactive will immediately revoke login access.
                 </p>
               </div>
 
@@ -1426,21 +1655,21 @@ export default function Teachers() {
                 <Button 
                   variant="outline" 
                   className="w-full"
-                  onClick={() => { setActiveModal(null); setSelectedTeacherForRoleChange(null); }}
+                  onClick={() => { setActiveModal(null); setSelectedTeacherForStatusChange(null); }}
                 >
                   Cancel
                 </Button>
                 <Button 
                   variant="brand"
-                  className="w-full bg-brand-600 hover:bg-brand-700"
+                  className="w-full bg-rose-600 hover:bg-rose-700 text-white"
                   onClick={() => {
-                    handleAssignRole(selectedTeacherForRoleChange.id, newRoleInput);
+                    handleChangeStatus(selectedTeacherForStatusChange.id, newStatusInput);
                     setActiveModal(null);
-                    setSelectedTeacherForRoleChange(null);
+                    setSelectedTeacherForStatusChange(null);
                   }}
                 >
                   <Check size={16} className="mr-2" />
-                  Save Role
+                  Save Status
                 </Button>
               </div>
             </CardContent>

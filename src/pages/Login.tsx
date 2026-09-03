@@ -14,7 +14,11 @@ export default function Login() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('error') === 'account_deactivated') return "Access Denied: Your account has been deactivated.";
+    return "";
+  });
 
   // Forgot Password State
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
@@ -104,24 +108,31 @@ export default function Login() {
 
       if (matchedTeacher) {
         if (matchedTeacher.password === password) {
-          localStorage.setItem('loggedInUserId', matchedTeacher.id);
-          let role = 'teacher';
-          
-          if (matchedTeacher.systemRole === 'Admin' || matchedTeacher.systemRole === 'Super Admin') {
-            role = 'admin';
-          } else if (matchedTeacher.systemRole === 'Admission Officer') {
-            role = 'superadmin';
-          } else if (matchedTeacher.systemRole === 'Portal Admin') {
-            role = 'portaladmin';
+          if (['Resigned', 'Terminated', 'Retired', 'Suspended', 'Inactive'].includes(matchedTeacher.status)) {
+            setLoading(false);
+            setErrorMsg(`Access Denied: Account is marked as ${matchedTeacher.status}.`);
+            return;
           }
+
+          localStorage.setItem('loggedInUserId', matchedTeacher.id);
           
-          localStorage.setItem('userRole', role);
+          const roles = matchedTeacher.systemRoles || ['Teacher'];
+          
+          // Store all roles for DashboardLayout to use
+          localStorage.setItem('userRoles', JSON.stringify(roles));
+          localStorage.setItem('userRole', roles[0] || 'Teacher');
           setLoading(false);
           
-          if (role === 'teacher') navigate('/dashboard/students');
-          else if (role === 'superadmin') navigate('/dashboard/admissions');
-          else if (role === 'portaladmin') navigate('/dashboard/portal-manager');
-          else navigate('/dashboard'); // admin has full access
+          // Determine best initial route
+          if (roles.includes('General Admin') || roles.includes('Admin') || roles.includes('Super Admin')) navigate('/dashboard');
+          else if (roles.includes('Admission Officer')) navigate('/dashboard/admissions');
+          else if (roles.includes('Portal Admin')) navigate('/dashboard/portal-manager');
+          else if (roles.includes('HR/Staff Admin')) navigate('/dashboard/teachers');
+          else if (roles.includes('Examination Admin')) navigate('/dashboard/examinations');
+          else if (roles.includes('Finance/Admin Officer')) navigate('/dashboard/finance');
+          else if (roles.includes('Academic Admin')) navigate('/dashboard/academics');
+          else navigate('/dashboard/students'); // default to teacher
+          
           return;
         } else {
           setLoading(false);
@@ -136,6 +147,12 @@ export default function Login() {
       );
 
       if (matchedStudent) {
+        if (['Graduated', 'Withdrawn', 'Suspended', 'Inactive'].includes(matchedStudent.status)) {
+          setLoading(false);
+          setErrorMsg(`Access Denied: Account is marked as ${matchedStudent.status}.`);
+          return;
+        }
+
         // Students might not have passwords in the initial mock data, we just check if ID matches
         // But if you want a basic password check for demo:
         if (password === 'password123') {

@@ -1,28 +1,61 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@/src/components/ui";
 import { User, Mail, Phone, MapPin, Briefcase, Key, Save, CheckCircle2 } from "lucide-react";
+import { useTeachers } from "../data/teachersData";
 
 export default function Profile() {
-  const role = localStorage.getItem('userRole') || 'admin';
-  const isStaff = role === 'teacher' || role === 'staff';
-  const isSuperAdmin = role === 'superadmin' || role === 'super_admin' || role === 'admission_admin';
-  const isPortalAdmin = role === 'portaladmin' || role === 'portal_admin';
+  let userRoles: string[] = [];
+  try {
+    userRoles = JSON.parse(localStorage.getItem('userRoles') || '[]');
+  } catch (e) {}
+
+  if (userRoles.length === 0) {
+    const r = localStorage.getItem('userRole') || 'admin';
+    if (r === 'admin') userRoles = ['Admin'];
+    else if (r === 'superadmin') userRoles = ['Admission Officer'];
+    else if (r === 'portaladmin') userRoles = ['Portal Admin'];
+    else userRoles = ['Teacher'];
+  }
+
+  const [teachers, setTeachers] = useTeachers();
+  const loggedInUserId = localStorage.getItem('loggedInUserId');
+  const teacher = teachers.find(t => t.id === loggedInUserId);
+
+  const isStaff = userRoles.includes('Teacher');
+  const isSuperAdmin = userRoles.includes('Admission Officer');
+  const isPortalAdmin = userRoles.includes('Portal Admin');
 
   const [isEditing, setIsEditing] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [passwordForm, setPasswordForm] = useState({ current: "", new: "", confirm: "" });
 
   const [profile, setProfile] = useState({
-    firstName: isPortalAdmin ? "Portal" : isSuperAdmin ? "Admissions" : isStaff ? "Sarah" : "Admin",
-    lastName: isPortalAdmin ? "Administrator" : isSuperAdmin ? "Officer" : isStaff ? "Connor" : "User",
-    email: isPortalAdmin ? "portaladmin@ess.edu.ng" : isSuperAdmin ? "admission@ess.edu.ng" : isStaff ? "s.connor@ess.edu.ng" : "admin@ess.edu.ng",
-    phone: "08012345678",
-    address: "123 School Road, City",
-    department: isPortalAdmin ? "Portal Management & ICT" : isSuperAdmin ? "Admissions & Enrollment" : isStaff ? "Science" : "Administration",
-    role: isPortalAdmin ? "Portal Administrator (Branding, News & Settings)" : isSuperAdmin ? "Admission Officer (Admissions & Enrollment)" : isStaff ? "Senior Teacher" : "System Administrator",
-    bio: isPortalAdmin ? "Official Portal Administrator account responsible for news publishing, motto customization, portal theme colors, and student portal settings." : isSuperAdmin ? "Official Admission Officer account responsible for admissions, document verification, and student enrollment." : "Dedicated staff member.",
-    passportUrl: ""
+    firstName: teacher ? teacher.name.split(' ')[0] : (isPortalAdmin ? "Portal" : isSuperAdmin ? "Admissions" : "Admin"),
+    lastName: teacher ? teacher.name.split(' ').slice(1).join(' ') : (isPortalAdmin ? "Administrator" : isSuperAdmin ? "Officer" : "User"),
+    email: teacher ? teacher.email : (isPortalAdmin ? "portaladmin@ess.edu.ng" : isSuperAdmin ? "admission@ess.edu.ng" : "admin@ess.edu.ng"),
+    phone: teacher ? teacher.phone : "08012345678",
+    address: teacher ? teacher.address : "123 School Road, City",
+    department: teacher ? teacher.department : (isPortalAdmin ? "Portal Management & ICT" : isSuperAdmin ? "Admissions & Enrollment" : "Administration"),
+    role: teacher ? teacher.role : (isPortalAdmin ? "Portal Administrator (Branding, News & Settings)" : isSuperAdmin ? "Admission Officer (Admissions & Enrollment)" : "System Administrator"),
+    bio: teacher ? "Dedicated staff member." : "Official account.",
+    passportUrl: teacher ? (teacher.passportUrl || "") : ""
   });
+
+  useEffect(() => {
+    if (teacher) {
+      setProfile({
+        firstName: teacher.name.split(' ')[0],
+        lastName: teacher.name.split(' ').slice(1).join(' '),
+        email: teacher.email,
+        phone: teacher.phone || "08012345678",
+        address: teacher.address || "123 School Road, City",
+        department: teacher.department,
+        role: teacher.role,
+        bio: "Dedicated staff member.",
+        passportUrl: teacher.passportUrl || ""
+      });
+    }
+  }, [teacher]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setProfile({
@@ -32,6 +65,21 @@ export default function Profile() {
   };
 
   const handleSave = () => {
+    if (teacher) {
+      setTeachers(prev => prev.map(t => {
+        if (t.id === teacher.id) {
+          return {
+            ...t,
+            name: `${profile.firstName} ${profile.lastName}`,
+            email: profile.email,
+            phone: profile.phone,
+            address: profile.address,
+            passportUrl: profile.passportUrl
+          };
+        }
+        return t;
+      }));
+    }
     setSuccessMsg("Profile updated successfully!");
     setIsEditing(false);
     setTimeout(() => setSuccessMsg(""), 3000);
@@ -42,6 +90,18 @@ export default function Profile() {
     if (passwordForm.new !== passwordForm.confirm) {
       alert("New passwords do not match!");
       return;
+    }
+    if (teacher) {
+      if (passwordForm.current !== teacher.password) {
+        alert("Current password is incorrect!");
+        return;
+      }
+      setTeachers(prev => prev.map(t => {
+        if (t.id === teacher.id) {
+          return { ...t, password: passwordForm.new };
+        }
+        return t;
+      }));
     }
     setSuccessMsg("Password updated successfully!");
     setPasswordForm({ current: "", new: "", confirm: "" });
@@ -87,6 +147,7 @@ export default function Profile() {
                         const reader = new FileReader();
                         reader.onloadend = () => {
                           setProfile({...profile, passportUrl: reader.result as string});
+                          setIsEditing(true);
                         };
                         reader.readAsDataURL(file);
                       }
@@ -95,7 +156,15 @@ export default function Profile() {
                 </label>
               </div>
               <h2 className="text-xl font-bold text-slate-900">{profile.firstName} {profile.lastName}</h2>
-              <p className="text-brand-600 font-medium text-sm mt-1">{profile.role}</p>
+              
+              <div className="flex flex-wrap gap-1.5 justify-center mt-3 mb-1">
+                {userRoles.map((r, i) => (
+                  <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-100 text-brand-800 border border-brand-200 uppercase tracking-wider">
+                    {r}
+                  </span>
+                ))}
+              </div>
+
               <div className="mt-4 flex items-center justify-center gap-2 text-slate-500 text-sm">
                 <Briefcase size={16} />
                 {profile.department} Department
