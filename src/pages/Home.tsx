@@ -185,7 +185,7 @@ export default function Home() {
       </section>
 
             {/* News Section */}
-      <section className="py-24 bg-slate-50 border-t border-slate-100">
+      <section id="news" className="py-24 bg-slate-50 border-t border-slate-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-end mb-12">
             <div>
@@ -212,29 +212,17 @@ export default function Home() {
       </section>
 
       
-      {/* Staff Gallery Section */}
-      {activeTeachers.length > 0 && (
-        <section className="py-24 bg-white border-t border-slate-100">
+      {/* Dedicated Team Section */}
+      {portalSettings.dedicatedTeam && portalSettings.dedicatedTeam.length > 0 && (
+        <section id="team" className="py-24 bg-white border-t border-slate-100">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
               <h2 className="font-heading text-3xl font-bold text-slate-900 mb-4">Our Dedicated Team</h2>
-              <p className="text-slate-600 max-w-2xl mx-auto">Meet the exceptional educators and staff who make our school a center of excellence.</p>
+              <p className="text-slate-600 max-w-2xl mx-auto">Meet the exceptional leaders and administrators dedicated to our students' success.</p>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-              {activeTeachers.slice(0, 10).map((teacher) => (
-                <div key={teacher.id} className="flex flex-col items-center group">
-                  <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden border-4 border-slate-100 shadow-md mb-4 group-hover:border-brand-500 transition-colors duration-300">
-                    <img 
-                      src={teacher.passportUrl} 
-                      alt={teacher.name} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <h4 className="font-bold text-slate-900 text-center line-clamp-1">{teacher.name}</h4>
-                  <p className="text-xs text-brand-600 font-medium text-center line-clamp-1 mt-1">{teacher.role}</p>
-                </div>
-              ))}
-            </div>
+            
+            <TeamGallery team={portalSettings.dedicatedTeam} />
+            
           </div>
         </section>
       )}
@@ -282,7 +270,7 @@ export default function Home() {
       </section>
 
       {/* Contact & Inquiries Section */}
-      <section className="py-24 bg-slate-900 text-white relative overflow-hidden">
+      <section id="contact" className="py-24 bg-slate-900 text-white relative overflow-hidden">
         <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-[url('https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=800&q=80')] bg-cover bg-center opacity-10"></div>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-12">

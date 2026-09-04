@@ -51,7 +51,7 @@ export default function About() {
 
       {/* Gallery Section */}
       {gallery.length > 0 && (
-        <div className="mt-16">
+        <div id="gallery" className="mt-16 pt-8">
           <div className="text-center mb-10">
             <h2 className="font-heading text-3xl font-bold text-slate-900 mb-4">Our Gallery</h2>
             <p className="text-slate-600">A glimpse into life, staff, and facilities at our school.</p>

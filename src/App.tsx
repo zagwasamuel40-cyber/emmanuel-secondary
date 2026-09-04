@@ -3,6 +3,7 @@ import PublicLayout from "./layouts/PublicLayout";
 import DashboardLayout from "./layouts/DashboardLayout";
 import StudentLayout from "./layouts/StudentLayout";
 import Home from "./pages/Home";
+import { ScrollToHash } from "./components/ScrollToHash";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Students from "./pages/Students";
@@ -31,6 +32,7 @@ import StudentProfile from "./pages/student/StudentProfile";
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToHash />
       <Routes>
         <Route element={<PublicLayout />}>
           <Route path="/" element={<Home />} />
