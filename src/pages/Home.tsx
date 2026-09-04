@@ -10,6 +10,7 @@ import { MessageSquare, Star } from "lucide-react";
 
 import { ArrowRight, BookOpen, Users, Trophy, ChevronRight, Send, CheckCircle2 } from "lucide-react";
 import { Button, Card, CardContent, Input, Label } from "@/src/components/ui";
+import { TeamGallery } from "../components/TeamGallery";
 
 function InquiryForm() {
   const [inquiries, setInquiries] = useInquiries();

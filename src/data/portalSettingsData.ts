@@ -1,5 +1,18 @@
 import { useState, useEffect } from "react";
 
+export interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  department?: string;
+  qualification?: string;
+  experienceYears?: string;
+  photoUrl: string;
+  bio?: string;
+  published?: boolean;
+  displayOrder?: number;
+}
+
 export interface PortalSettings {
   schoolName: string;
   motto: string;
@@ -18,6 +31,7 @@ export interface PortalSettings {
   principalSignatureUrl: string;
   aboutUsImageUrl?: string;
   aboutUsText?: string;
+  dedicatedTeam: TeamMember[];
 }
 
 const defaultPortalSettings: PortalSettings = {
@@ -37,7 +51,21 @@ const defaultPortalSettings: PortalSettings = {
   principalName: "IORTYER EMMANUEL",
   principalSignatureUrl: "",
   aboutUsImageUrl: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  aboutUsText: "Founded with a vision to provide world-class education in Makurdi, Benue State, we are dedicated to raising a generation of intellectually sound, morally upright, and socially responsible leaders."
+  aboutUsText: "Founded with a vision to provide world-class education in Makurdi, Benue State, we are dedicated to raising a generation of intellectually sound, morally upright, and socially responsible leaders.",
+  dedicatedTeam: [
+    {
+      id: "1",
+      name: "Dr. A. O. Terungwa",
+      role: "Principal",
+      department: "Administration",
+      qualification: "Ph.D. Educational Leadership",
+      experienceYears: "15",
+      photoUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&q=80",
+      bio: "Committed to excellence in education and moral discipline.",
+      published: true,
+      displayOrder: 1
+    }
+  ]
 };
 
 export function usePortalSettings() {

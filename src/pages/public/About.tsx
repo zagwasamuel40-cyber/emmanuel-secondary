@@ -1,6 +1,7 @@
 import { useGallery } from "../../data/galleryData";
 import { usePortalSettings } from "../../data/portalSettingsData";
 import { BookOpen, Target, Users } from "lucide-react";
+import { TeamGallery } from "../../components/TeamGallery";
 
 export default function About() {
   const [portalSettings] = usePortalSettings();
@@ -33,6 +34,20 @@ export default function About() {
             />
         </div>
       </div>
+
+      
+      {/* Dedicated Team Section */}
+      {portalSettings.dedicatedTeam && portalSettings.dedicatedTeam.length > 0 && (
+        <div className="mb-24">
+          <div className="text-center mb-10">
+            <h2 className="font-heading text-3xl font-bold text-slate-900 mb-4">Our Dedicated Team</h2>
+            <p className="text-slate-600">Meet the exceptional leaders and administrators dedicated to our students' success.</p>
+          </div>
+          
+          <TeamGallery team={portalSettings.dedicatedTeam} />
+          
+        </div>
+      )}
 
       {/* Gallery Section */}
       {gallery.length > 0 && (
