@@ -1373,7 +1373,29 @@ export default function AdmissionsManagement() {
                 </button>
               </div>
 
-              <Button onClick={() => showToast("Admissions configuration saved!")} className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold w-full">
+              <div className="space-y-4 pt-4 border-t border-slate-100">
+                <h4 className="font-bold text-slate-900 text-sm">Admission Application Guidelines</h4>
+                <p className="text-xs text-slate-500 mb-2">This text will be displayed in the guidelines modal on the admission portal.</p>
+                <textarea 
+                  className="w-full min-h-[200px] text-sm p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  value={admissionSettings.guidelines}
+                  onChange={(e) => setAdmissionSettings({ ...admissionSettings, guidelines: e.target.value })}
+                  placeholder="Enter the guidelines text (Markdown supported)..."
+                />
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-slate-100">
+                <h4 className="font-bold text-slate-900 text-sm">Admission Inquiry Gallery</h4>
+                <p className="text-xs text-slate-500 mb-2">Add image URLs for the sliding gallery on the admission page (comma separated).</p>
+                <textarea 
+                  className="w-full min-h-[80px] text-sm p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  value={(admissionSettings.galleryImages || []).join(',\n')}
+                  onChange={(e) => setAdmissionSettings({ ...admissionSettings, galleryImages: e.target.value.split(',').map(url => url.trim()).filter(Boolean) })}
+                  placeholder="https://example.com/image1.jpg,&#10;https://example.com/image2.jpg"
+                />
+              </div>
+
+              <Button onClick={() => alert("Admissions configuration saved!")} className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold w-full">
                 Save Admissions Policy Settings
               </Button>
             </div>

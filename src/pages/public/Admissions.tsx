@@ -1,548 +1,705 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { NIGERIA_STATES } from "../../data/nigeriaStates";
-import { Button, Input, Label } from "@/src/components/ui";
+import { Button, Input, Label, Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui";
 import { useAdmissionApps } from "../../data/studentsData";
 import { usePortalSettings, useAdmissionSettings } from "../../data/portalSettingsData";
-
-import { UploadCloud, FileText, CheckCircle2, Trash2, ShieldAlert, Award, FileCheck, Search } from "lucide-react";
+import { UploadCloud, FileText, CheckCircle2, Trash2, ShieldAlert, Award, FileCheck, Search, Image as ImageIcon, ClipboardList, LogIn, Save, ArrowRight, Eye, Check, Monitor } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function Admissions() {
   const [admissionApps, setAdmissionApps] = useAdmissionApps();
   const [portalSettings] = usePortalSettings();
   const [admissionSettings] = useAdmissionSettings();
+
+  const [view, setView] = useState<"inquiry" | "guidelines" | "resume" | "apply" | "review" | "success" | "cbt">("inquiry");
+
+  const [galleryIndex, setGalleryIndex] = useState(0);
+
+  // Form Data
+  const [formData, setFormData] = useState({
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    gender: "",
+    dob: "",
+    placeOfBirth: "",
+    nationality: "Nigerian",
+    state: "",
+    lga: "",
+    address: "",
+    phone: "",
+    email: "",
+    parentName: "",
+    parentRelationship: "",
+    parentPhone: "",
+    parentEmail: "",
+    parentOccupation: "",
+    parentAddress: "",
+    previousSchool: "",
+    previousClass: "",
+    lastClassAttended: "",
+    examResults: "",
+    yearOfCompletion: "",
+    classApplying: "",
+    preferredSession: "2026/2027"
+  });
+
+  const [draftAppId, setDraftAppId] = useState("");
+  const [draftPassword, setDraftPassword] = useState("");
+  
+  const [resumeAppId, setResumeAppId] = useState("");
+  const [resumePassword, setResumePassword] = useState("");
+  const [resumeError, setResumeError] = useState("");
+
   const [birthCertFile, setBirthCertFile] = useState<File | null>(null);
   const [previousResultFile, setPreviousResultFile] = useState<File | null>(null);
   const [passportPhotoFile, setPassportPhotoFile] = useState<File | null>(null);
   const [birthCertBase64, setBirthCertBase64] = useState<string>("");
   const [previousResultBase64, setPreviousResultBase64] = useState<string>("");
   const [passportPhotoBase64, setPassportPhotoBase64] = useState<string>("");
+  const [transferCertFile, setTransferCertFile] = useState<File | null>(null);
+  const [transferCertBase64, setTransferCertBase64] = useState<string>("");
+  const [primaryCertFile, setPrimaryCertFile] = useState<File | null>(null);
+  const [primaryCertBase64, setPrimaryCertBase64] = useState<string>("");
+  const [medicalCertFile, setMedicalCertFile] = useState<File | null>(null);
+  const [medicalCertBase64, setMedicalCertBase64] = useState<string>("");
+  const [otherDocFile, setOtherDocFile] = useState<File | null>(null);
+  const [otherDocBase64, setOtherDocBase64] = useState<string>("");
 
-  const [dragActiveBirth, setDragActiveBirth] = useState(false);
-  const [dragActiveResult, setDragActiveResult] = useState(false);
-  const [dragActivePassport, setDragActivePassport] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<"pending" | "processing" | "paid">("pending");
-  const [examStep, setExamStep] = useState<"not_started" | "intro" | "testing" | "result">("not_started");
-  const [currentQIndex, setCurrentQIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
-  const [score, setScore] = useState(0);
+  const [confirmed, setConfirmed] = useState(false);
 
-  const questions = [
-    { "id": 1, "text": "What is 25 + 47?", "options": ["62", "72", "82", "92"], "answer": "72", "subject": "Mathematics" },
-    { "id": 2, "text": "If x = 5, what is 2x + 10?", "options": ["15", "20", "25", "30"], "answer": "20", "subject": "Mathematics" },
-    { "id": 3, "text": "What is the square root of 144?", "options": ["10", "12", "14", "16"], "answer": "12", "subject": "Mathematics" },
-    { "id": 4, "text": "Solve for y: 3y - 9 = 12", "options": ["5", "6", "7", "8"], "answer": "7", "subject": "Mathematics" },
-    { "id": 5, "text": "What is 15% of 200?", "options": ["20", "25", "30", "35"], "answer": "30", "subject": "Mathematics" }
-  ];
-
-  const handlePayNow = () => {
-    if (!birthCertFile || !previousResultFile || !passportPhotoFile || !firstName || !lastName || !classApplying || !parentPhone) {
-      alert("Please fill all required fields and upload all documents before payment.");
-      return;
+  // Image Gallery Effect
+  useEffect(() => {
+    if (view === "inquiry" && admissionSettings.galleryImages?.length > 1) {
+      const intervalId = setInterval(() => {
+        setGalleryIndex((prev) => (prev + 1) % admissionSettings.galleryImages.length);
+      }, (admissionSettings.imageRotationInterval || 2) * 1000);
+      return () => clearInterval(intervalId);
     }
-    setPaymentStatus("processing");
-    setTimeout(() => {
-      setPaymentStatus("paid");
-      setExamStep("intro");
-    }, 1500);
+  }, [view, admissionSettings.galleryImages, admissionSettings.imageRotationInterval]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Auto-save logic (if we are in "apply" view)
+    if (view === "apply") {
+       if (!draftAppId) {
+         const newId = `APP-${Math.floor(10000000 + Math.random() * 90000000)}`;
+         const newPass = Math.random().toString(36).slice(-8);
+         setDraftAppId(newId);
+         setDraftPassword(newPass);
+         
+         // In a real app we'd save to database here, for now we save to local storage
+         const newApp = {
+           id: newId,
+           password: newPass,
+           status: "Draft",
+           ...formData,
+           [name]: value // updated field
+         };
+         setAdmissionApps([newApp, ...admissionApps]);
+       } else {
+         // Update existing draft
+         const updatedApps = admissionApps.map(app => {
+           if (app.id === draftAppId) {
+             return { ...app, ...formData, [name]: value };
+           }
+           return app;
+         });
+         setAdmissionApps(updatedApps);
+       }
+    }
   };
 
-  const handleStartExam = () => setExamStep("testing");
-  const handleSelectOption = (idx: number, opt: string) => setSelectedAnswers({ ...selectedAnswers, [idx]: opt });
-  const handleNext = () => setCurrentQIndex(i => Math.min(i + 1, questions.length - 1));
-  const handlePrev = () => setCurrentQIndex(i => Math.max(i - 1, 0));
-  const handleSubmitExam = () => {
-    let calculatedScore = 0;
-    questions.forEach((q, idx) => {
-      if (selectedAnswers[idx] === q.answer) calculatedScore += 20;
-    });
-    setScore(calculatedScore);
-    setExamStep("result");
-  };
-
-  const [appId, setAppId] = useState("");
-  const [selectedState, setSelectedState] = useState("");
-  const [selectedLga, setSelectedLga] = useState("");
-
-  // Form Fields
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [classApplying, setClassApplying] = useState("");
-  const [parentPhone, setParentPhone] = useState("");
-
-  const handleFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    setFile: React.Dispatch<React.SetStateAction<File | null>>,
-    setBase64?: React.Dispatch<React.SetStateAction<string>>
-  ) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setFile: React.Dispatch<React.SetStateAction<File | null>>, setBase64: React.Dispatch<React.SetStateAction<string>>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setFile(file);
-      if (setBase64) {
-        const reader = new FileReader();
-        reader.onloadend = () => setBase64(reader.result as string);
-        reader.readAsDataURL(file);
-      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+         const b64 = reader.result as string;
+         setBase64(b64);
+         if (draftAppId) {
+             const updatedApps = admissionApps.map(app => {
+               if (app.id === draftAppId) {
+                 return { 
+                   ...app, 
+                   documentsUrls: { 
+                     ...app.documentsUrls,
+                     [e.target.name]: b64
+                   } 
+                 };
+               }
+               return app;
+             });
+             setAdmissionApps(updatedApps);
+         }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleDrop = (
-    e: React.DragEvent<HTMLDivElement>,
-    setFile: React.Dispatch<React.SetStateAction<File | null>>,
-    setDragState: React.Dispatch<React.SetStateAction<boolean>>,
-    setBase64?: React.Dispatch<React.SetStateAction<string>>
-  ) => {
+  const handleResume = (e: React.FormEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-    setDragState(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      setFile(file);
-      if (setBase64) {
-        const reader = new FileReader();
-        reader.onloadend = () => setBase64(reader.result as string);
-        reader.readAsDataURL(file);
+    const existing = admissionApps.find(a => a.id === resumeAppId && a.password === resumePassword);
+    if (existing) {
+      if (existing.status === "Submitted") {
+        setResumeError("This application has already been submitted. Please check admission status instead.");
+        return;
       }
+      setDraftAppId(existing.id);
+      setDraftPassword(existing.password);
+      setFormData({
+        firstName: existing.firstName || "",
+        middleName: existing.middleName || "",
+        lastName: existing.lastName || "",
+        gender: existing.gender || "",
+        dob: existing.dob || "",
+        placeOfBirth: existing.placeOfBirth || "",
+        nationality: existing.nationality || "Nigerian",
+        state: existing.state || "",
+        lga: existing.lga || "",
+        address: existing.address || "",
+        phone: existing.phone || "",
+        email: existing.email || "",
+        parentName: existing.parentName || "",
+        parentRelationship: existing.parentRelationship || "",
+        parentPhone: existing.parentPhone || "",
+        parentEmail: existing.parentEmail || "",
+        parentOccupation: existing.parentOccupation || "",
+        parentAddress: existing.parentAddress || "",
+        previousSchool: existing.previousSchool || "",
+        previousClass: existing.previousClass || "",
+        lastClassAttended: existing.lastClassAttended || "",
+        examResults: existing.examResults || "",
+        yearOfCompletion: existing.yearOfCompletion || "",
+        classApplying: existing.classApplying || existing.class || "",
+        preferredSession: existing.preferredSession || "2026/2027"
+      });
+      if (existing.documentsUrls) {
+        setBirthCertBase64(existing.documentsUrls.birthCert || "");
+        setPreviousResultBase64(existing.documentsUrls.previousResult || "");
+        setPassportPhotoBase64(existing.documentsUrls.passportPhoto || "");
+        setTransferCertBase64(existing.documentsUrls.transferCert || "");
+        setPrimaryCertBase64(existing.documentsUrls.primaryCert || "");
+        setMedicalCertBase64(existing.documentsUrls.medicalCert || "");
+        setOtherDocBase64(existing.documentsUrls.otherDoc || "");
+      }
+      setView("apply");
+    } else {
+      setResumeError("Invalid Application Code or Password.");
     }
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, setDragState: React.Dispatch<React.SetStateAction<boolean>>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragState(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>, setDragState: React.Dispatch<React.SetStateAction<boolean>>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragState(false);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!birthCertFile || !previousResultFile || !passportPhotoFile) {
-      alert("Please upload all required documents (Birth Certificate, Previous Result, Passport Photograph)");
-      return;
-    }
-    const generatedId = `APP-${Math.floor(100000 + Math.random() * 900000)}`;
-    setAppId(generatedId);
-    localStorage.setItem("ess_latest_app_id", generatedId);
-    
-    // Save to admissionApps state
-    const newApp = {
-      id: generatedId,
-      name: `${firstName} ${lastName}`.trim(),
-      class: classApplying,
-      assignedClass: classApplying,
-      date: new Date().toISOString().split("T")[0],
-      status: "Pending",
-      payment: "Paid",
-      phone: parentPhone,
-      documentsUrls: {
-        birthCert: birthCertBase64,
-        previousResult: previousResultBase64,
-        passportPhoto: passportPhotoBase64
+  const submitFinal = () => {
+    if (!confirmed) return;
+    const updatedApps = admissionApps.map(app => {
+      if (app.id === draftAppId) {
+        return { 
+          ...app, 
+          status: "Submitted",
+          date: new Date().toISOString().split("T")[0],
+          name: `${formData.firstName} ${formData.lastName}`.trim(),
+          class: formData.classApplying,
+          payment: "Pending" // Assuming payment comes next or separate
+        };
       }
-    };
-    setAdmissionApps([newApp, ...admissionApps]);
-
-    setSubmitted(true);
+      return app;
+    });
+    setAdmissionApps(updatedApps);
+    setView("success");
   };
 
-  if (submitted) {
+  const copyAppCode = () => {
+    navigator.clipboard.writeText(`App Code: ${draftAppId} | Password: ${draftPassword}`);
+    alert("Copied to clipboard!");
+  };
+
+  if (view === "inquiry") {
     return (
-      <div className="py-20 max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <div id="print-area" className="bg-white p-8 sm:p-12 rounded-2xl shadow-sm border border-slate-200 space-y-6 text-left">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-brand-100 rounded-full flex items-center justify-center overflow-hidden">
-                 <img src={portalSettings.logoUrl} alt="Logo" className="w-full h-full object-cover" />
-              </div>
-              <div>
-                <h2 className="font-heading text-xl font-bold text-slate-900">{portalSettings.schoolName}</h2>
-                <p className="text-xs text-slate-500">Application Printout</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Application No.</p>
-              <p className="text-xl font-black text-brand-700">{appId}</p>
-            </div>
-          </div>
-          
-          <div className="flex flex-col items-center justify-center py-4 text-center">
-             <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-               <CheckCircle2 size={36} />
-             </div>
-             <h3 className="text-2xl font-bold text-slate-900">Application Successful!</h3>
-             <p className="text-sm text-slate-600 mt-2 max-w-md mx-auto">Please keep this slip and application number safe. You will need it for the entrance examination and further admission processes.</p>
-          </div>
-
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-left text-xs space-y-2 text-slate-700">
-            <p className="font-semibold text-slate-900 flex items-center gap-2">
-              <FileCheck size={16} className="text-brand-600" /> Attached Documents Summary:
-            </p>
-            <ul className="list-disc list-inside space-y-1 pl-2">
-              <li>Birth Certificate: <span className="font-medium text-slate-900">{birthCertFile ? birthCertFile.name : 'Not provided'}</span></li>
-              <li>Previous School Result: <span className="font-medium text-slate-900">{previousResultFile ? previousResultFile.name : 'Not provided'}</span></li>
-              <li>Passport Photograph: <span className="font-medium text-slate-900">{passportPhotoFile ? passportPhotoFile.name : 'Not provided'}</span></li>
-            </ul>
-          </div>
+      <div className="max-w-5xl mx-auto px-4 py-12">
+        <div className="text-center mb-10">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-100 text-brand-800 mb-3">
+            <Award size={14} /> 2026/2027 Admission Session
+          </span>
+          <h1 className="font-heading text-3xl sm:text-5xl font-bold text-slate-900 mb-4">Admission Inquiry</h1>
+          <p className="text-slate-600 text-lg max-w-2xl mx-auto">
+            Welcome to {portalSettings.schoolName}. Start your journey with us today.
+          </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-4 mt-8 justify-center">
-          <Button variant="outline" onClick={() => window.print()} className="gap-2">
-            Print Application Slip
+
+        {admissionSettings.galleryImages && admissionSettings.galleryImages.length > 0 && (
+          <div className="relative w-full h-[400px] rounded-2xl overflow-hidden shadow-xl mb-12">
+            {admissionSettings.galleryImages.map((img, idx) => (
+              <img
+                key={idx}
+                src={img}
+                alt={`Gallery image ${idx + 1}`}
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${idx === galleryIndex ? "opacity-100" : "opacity-0"}`}
+              />
+            ))}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-8">
+              <h2 className="text-white text-2xl font-bold">Discover Excellence</h2>
+            </div>
+            {admissionSettings.galleryImages.length > 1 && (
+              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+                {admissionSettings.galleryImages.map((_, idx) => (
+                  <div key={idx} className={`w-2.5 h-2.5 rounded-full ${idx === galleryIndex ? "bg-white" : "bg-white/40"}`} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+          <Button size="lg" variant="brand" className="w-full sm:w-auto text-lg gap-2 px-8" onClick={() => setView("guidelines")}>
+            <ClipboardList size={20} /> 📋 GUIDELINES
+          </Button>
+          <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg gap-2 px-8 border-slate-300" onClick={() => setView("resume")}>
+            <LogIn size={20} /> Resume Application
           </Button>
           <Link to="/admission-status">
-            <Button variant="outline" className="gap-2 border-brand-200 text-brand-700 bg-brand-50 w-full sm:w-auto">
-              <Search size={16} /> Check Admission Status
+            <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg gap-2 px-8 bg-brand-50 border-brand-200 text-brand-700">
+              <Search size={20} /> Check Admission Status
             </Button>
           </Link>
-          <Button variant="brand" onClick={() => {
-            setSubmitted(false);
-            setBirthCertFile(null);
-            setPreviousResultFile(null);
-            setPassportPhotoFile(null);
-            setFirstName("");
-            setLastName("");
-            setClassApplying("");
-            setParentPhone("");
-            setSelectedState("");
-            setSelectedLga("");
-          }}>
-            Submit Another Application
-          </Button>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="py-16 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="text-center mb-10">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-100 text-brand-800 mb-3">
-          <Award size={14} /> 2026/2027 Admission Session
-        </span>
-        <h1 className="font-heading text-3xl sm:text-4xl font-bold text-slate-900 mb-3">Online Admission Application</h1>
-        <p className="text-slate-600 text-base max-w-2xl mx-auto mb-6">
-          Complete the form below and upload all required verification documents to apply for enrollment at {portalSettings.schoolName}.
-        </p>
-        <Link to="/admission-status" className="inline-flex items-center gap-2 bg-white px-5 py-2.5 rounded-full border border-brand-200 text-brand-700 font-bold shadow-sm hover:bg-brand-50 transition-colors">
-          <Search size={16} /> Already applied? Check Admission Status
-        </Link>
-      </div>
-
-      <div className="bg-white p-6 sm:p-10 rounded-2xl shadow-sm border border-slate-200">
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Section 1: Basic Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold font-heading text-slate-900 border-b border-slate-100 pb-2">
-              1. Student & Guardian Information
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input id="firstName" placeholder="Student's first name" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input id="lastName" placeholder="Student's last name" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dob">Date of Birth</Label>
-                <Input id="dob" type="date" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="class">Class Applying For</Label>
-                <select id="class" value={classApplying} onChange={(e) => setClassApplying(e.target.value)} className="flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-shadow" required>
-                  <option value="">Select a class...</option>
-                  <optgroup label="Junior Secondary">
-                    {["JSS 1", "JSS 2", "JSS 3"].map(c => <option key={c} value={c}>{c}</option>)}
-                  </optgroup>
-                  <optgroup label="Senior Secondary">
-                    {["SSS 1 Science", "SSS 1 Arts", "SSS 1 Commercial", "SSS 2 Science", "SSS 2 Arts", "SSS 3"].map(c => <option key={c} value={c}>{c}</option>)}
-                  </optgroup>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="state">State of Origin</Label>
-                <select 
-                  id="state" 
-                  value={selectedState}
-                  onChange={(e) => {
-                    setSelectedState(e.target.value);
-                    setSelectedLga("");
-                  }}
-                  className="flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-shadow" 
-                  required
-                >
-                  <option value="">Select a state...</option>
-                  {Object.keys(NIGERIA_STATES).sort().map(state => (
-                    <option key={state} value={state}>{state}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lga">Local Government Area</Label>
-                <select 
-                  id="lga" 
-                  value={selectedLga}
-                  onChange={(e) => setSelectedLga(e.target.value)}
-                  className="flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-shadow disabled:bg-slate-100 disabled:text-slate-400" 
-                  required
-                  disabled={!selectedState}
-                >
-                  <option value="">Select an LGA...</option>
-                  {selectedState && (NIGERIA_STATES as any)[selectedState]?.map((lga: string) => (
-                    <option key={lga} value={lga}>{lga}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="parentEmail">Parent / Guardian Email</Label>
-                <Input id="parentEmail" type="email" placeholder="parent@example.com" required />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="parentPhone">Parent / Guardian Phone Number</Label>
-                <Input id="parentPhone" type="tel" placeholder="+234 800 000 0000" required />
-              </div>
-            </div>
+  if (view === "guidelines") {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+        <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden my-8 flex flex-col max-h-[90vh]">
+          <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 sticky top-0 z-10">
+            <h2 className="text-2xl font-bold font-heading text-slate-900 flex items-center gap-2">
+              <ClipboardList className="text-brand-600" /> ADMISSION APPLICATION GUIDELINES
+            </h2>
           </div>
-
-          {/* Section 2: Document Upload Columns */}
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-bold font-heading text-slate-900 border-b border-slate-100 pb-2">
-                2. Required Documents Upload
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Please upload clear copies of the student's Birth Certificate, Previous School Result, and Passport Photograph (PDF, PNG, JPG max 5MB).
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
-              {/* Column 1: Birth Certificate Upload */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-900 flex items-center justify-between">
-                  <span>Birth Certificate <span className="text-rose-500">*</span></span>
-                  {birthCertFile && <span className="text-xs text-emerald-600 font-medium flex items-center gap-1"><CheckCircle2 size={12} /> Uploaded</span>}
-                </Label>
-
-                {!birthCertFile ? (
-                  <div
-                    onDragOver={(e) => handleDragOver(e, setDragActiveBirth)}
-                    onDragLeave={(e) => handleDragLeave(e, setDragActiveBirth)}
-                    onDrop={(e) => handleDrop(e, setBirthCertFile, setDragActiveBirth, setBirthCertBase64)}
-                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors relative flex flex-col items-center justify-center min-h-[170px] ${
-                      dragActiveBirth ? 'border-brand-500 bg-brand-50/50' : 'border-slate-300 hover:border-brand-400 bg-slate-50/50'
-                    }`}
-                  >
-                    <input
-                      type="file"
-                      id="birthCert"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) => handleFileChange(e, setBirthCertFile, setBirthCertBase64)}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      required
-                    />
-                    <div className="w-12 h-12 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center mb-3">
-                      <UploadCloud size={24} />
-                    </div>
-                    <p className="text-sm font-medium text-slate-800">
-                      Drag & drop Birth Certificate
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">or <span className="text-brand-600 underline font-semibold">browse files</span></p>
-                    <p className="text-[11px] text-slate-400 mt-2">PDF, PNG or JPG (Max 5MB)</p>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl flex items-center justify-between">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                        <FileText size={20} />
-                      </div>
-                      <div className="truncate">
-                        <p className="text-sm font-semibold text-slate-900 truncate">{birthCertFile.name}</p>
-                        <p className="text-xs text-slate-500">{(birthCertFile.size / 1024 / 1024).toFixed(2)} MB &middot; Birth Certificate</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setBirthCertFile(null)}
-                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
-                      title="Remove file"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Column 2: Previous School Result Upload */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-900 flex items-center justify-between">
-                  <span>Previous School Result / Transcript <span className="text-rose-500">*</span></span>
-                  {previousResultFile && <span className="text-xs text-emerald-600 font-medium flex items-center gap-1"><CheckCircle2 size={12} /> Uploaded</span>}
-                </Label>
-
-                {!previousResultFile ? (
-                  <div
-                    onDragOver={(e) => handleDragOver(e, setDragActiveResult)}
-                    onDragLeave={(e) => handleDragLeave(e, setDragActiveResult)}
-                    onDrop={(e) => handleDrop(e, setPreviousResultFile, setDragActiveResult, setPreviousResultBase64)}
-                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors relative flex flex-col items-center justify-center min-h-[170px] ${
-                      dragActiveResult ? 'border-brand-500 bg-brand-50/50' : 'border-slate-300 hover:border-brand-400 bg-slate-50/50'
-                    }`}
-                  >
-                    <input
-                      type="file"
-                      id="previousResult"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) => handleFileChange(e, setPreviousResultFile, setPreviousResultBase64)}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      required
-                    />
-                    <div className="w-12 h-12 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center mb-3">
-                      <UploadCloud size={24} />
-                    </div>
-                    <p className="text-sm font-medium text-slate-800">
-                      Drag & drop Previous Result
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">or <span className="text-brand-600 underline font-semibold">browse files</span></p>
-                    <p className="text-[11px] text-slate-400 mt-2">PDF, PNG or JPG (Max 5MB)</p>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl flex items-center justify-between">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                        <FileText size={20} />
-                      </div>
-                      <div className="truncate">
-                        <p className="text-sm font-semibold text-slate-900 truncate">{previousResultFile.name}</p>
-                        <p className="text-xs text-slate-500">{(previousResultFile.size / 1024 / 1024).toFixed(2)} MB &middot; Academic Record</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setPreviousResultFile(null)}
-                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
-                      title="Remove file"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Column 3: Passport Photograph Upload */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-900 flex items-center justify-between">
-                  <span>Passport Photograph <span className="text-rose-500">*</span></span>
-                  {passportPhotoFile && <span className="text-xs text-emerald-600 font-medium flex items-center gap-1"><CheckCircle2 size={12} /> Uploaded</span>}
-                </Label>
-                {!passportPhotoFile ? (
-                  <div
-                    onDragOver={(e) => handleDragOver(e, setDragActivePassport)}
-                    onDragLeave={(e) => handleDragLeave(e, setDragActivePassport)}
-                    onDrop={(e) => handleDrop(e, setPassportPhotoFile, setDragActivePassport, setPassportPhotoBase64)}
-                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors relative flex flex-col items-center justify-center min-h-[170px] ${
-                      dragActivePassport ? 'border-brand-500 bg-brand-50/50' : 'border-slate-300 hover:border-brand-400 bg-slate-50/50'
-                    }`}
-                  >
-                    <input
-                      type="file"
-                      id="passportPhoto"
-                      accept=".jpg,.jpeg,.png"
-                      onChange={(e) => handleFileChange(e, setPassportPhotoFile, setPassportPhotoBase64)}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      required
-                    />
-                    <div className="w-12 h-12 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center mb-3">
-                      <UploadCloud size={24} />
-                    </div>
-                    <p className="text-sm font-medium text-slate-800">
-                      Drag & drop Passport Photo
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">or <span className="text-brand-600 underline font-semibold">browse files</span></p>
-                    <p className="text-[11px] text-slate-400 mt-2">PNG or JPG (Max 5MB)</p>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl flex items-center justify-between">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                        <FileText size={20} />
-                      </div>
-                      <div className="truncate">
-                        <p className="text-sm font-semibold text-slate-900 truncate">{passportPhotoFile.name}</p>
-                        <p className="text-xs text-slate-500">{(passportPhotoFile.size / 1024 / 1024).toFixed(2)} MB &middot; Passport Photo</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setPassportPhotoFile(null)}
-                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
-                      title="Remove file"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 text-xs text-amber-900">
-              <ShieldAlert size={16} className="text-amber-600 shrink-0 mt-0.5" />
-              <span>
-                <strong>Document Verification Notice:</strong> Ensure uploaded documents are legible and clear. Scanned official documents will speed up your application processing.
-              </span>
-            </div>
+          <div className="p-8 overflow-y-auto prose prose-slate max-w-none prose-headings:font-heading prose-headings:text-slate-900 prose-a:text-brand-600">
+            {admissionSettings.guidelines ? (
+              <div dangerouslySetInnerHTML={{ __html: admissionSettings.guidelines.replace(/\n/g, '<br/>').replace(/### (.*?)\n/g, '<h3>$1</h3>').replace(/## (.*?)\n/g, '<h2>$1</h2>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+            ) : (
+              <p>No guidelines configured.</p>
+            )}
           </div>
-
-          {/* Section 3: Online Payment */}
-          <div className="space-y-4 pt-4 border-t border-slate-100">
-            <div>
-              <h3 className="text-lg font-bold font-heading text-slate-900 border-b border-slate-100 pb-2">
-                3. Admission Form Payment
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                A non-refundable application fee of ₦{parseInt(admissionSettings.appFee || "5000").toLocaleString()} is required to process your admission.
-              </p>
-            </div>
-            <div className="p-5 bg-brand-50 border border-brand-200 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-6">
-              <div>
-                <p className="text-sm font-bold text-brand-900">Application Fee</p>
-                <p className="text-3xl font-black text-brand-700">₦{parseInt(admissionSettings.appFee || "5000").toLocaleString()}.00</p>
-              </div>
-              
-              <div className="flex-1 w-full sm:w-auto bg-white p-4 rounded-lg border border-brand-100 shadow-sm">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Direct Bank Transfer Details</p>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-slate-600">Bank Name:</span>
-                  <span className="font-bold text-slate-900">{admissionSettings.bankName || "Guaranty Trust Bank (GTB)"}</span>
-                  
-                  <span className="text-slate-600">Account Name:</span>
-                  <span className="font-bold text-slate-900">{admissionSettings.accountName || "Emmanuel Secondary School"}</span>
-                  
-                  <span className="text-slate-600">Account No:</span>
-                  <span className="font-bold text-slate-900 font-mono tracking-wider">{admissionSettings.accountNumber || "0123456789"}</span>
-                </div>
-              </div>
-              
-              <div className="flex-shrink-0 w-full sm:w-auto">
-                <Button type="button" variant="outline" className="w-full sm:w-auto border-brand-600 text-brand-700 hover:bg-brand-100 font-bold" onClick={() => alert("Redirecting to secure payment gateway...")}>
-                  Pay Now Online
-                </Button>
-              </div>
-            </div>
-          </div>
-
-
-          <div className="pt-4 border-t border-slate-100">
-            <Button type="submit" variant="brand" className="w-full text-base h-12">
-              Submit Admission Application & Documents
+          <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-4 justify-end sticky bottom-0 z-10">
+            <Button variant="outline" onClick={() => setView("inquiry")} className="px-8">
+              CLOSE
+            </Button>
+            <Button variant="brand" onClick={() => setView("apply")} className="px-8 gap-2 text-base font-bold">
+              APPLY NOW <ArrowRight size={18} />
             </Button>
           </div>
-        </form>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
+  if (view === "resume") {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <LogIn className="text-brand-600" /> Resume Application
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleResume} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="resumeAppId">Application Code</Label>
+                <Input id="resumeAppId" required value={resumeAppId} onChange={(e) => setResumeAppId(e.target.value)} placeholder="e.g. APP-12345678" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="resumePassword">Password</Label>
+                <Input id="resumePassword" type="password" required value={resumePassword} onChange={(e) => setResumePassword(e.target.value)} placeholder="********" />
+              </div>
+              {resumeError && <p className="text-sm text-red-600 font-medium">{resumeError}</p>}
+              <div className="pt-4 flex gap-3 flex-col">
+                <Button type="submit" variant="brand" className="w-full">Continue Application</Button>
+                <Button type="button" variant="ghost" onClick={() => setView("inquiry")}>Cancel</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (view === "apply") {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-blue-50 p-6 rounded-xl border border-blue-100 shadow-sm">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 mb-1">Application Status: <span className="text-amber-600">Draft / Incomplete</span></h2>
+            <p className="text-sm text-slate-600 max-w-xl">
+              Your application is automatically saved as a draft. You can leave and return later using the details below.
+            </p>
+          </div>
+          {draftAppId && (
+            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm min-w-[250px]">
+              <div className="flex justify-between items-center mb-2 border-b pb-2">
+                <span className="text-xs font-bold text-slate-500 uppercase">Save Your Details</span>
+                <button onClick={copyAppCode} className="text-xs font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1">
+                  <Save size={12} /> COPY
+                </button>
+              </div>
+              <p className="text-sm flex justify-between"><span className="text-slate-500">App Code:</span> <strong className="text-slate-900">{draftAppId}</strong></p>
+              <p className="text-sm flex justify-between"><span className="text-slate-500">Password:</span> <strong className="text-slate-900">{draftPassword}</strong></p>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white p-6 sm:p-10 rounded-2xl shadow-sm border border-slate-200">
+          <form onSubmit={(e) => { e.preventDefault(); setView("review"); }} className="space-y-8">
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold font-heading text-slate-900 border-b border-slate-100 pb-2">
+                Applicant's Main Information
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label>First Name <span className="text-red-500">*</span></Label>
+                  <Input name="firstName" required value={formData.firstName} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Middle Name</Label>
+                  <Input name="middleName" value={formData.middleName} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Last Name <span className="text-red-500">*</span></Label>
+                  <Input name="lastName" required value={formData.lastName} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Date of Birth <span className="text-red-500">*</span></Label>
+                  <Input name="dob" type="date" required value={formData.dob} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Place of Birth <span className="text-red-500">*</span></Label>
+                  <Input name="placeOfBirth" required value={formData.placeOfBirth} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nationality <span className="text-red-500">*</span></Label>
+                  <Input name="nationality" required value={formData.nationality} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Gender <span className="text-red-500">*</span></Label>
+                  <select name="gender" required value={formData.gender} onChange={handleInputChange as any} className="flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone Number <span className="text-red-500">*</span></Label>
+                  <Input name="phone" required value={formData.phone} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2 sm:col-span-3">
+                  <Label>Email Address</Label>
+                  <Input name="email" type="email" value={formData.email} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2 sm:col-span-3">
+                  <Label>Residential Address <span className="text-red-500">*</span></Label>
+                  <Input name="address" required value={formData.address} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label>State of Origin <span className="text-red-500">*</span></Label>
+                  <select name="state" required value={formData.state} onChange={handleInputChange as any} className="flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    <option value="">Select State</option>
+                    {Object.keys(NIGERIA_STATES).map(state => <option key={state} value={state}>{state}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Local Government Area</Label>
+                  <Input name="lga" value={formData.lga} onChange={handleInputChange} />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold font-heading text-slate-900 border-b border-slate-100 pb-2">
+                Parent/Guardian Information
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label>Parent/Guardian Name <span className="text-red-500">*</span></Label>
+                  <Input name="parentName" required value={formData.parentName} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Relationship <span className="text-red-500">*</span></Label>
+                  <Input name="parentRelationship" required value={formData.parentRelationship} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone Number <span className="text-red-500">*</span></Label>
+                  <Input name="parentPhone" required value={formData.parentPhone} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email Address</Label>
+                  <Input name="parentEmail" type="email" value={formData.parentEmail} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Occupation</Label>
+                  <Input name="parentOccupation" value={formData.parentOccupation} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Contact Address <span className="text-red-500">*</span></Label>
+                  <Input name="parentAddress" required value={formData.parentAddress} onChange={handleInputChange} />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold font-heading text-slate-900 border-b border-slate-100 pb-2">
+                Academic Information
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label>Previous School</Label>
+                  <Input name="previousSchool" value={formData.previousSchool} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Previous Class</Label>
+                  <Input name="previousClass" value={formData.previousClass} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Last Class Attended</Label>
+                  <Input name="lastClassAttended" value={formData.lastClassAttended} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Year of Completion</Label>
+                  <Input name="yearOfCompletion" value={formData.yearOfCompletion} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Examination/Academic Results</Label>
+                  <Input name="examResults" value={formData.examResults} onChange={handleInputChange} placeholder="e.g. Common Entrance Score: 85%" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Class Applying For <span className="text-red-500">*</span></Label>
+                  <select name="classApplying" required value={formData.classApplying} onChange={handleInputChange as any} className="flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    <option value="">Select Class</option>
+                    <option value="JSS 1">JSS 1</option>
+                    <option value="JSS 2">JSS 2</option>
+                    <option value="SSS 1">SSS 1</option>
+                    <option value="SSS 2">SSS 2</option>
+                  </select>
+                </div>
+                
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold font-heading text-slate-900 border-b border-slate-100 pb-2">
+                Document Uploads
+              </h3>
+              <p className="text-sm text-slate-500 mb-4">Please upload clear copies of the required documents.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="border border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors">
+                  <div className="w-10 h-10 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-3"><ImageIcon size={20} /></div>
+                  <Label className="block text-sm font-bold text-slate-700 mb-1">Passport Photo <span className="text-red-500">*</span></Label>
+                  <input type="file" name="passportPhoto" required={!passportPhotoBase64} accept="image/*" onChange={(e) => handleFileChange(e, setPassportPhotoFile, setPassportPhotoBase64)} className="text-xs w-full text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-brand-50 file:text-brand-700 file:font-semibold" />
+                  {passportPhotoBase64 && <div className="mt-2 text-xs text-emerald-600 font-bold flex items-center justify-center gap-1"><Check size={14}/> Uploaded</div>}
+                </div>
+                <div className="border border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors">
+                  <div className="w-10 h-10 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-3"><FileText size={20} /></div>
+                  <Label className="block text-sm font-bold text-slate-700 mb-1">Birth Certificate <span className="text-red-500">*</span></Label>
+                  <input type="file" name="birthCert" required={!birthCertBase64} accept="image/*,.pdf" onChange={(e) => handleFileChange(e, setBirthCertFile, setBirthCertBase64)} className="text-xs w-full text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-brand-50 file:text-brand-700 file:font-semibold" />
+                  {birthCertBase64 && <div className="mt-2 text-xs text-emerald-600 font-bold flex items-center justify-center gap-1"><Check size={14}/> Uploaded</div>}
+                </div>
+                <div className="border border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors">
+                  <div className="w-10 h-10 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-3"><FileCheck size={20} /></div>
+                  <Label className="block text-sm font-bold text-slate-700 mb-1">Previous Result <span className="text-red-500">*</span></Label>
+                  <input type="file" name="previousResult" required={!previousResultBase64} accept="image/*,.pdf" onChange={(e) => handleFileChange(e, setPreviousResultFile, setPreviousResultBase64)} className="text-xs w-full text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-brand-50 file:text-brand-700 file:font-semibold" />
+                  {previousResultBase64 && <div className="mt-2 text-xs text-emerald-600 font-bold flex items-center justify-center gap-1"><Check size={14}/> Uploaded</div>}
+                </div>
+              
+                <div className="border border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors">
+                  <div className="w-10 h-10 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-3"><FileText size={20} /></div>
+                  <Label className="block text-sm font-bold text-slate-700 mb-1">Transfer Certificate</Label>
+                  <input type="file" name="transferCert" accept="image/*,.pdf" onChange={(e) => handleFileChange(e, setTransferCertFile, setTransferCertBase64)} className="text-xs w-full text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-brand-50 file:text-brand-700 file:font-semibold" />
+                  {transferCertBase64 && <div className="mt-2 text-xs text-emerald-600 font-bold flex items-center justify-center gap-1"><Check size={14}/> Uploaded</div>}
+                </div>
+                <div className="border border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors">
+                  <div className="w-10 h-10 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-3"><Award size={20} /></div>
+                  <Label className="block text-sm font-bold text-slate-700 mb-1">Primary School Cert.</Label>
+                  <input type="file" name="primaryCert" accept="image/*,.pdf" onChange={(e) => handleFileChange(e, setPrimaryCertFile, setPrimaryCertBase64)} className="text-xs w-full text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-brand-50 file:text-brand-700 file:font-semibold" />
+                  {primaryCertBase64 && <div className="mt-2 text-xs text-emerald-600 font-bold flex items-center justify-center gap-1"><Check size={14}/> Uploaded</div>}
+                </div>
+                <div className="border border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors">
+                  <div className="w-10 h-10 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-3"><FileText size={20} /></div>
+                  <Label className="block text-sm font-bold text-slate-700 mb-1">Medical/Health Cert.</Label>
+                  <input type="file" name="medicalCert" accept="image/*,.pdf" onChange={(e) => handleFileChange(e, setMedicalCertFile, setMedicalCertBase64)} className="text-xs w-full text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-brand-50 file:text-brand-700 file:font-semibold" />
+                  {medicalCertBase64 && <div className="mt-2 text-xs text-emerald-600 font-bold flex items-center justify-center gap-1"><Check size={14}/> Uploaded</div>}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4 pt-6 border-t border-slate-100">
+              <Button type="button" variant="outline" onClick={() => setView("inquiry")} className="flex-1">Save & Exit</Button>
+              <Button type="submit" variant="brand" className="flex-1">Review Application <ArrowRight size={16} className="ml-2"/></Button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "review") {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <h2 className="text-3xl font-bold font-heading text-slate-900 mb-6 text-center">Review Your Application</h2>
+        <Card className="mb-8">
+          <CardHeader className="bg-slate-50 border-b border-slate-100">
+            <CardTitle className="text-xl">Applicant Information</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
+              <div><span className="text-slate-500 text-sm">Full Name:</span> <p className="font-bold text-slate-900">{formData.firstName} {formData.middleName} {formData.lastName}</p></div>
+              <div><span className="text-slate-500 text-sm">Date of Birth:</span> <p className="font-bold text-slate-900">{formData.dob}</p></div>
+              <div><span className="text-slate-500 text-sm">Gender:</span> <p className="font-bold text-slate-900">{formData.gender}</p></div>
+              <div><span className="text-slate-500 text-sm">Class Applying:</span> <p className="font-bold text-slate-900">{formData.classApplying}</p></div>
+              <div><span className="text-slate-500 text-sm">Phone:</span> <p className="font-bold text-slate-900">{formData.phone}</p></div>
+              <div><span className="text-slate-500 text-sm">Email:</span> <p className="font-bold text-slate-900">{formData.email || 'N/A'}</p></div>
+              <div className="sm:col-span-2"><span className="text-slate-500 text-sm">Address:</span> <p className="font-bold text-slate-900">{formData.address}</p></div>
+              <div><span className="text-slate-500 text-sm">Parent Name:</span> <p className="font-bold text-slate-900">{formData.parentName}</p></div>
+              <div><span className="text-slate-500 text-sm">Parent Phone:</span> <p className="font-bold text-slate-900">{formData.parentPhone}</p></div>
+              <div><span className="text-slate-500 text-sm">Nationality:</span> <p className="font-bold text-slate-900">{formData.nationality}</p></div>
+              <div><span className="text-slate-500 text-sm">State & LGA:</span> <p className="font-bold text-slate-900">{formData.state} - {formData.lga}</p></div>
+              <div><span className="text-slate-500 text-sm">Previous School:</span> <p className="font-bold text-slate-900">{formData.previousSchool}</p></div>
+            </div>
+            
+            <h4 className="mt-8 mb-4 font-bold text-slate-900 border-b pb-2">Uploaded Documents</h4>
+            <div className="flex gap-6 flex-wrap">
+              {passportPhotoBase64 ? <span className="flex items-center gap-2 text-emerald-700 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg"><Check size={16}/> Passport Photo</span> : <span className="text-red-500 font-bold">Missing Passport Photo</span>}
+              {birthCertBase64 ? <span className="flex items-center gap-2 text-emerald-700 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg"><Check size={16}/> Birth Certificate</span> : <span className="text-red-500 font-bold">Missing Birth Certificate</span>}
+              {previousResultBase64 ? <span className="flex items-center gap-2 text-emerald-700 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg"><Check size={16}/> Previous Result</span> : <span className="text-red-500 font-bold">Missing Previous Result</span>}
+            
+              {transferCertBase64 ? <span className="flex items-center gap-2 text-emerald-700 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg"><Check size={16}/> Transfer Certificate</span> : null}
+              {primaryCertBase64 ? <span className="flex items-center gap-2 text-emerald-700 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg"><Check size={16}/> Primary School Cert.</span> : null}
+              {medicalCertBase64 ? <span className="flex items-center gap-2 text-emerald-700 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg"><Check size={16}/> Medical/Health Cert.</span> : null}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="bg-brand-50 border border-brand-200 rounded-xl p-6 mb-8">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" className="mt-1 w-5 h-5 text-brand-600 rounded focus:ring-brand-500 border-slate-300" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+            <span className="text-slate-800 font-medium">I confirm that the information and documents provided are correct and belong to me. I understand that incorrect information or invalid documents may result in the rejection of my application.</span>
+          </label>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4 justify-end">
+          <Button variant="outline" size="lg" onClick={() => setView("apply")}>Back to Edit</Button>
+          <Button variant="brand" size="lg" disabled={!confirmed} onClick={submitFinal}>SUBMIT APPLICATION</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "success") {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-20 text-center">
+        <div className="bg-white p-10 rounded-3xl shadow-sm border border-slate-200">
+          <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 size={48} />
+          </div>
+          <h2 className="text-3xl font-bold font-heading text-slate-900 mb-2">Application Submitted!</h2>
+          <p className="text-slate-600 mb-6 text-lg">Your application has been successfully submitted and is now under review.</p>
+          
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 mb-8 text-left">
+            <p className="text-sm text-slate-500 uppercase tracking-wider font-bold mb-1">Your Application Code</p>
+            <p className="text-3xl font-black text-brand-700 mb-4">{draftAppId}</p>
+            <p className="text-sm text-slate-600 bg-white p-3 rounded-lg border border-slate-200">
+              <strong>IMPORTANT:</strong> Please keep this code safe. You will need it to check your admission status and access your CBT examination dashboard.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <Button variant="brand" size="lg" onClick={() => {
+              // Usually we might log them into the applicant dashboard here.
+              // We'll redirect to the CBT view in this flow for demo purposes.
+              setView("cbt");
+            }}>
+              Go to Applicant Dashboard (CBT)
+            </Button>
+            <Button variant="outline" onClick={() => window.print()}>
+              Print Application Slip
+            </Button>
+            <Link to="/admission-status">
+              <Button variant="ghost" className="w-full text-slate-500">
+                Check Admission Status
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "cbt") {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="flex items-center gap-4 mb-8">
+          <Button variant="ghost" size="sm" onClick={() => setView("success")} className="gap-2 text-slate-500">
+            ← Back
+          </Button>
+          <h2 className="text-2xl font-bold font-heading text-slate-900">Applicant Dashboard</h2>
+        </div>
+        
+        <Card className="mb-8">
+          <CardHeader className="bg-slate-50 border-b border-slate-100">
+            <CardTitle>Application Status</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <span className="px-4 py-2 bg-emerald-100 text-emerald-800 rounded-full font-bold text-sm">Submitted</span>
+              <p className="text-slate-600">Application Code: <strong>{draftAppId}</strong></p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-brand-200 shadow-md">
+          <CardHeader className="bg-brand-50 border-b border-brand-100">
+            <CardTitle className="text-brand-900 flex items-center gap-2">
+              <Monitor size={20} className="text-brand-600" /> CBT Examination
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-white p-4 rounded-lg border border-slate-200">
+                <span className="text-xs text-slate-500 uppercase font-bold">Exam Date</span>
+                <p className="font-bold text-slate-900 text-lg">{admissionSettings.entranceExamDate || "TBA"}</p>
+              </div>
+              <div className="bg-white p-4 rounded-lg border border-slate-200">
+                <span className="text-xs text-slate-500 uppercase font-bold">Time</span>
+                <p className="font-bold text-slate-900 text-lg">9:00 AM Prompt</p>
+              </div>
+              <div className="bg-white p-4 rounded-lg border border-slate-200 sm:col-span-2">
+                <span className="text-xs text-slate-500 uppercase font-bold">Venue</span>
+                <p className="font-bold text-slate-900 text-lg">School Main ICT Lab</p>
+              </div>
+            </div>
+            <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 mt-4">
+              <strong>Instructions:</strong>
+              <ul className="list-disc pl-5 mt-2 space-y-1">
+                <li>Arrive at least 30 minutes before the scheduled time.</li>
+                <li>Bring a printed copy of your application slip.</li>
+                <li>No calculators or mobile devices allowed in the exam hall.</li>
+              </ul>
+            </div>
+            
+            {/* The actual CBT link or action would go here */}
+            <div className="pt-4 text-center">
+               <Link to="/entrance-exam">
+                 <Button variant="brand" size="lg" className="w-full sm:w-auto">Take CBT Examination</Button>
+               </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return null;
+}

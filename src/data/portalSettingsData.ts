@@ -76,6 +76,9 @@ export interface AdmissionSettings {
   bankName: string;
   accountName: string;
   accountNumber: string;
+  guidelines: string;
+  galleryImages: string[];
+  imageRotationInterval: number;
 }
 
 const defaultAdmissionSettings: AdmissionSettings = {
@@ -89,7 +92,14 @@ const defaultAdmissionSettings: AdmissionSettings = {
   portalOpen: true,
   bankName: "Guaranty Trust Bank (GTB)",
   accountName: "Emmanuel Secondary School",
-  accountNumber: "0123456789"
+  accountNumber: "0123456789",
+  guidelines: `ADMISSION APPLICATION GUIDELINES\n\nDear Applicant,\n\nPlease follow the instructions below carefully when applying for admission:\n\n### 1. Complete Your Registration Carefully\nFill in all required information correctly. Make sure your name, date of birth, contact details, academic information, and other details are accurate before submitting your application.\n\n### 2. Save Your Application Code\nAfter completing your registration, **save or write down your Application Code/Number and password**. You will need these details to log in, check your application status, access your examination information, and continue with the admission process.\n\n### 3. Check Your Information\nBefore submitting your application, carefully review all the information you entered. **Incorrect or false information may lead to the rejection of your application.**\n\n### 4. Upload the Correct Documents\nMake sure all required documents are clear, valid, and correctly uploaded. Do not upload the wrong document or someone else's document. Incorrect or incomplete documentation may result in **admission rejection**.\n\n### 5. Take the CBT Examination\nAfter successful registration, log in to your applicant dashboard and check your **CBT examination date, time, and instructions**. Make sure you sit for the examination as scheduled.\n\n### 6. Keep Your Login Details Safe\nDo not share your Application Code, password, or other login details with anyone. Keep them safe for future use.\n\n### 7. Check Your Admission Status\nAfter completing your registration and CBT examination, regularly log in to your applicant dashboard to check for updates concerning your admission status.\n\n---\n\n## IMPORTANT NOTICE\n\nApplicants are advised to carefully verify all information and documents before submitting their application. The institution will not be responsible for errors caused by applicants during registration.\n\n**Incorrect information, invalid documents, or failure to follow the admission instructions may result in the rejection of your application.**\n\n**Good luck with your application and CBT examination!**`,
+  galleryImages: [
+    "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1200&q=80",
+    "https://images.unsplash.com/photo-1577896851231-70ef18881754?w=1200&q=80",
+    "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=1200&q=80"
+  ],
+  imageRotationInterval: 2
 };
 
 export function useAdmissionSettings() {
