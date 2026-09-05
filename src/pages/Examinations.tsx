@@ -20,18 +20,7 @@ import {
   Paperclip, ExternalLink, FileUp, CheckCircle2, Clock
 } from "lucide-react";
 
-const students = [
-  { id: "ESS/2026/001", name: "Oluwaseun Adebayo", class: "SSS 3A" },
-  { id: "ESS/2026/002", name: "Chioma Nwosu", class: "SSS 3A" },
-  { id: "ESS/2026/004", name: "Grace Okhiria", class: "SSS 3A" },
-  { id: "ESS/2026/005", name: "David Emmanuel", class: "SSS 3A" },
-  { id: "ESS/2026/003", name: "Abubakar Ibrahim", class: "JSS 1A" },
-  { id: "ESS/2026/006", name: "Zainab Bello", class: "JSS 1A" },
-  { id: "ESS/2026/007", name: "Kofi Mensah", class: "JSS 2A" },
-  { id: "ESS/2026/008", name: "Fatima Aliyu", class: "SSS 1A" },
-  { id: "ESS/2026/009", name: "Emeka Okafor", class: "JSS 3B" },
-  { id: "ESS/2026/010", name: "Aisha Mohammed", class: "SSS 2B" },
-];
+
 
 const initialScores: ScoreRecord[] = [
   { id: "SCR-101", studentId: "ESS/2026/001", studentName: "Oluwaseun Adebayo", class: "SSS 3A", subject: "Mathematics", session: "2025/2026 - First Term", ca1: 9, ca2: 8, ca3: 9, ca4: 9, exam: 52, total: 87, grade: "A", remark: "Excellent", position: "1st", annualScore: 258, teacherNote: "Outstanding problem solver" },
@@ -1096,7 +1085,7 @@ export default function Examinations() {
                       value={newAssignment.subject}
                       onChange={(e) => setNewAssignment({...newAssignment, subject: e.target.value})}
                     >
-                      {["Mathematics", "English Language", "Basic Science", "Civic Education"].map(s => (
+                      {["Mathematics", "English Language", "Basic Science", "Civic Education"].map((s, idx) => (
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
@@ -1190,7 +1179,7 @@ export default function Examinations() {
                       value={newAssignment.subject}
                       onChange={(e) => setNewAssignment({...newAssignment, subject: e.target.value})}
                     >
-                      {SUBJECTS.filter(s => s !== "All Subjects").map(s => (
+                      {SUBJECTS.filter(s => s !== "All Subjects").map((s, idx) => (
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
@@ -3242,7 +3231,7 @@ export default function Examinations() {
                     value={deleteTargetSubject}
                     onChange={(e) => setDeleteTargetSubject(e.target.value)}
                   >
-                    {SUBJECTS.filter(s => s !== "All Subjects").map(s => (
+                    {SUBJECTS.filter(s => s !== "All Subjects").map((s, idx) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
@@ -3326,7 +3315,7 @@ export default function Examinations() {
                       setDeleteTargetStudentId(match ? match.id : "");
                     }}
                   >
-                    {SUBJECTS.filter(s => s !== "All Subjects").map(s => (
+                    {SUBJECTS.filter(s => s !== "All Subjects").map((s, idx) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
@@ -3340,8 +3329,8 @@ export default function Examinations() {
                   value={deleteTargetStudentId}
                   onChange={(e) => setDeleteTargetStudentId(e.target.value)}
                 >
-                  {scores.filter(s => s.class === deleteTargetClass && s.subject === deleteTargetSubject).map(s => (
-                    <option key={s.id} value={s.id}>
+                  {scores.filter(s => s.class === deleteTargetClass && s.subject === deleteTargetSubject).map((s, idx) => (
+                    <option key={`${s.id}_${idx}`} value={s.id}>
                       {s.studentName} ({s.studentId}) — Score: {s.total}/100 (Grade {s.grade})
                     </option>
                   ))}
@@ -3432,7 +3421,7 @@ export default function Examinations() {
                     value={deleteTargetSubject}
                     onChange={(e) => setDeleteTargetSubject(e.target.value)}
                   >
-                    {SUBJECTS.filter(s => s !== "All Subjects").map(s => (
+                    {SUBJECTS.filter(s => s !== "All Subjects").map((s, idx) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
@@ -3521,7 +3510,7 @@ export default function Examinations() {
                       setDeleteTargetStudentId(match ? match.id : "");
                     }}
                   >
-                    {SUBJECTS.filter(s => s !== "All Subjects").map(s => (
+                    {SUBJECTS.filter(s => s !== "All Subjects").map((s, idx) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
@@ -3535,8 +3524,8 @@ export default function Examinations() {
                   value={deleteTargetStudentId}
                   onChange={(e) => setDeleteTargetStudentId(e.target.value)}
                 >
-                  {scores.filter(s => s.class === deleteTargetClass && s.subject === deleteTargetSubject).map(s => (
-                    <option key={s.id} value={s.id}>
+                  {scores.filter(s => s.class === deleteTargetClass && s.subject === deleteTargetSubject).map((s, idx) => (
+                    <option key={`${s.id}_${idx}`} value={s.id}>
                       {s.studentName} ({s.studentId}) — Annual Cumulative: {s.annualScore || 0}
                     </option>
                   ))}
@@ -3638,7 +3627,7 @@ export default function Examinations() {
                       setDeleteTargetStudentId(match ? match.id : "");
                     }}
                   >
-                    {SUBJECTS.filter(s => s !== "All Subjects").map(s => (
+                    {SUBJECTS.filter(s => s !== "All Subjects").map((s, idx) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
@@ -3653,8 +3642,8 @@ export default function Examinations() {
                   onChange={(e) => setDeleteTargetStudentId(e.target.value)}
                 >
                   <option value="">Apply to Whole Class ({deleteTargetClass})</option>
-                  {scores.filter(s => s.class === deleteTargetClass && s.subject === deleteTargetSubject).map(s => (
-                    <option key={s.id} value={s.id}>
+                  {scores.filter(s => s.class === deleteTargetClass && s.subject === deleteTargetSubject).map((s, idx) => (
+                    <option key={`${s.id}_${idx}`} value={s.id}>
                       {s.studentName} ({s.studentId}) — Current Annual Score: {s.annualScore || (s.total * 3)}
                     </option>
                   ))}
@@ -3685,7 +3674,7 @@ export default function Examinations() {
                       setScores(prev => prev.map(s => s.id === deleteTargetStudentId ? { ...s, annualScore: val } : s));
                       setNotificationMsg(`Annual score of ${val} added successfully for student!`);
                     } else {
-                      setScores(prev => prev.map(s => (s.class === deleteTargetClass && s.subject === deleteTargetSubject) ? { ...s, annualScore: val } : s));
+                      setScores(prev => prev.map((s, idx) => (s.class === deleteTargetClass && s.subject === deleteTargetSubject) ? { ...s, annualScore: val } : s));
                       setNotificationMsg(`Annual score of ${val} applied to all students in ${deleteTargetClass} (${deleteTargetSubject})!`);
                     }
                     setActiveModal(null);

@@ -556,8 +556,8 @@ export default function Academics() {
                       value={newAssignment.subject}
                       onChange={(e) => setNewAssignment({...newAssignment, subject: e.target.value})}
                     >
-                      {subjects.map(s => (
-                        <option key={s.id} value={s.name}>{s.name}</option>
+                      {subjects.map((s, idx) => (
+                        <option key={`${s.id}_${idx}`} value={s.name}>{s.name}</option>
                       ))}
                     </select>
                   </div>
@@ -633,8 +633,8 @@ export default function Academics() {
                       value={newExam.subject}
                       onChange={(e) => setNewExam({...newExam, subject: e.target.value})}
                     >
-                      {subjects.map(s => (
-                        <option key={s.id} value={s.name}>{s.name}</option>
+                      {subjects.map((s, idx) => (
+                        <option key={`${s.id}_${idx}`} value={s.name}>{s.name}</option>
                       ))}
                     </select>
                   </div>

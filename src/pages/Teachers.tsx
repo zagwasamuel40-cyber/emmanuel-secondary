@@ -751,60 +751,7 @@ export default function Teachers() {
             </CardContent>
           </Card>
 
-          {/* Recent Enrolled Students Roster for Staff */}
-          <Card className="border-0 shadow-sm overflow-hidden">
-            <CardHeader className="bg-slate-100 flex flex-row items-center justify-between py-4 px-6 border-b border-slate-200">
-              <div>
-                <CardTitle className="text-slate-900 text-base font-bold">Class Roster & Recent Enrollments</CardTitle>
-                <p className="text-xs text-slate-500 mt-0.5">Students registered under Executive Secondary School</p>
-              </div>
-              <Button variant="brand" size="sm" className="gap-1.5 text-xs" onClick={() => setActiveModal("enroll_student")}>
-                <Plus size={15} /> Enroll New Student
-              </Button>
-            </CardHeader>
-
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 text-slate-500 uppercase text-xs font-semibold border-b border-slate-200">
-                    <tr>
-                      <th className="p-4">Admission No & Name</th>
-                      <th className="p-4">Assigned Class</th>
-                      <th className="p-4">Gender</th>
-                      <th className="p-4">Parent / Guardian Contact</th>
-                      <th className="p-4">Enrollment Type</th>
-                      <th className="p-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {students.map((student, idx) => (
-                      <tr key={`${student.id}_${idx}`} className="hover:bg-slate-50">
-                        <td className="p-4">
-                          <div className="font-bold text-slate-900">{student.name}</div>
-                          <div className="text-xs font-mono text-brand-600">{student.id}</div>
-                        </td>
-                        <td className="p-4">
-                          <span className="px-2.5 py-1 rounded bg-brand-50 text-brand-800 font-semibold text-xs border border-brand-200">
-                            {student.class}
-                          </span>
-                        </td>
-                        <td className="p-4 text-slate-700 text-xs font-medium">{student.gender}</td>
-                        <td className="p-4 text-slate-700 text-xs font-mono">{student.parentNumber}</td>
-                        <td className="p-4">
-                          <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800">
-                            {student.enrollmentStatus}
-                          </span>
-                        </td>
-                        <td className="p-4 text-right text-xs font-semibold text-slate-500">
-                          Active Enrolled
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+          
         </div>
       )}
 

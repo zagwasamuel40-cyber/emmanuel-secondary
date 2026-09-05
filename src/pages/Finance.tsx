@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "
 import { DollarSign, CreditCard, TrendingUp, TrendingDown, Download, Plus, X, UploadCloud, FileText, Trash2 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useSessions, TERMS } from "../data/sessionsData";
+import { useTransactions } from "../data/financeData";
 
 const revenueData = [
   { name: 'First Term', revenue: 45000000, expenses: 12000000 },
@@ -10,16 +11,10 @@ const revenueData = [
   { name: 'Third Term', revenue: 52000000, expenses: 15000000 },
 ];
 
-const initialTransactions = [
-  { id: "TRX-1029", date: "2026-07-21", description: "School Fees - John Doe (JSS1)", amount: 45000, type: "income", status: "Completed" },
-  { id: "TRX-1028", date: "2026-07-20", description: "Lab Equipment Purchase", amount: 150000, type: "expense", status: "Completed" },
-  { id: "TRX-1027", date: "2026-07-19", description: "School Fees - Jane Smith (SSS3)", amount: 65000, type: "income", status: "Completed" },
-  { id: "TRX-1026", date: "2026-07-18", description: "Staff Salary Payment", amount: 2500000, type: "expense", status: "Pending" },
-  { id: "TRX-1025", date: "2026-07-18", description: "Hostel Fee - Michael Obi (JSS2)", amount: 30000, type: "income", status: "Completed" },
-];
+
 
 export default function Finance() {
-  const [transactions, setTransactions] = useState(initialTransactions);
+  const [transactions, setTransactions] = useTransactions();
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   const [newTransaction, setNewTransaction] = useState({
     description: "",

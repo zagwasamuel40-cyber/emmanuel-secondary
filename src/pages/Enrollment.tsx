@@ -541,7 +541,7 @@ export default function Enrollment() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {foundStudents.length > 0 ? foundStudents.map(student => (
+                          {foundStudents.length > 0 ? foundStudents.map((student) => (
                             <tr key={student.id} className="hover:bg-slate-50">
                               <td className="p-3 font-medium text-slate-900">{student.name}</td>
                               <td className="p-3 text-slate-500 font-mono">{student.id}</td>

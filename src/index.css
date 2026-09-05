@@ -22,3 +22,83 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
 }
+
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .print\:hidden, 
+  aside, 
+  header, 
+  .print-wrapper > div:first-child { 
+    display: none !important; 
+  }
+  .print-section {
+    display: block !important;
+    page-break-inside: avoid;
+  }
+  .print-page-break {
+    page-break-before: always;
+    break-before: page;
+  }
+  .print-page-break:first-child {
+    page-break-before: avoid;
+    break-before: auto;
+  }
+  @page {
+    size: A4;
+    margin: 1.5cm;
+  }
+  @page landscape {
+    size: A4 landscape;
+  }
+  .landscape {
+    page: landscape;
+  }
+  
+  .print-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 10px;
+    color: #666;
+    padding-bottom: 10px;
+    border-top: 1px solid #ccc;
+    padding-top: 5px;
+  }
+  #print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+}
+
+
+.pdf-export-mode {
+  background: white !important;
+  color: black !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.pdf-export-mode .print\:hidden {
+  display: none !important;
+}
+
+
+.print-slip-mode {
+  background: white !important;
+}
+.print-slip-mode > * {
+  display: none !important;
+}
+.print-slip-mode #exam-slip {
+  display: block !important;
+}

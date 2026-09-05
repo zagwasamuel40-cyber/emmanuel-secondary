@@ -3,9 +3,11 @@ import { Search, Award, Printer, UserCheck, AlertCircle, Clock, MapPin, Building
 import { Button, Input, Card, CardContent } from "@/src/components/ui";
 import { useAdmissionApps } from "../../data/studentsData";
 import { usePortalSettings, useAdmissionSettings } from "../../data/portalSettingsData";
+import { useEntranceExams } from "../../data/entranceExamsData";
 
 export default function AdmissionStatus() {
   const [apps] = useAdmissionApps();
+  const { exams, codes } = useEntranceExams();
   const [portalSettings] = usePortalSettings();
   const [admissionSettings] = useAdmissionSettings();
   
@@ -232,21 +234,12 @@ export default function AdmissionStatus() {
                     onClick={() => {
                       const element = document.getElementById('print-area');
                       if (element) {
-                        const opt = {
-                          margin:       0.5,
-                          filename:     `${searchedApp?.name?.replace(/\s+/g, '_')}_Admission_Letter.pdf`,
-                          image:        { type: 'jpeg' as const, quality: 0.98 },
-                          html2canvas:  { scale: 2, useCORS: true },
-                          jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' as const }
-                        };
-                        import('html2pdf.js').then((html2pdf) => {
-                          html2pdf.default().set(opt).from(element).save();
-                        });
+                        window.print();
                       }
                     }} 
                     className="gap-1.5 text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
                   >
-                    <Download size={15} /> Download PDF
+                    <Printer size={15} /> Print / Save PDF
                   </Button>
                 </div>
               </div>

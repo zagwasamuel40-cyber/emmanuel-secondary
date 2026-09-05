@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import StudentPortalManager from "./pages/StudentPortalManager";
 import AdmissionsManagement from "./pages/AdmissionsManagement";
 import Profile from "./pages/Profile";
+import Reports from "./pages/Reports";
 import About from "./pages/public/About";
 import AcademicsInfo from "./pages/public/AcademicsInfo";
 import Admissions from "./pages/public/Admissions";
@@ -60,6 +61,7 @@ export default function App() {
           <Route path="portal-manager" element={<StudentPortalManager />} />
           <Route path="settings" element={<Settings />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="reports" element={<Reports />} />
         </Route>
 
         {/* Student Portal */}

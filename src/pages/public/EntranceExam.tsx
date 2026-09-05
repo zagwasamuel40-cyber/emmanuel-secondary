@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSessions, TERMS } from "../../data/sessionsData";
 import { CLASSES, useAdmissionApps } from "../../data/studentsData";
+import { useEntranceExams } from "../../data/entranceExamsData";
 import { useCbtQuestions } from "../../data/cbtQuestions";
 import { usePortalSettings } from "../../data/portalSettingsData";
 import { Button, Input, Label, Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui";
@@ -11,6 +12,11 @@ export default function EntranceExam() {
   const [apps, setApps] = useAdmissionApps();
   const [step, setStep] = useState<"auth" | "intro" | "testing" | "result">("auth");
   const [appId, setAppId] = useState("");
+  const { exams, codes, setCodes } = useEntranceExams();
+  const [accessCode, setAccessCode] = useState("");
+  const [examMode, setExamMode] = useState<"official" | "practice">("official");
+  const [currentCode, setCurrentCode] = useState<any>(null);
+
   
   useEffect(() => {
     const savedAppId = localStorage.getItem("ess_latest_app_id");
@@ -53,22 +59,59 @@ export default function EntranceExam() {
   const activeQuestions = questions;
 
 
+  
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!appId.startsWith("APP-")) {
-      setErrorMsg("Invalid Application ID. It should start with APP-");
+    if (examMode === "practice") {
+      setStep("intro");
       return;
     }
     
-    const appExists = apps.find(a => a.id === appId);
+    if (!appId.startsWith("APP-") && !appId.startsWith("EMS/")) {
+      setErrorMsg("Invalid Application Number.");
+      return;
+    }
+        
+    const appExists = apps.find(a => a.applicationNumber === appId || a.id === appId);
     if (!appExists) {
-      setErrorMsg("Application ID not found. Please check and try again.");
+      setErrorMsg("Application Number not found.");
       return;
     }
     
+    const validCode = codes.find(c => c.applicationNumber === appExists.applicationNumber && c.accessCode === accessCode);
+    if (!validCode) {
+      setErrorMsg("Invalid Access Code for this Application Number.");
+      return;
+    }
+    
+    const linkedExam = exams.find(ex => ex.id === validCode.examId);
+    if (!linkedExam) {
+      setErrorMsg("Examination schedule not found.");
+      return;
+    }
+    
+    if (linkedExam.status !== "Active") {
+      setErrorMsg("This entrance examination is not currently available. Please contact the school administration.");
+      return;
+    }
+    
+    if (validCode.status === "Used" || validCode.status === "Revoked") {
+      setErrorMsg("This access code has already been used or revoked.");
+      return;
+    }
+    
+    if (validCode.status !== "Activated") {
+      setErrorMsg("Your examination access has not been activated by the supervisor. Please ask the supervisor to authorize your access.");
+      return;
+    }
+    
+    setCurrentCode(validCode);
+    setSelectedClass(linkedExam.classApplied);
+    setTimeLeft(linkedExam.duration * 60);
     setErrorMsg("");
     setStep("intro");
   };
+
 
   const handleStart = () => {
     setStep("testing");
@@ -106,18 +149,27 @@ export default function EntranceExam() {
         calculatedScore += 2; // 2 marks per question
       }
     });
+    
     const percentageScore = questions.length > 0 ? Math.round((calculatedScore / (questions.length * 2)) * 100) : 0;
     setScore(percentageScore);
+       
+    if (examMode === "official" && currentCode) {
+      setApps(prev => prev.map(app => 
+        (app.applicationNumber === currentCode.applicationNumber || app.id === currentCode.applicationNumber)
+          ? { ...app, examScore: percentageScore, examStatus: percentageScore >= 50 ? 'Passed' : 'Failed' }
+          : app
+      ));
+      
+      setCodes(prev => prev.map(c => 
+        c.id === currentCode.id 
+          ? { ...c, status: "Used", attemptStatus: "Completed", score: percentageScore, attemptSubmitTime: new Date().toISOString() }
+          : c
+      ));
+    }
     
-    // Update the applicant's score in the global apps state (as a percentage)
-    setApps(prev => prev.map(app => 
-      app.id === appId 
-        ? { ...app, examScore: percentageScore, examStatus: percentageScore >= 50 ? 'Passed' : 'Failed' } 
-        : app
-    ));
-
     setStep("result");
   };
+
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">

@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { Outlet, Link, useLocation, Navigate, useNavigate } from "react-router-dom";
-import { 
+import { Printer, 
   LayoutDashboard, 
   Users, 
   UserCheck,
@@ -31,6 +31,7 @@ const navigation = [
   { name: 'Examinations & CA', href: '/dashboard/examinations', icon: ClipboardList },
   { name: 'Finance', href: '/dashboard/finance', icon: CreditCard },
   { name: 'Portal Manager', href: '/dashboard/portal-manager', icon: Settings },
+  { name: 'Report Center', href: '/dashboard/reports', icon: Printer },
   { name: 'My Profile', href: '/dashboard/profile', icon: User },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
@@ -70,6 +71,7 @@ export default function DashboardLayout() {
     '/dashboard/finance': ['Admin', 'Super Admin', 'General Admin', 'Finance/Admin Officer'],
     '/dashboard/portal-manager': ['Admin', 'Super Admin', 'General Admin', 'Portal Admin'],
     '/dashboard/settings': ['Admin', 'Super Admin', 'General Admin', 'Portal Admin'],
+    '/dashboard/reports': ['Admin', 'Super Admin', 'General Admin', 'Finance/Admin Officer', 'Examination Admin', 'Academic Admin'],
     '/dashboard/profile': ['*'],
   };
 
