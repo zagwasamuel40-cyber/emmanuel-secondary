@@ -3,7 +3,7 @@ import { Button, Card, CardContent } from "@/src/components/ui";
 import { 
   Printer, School, Users, FileText, DollarSign, Calendar, 
   UserCheck, BookOpen, User, CheckSquare, Download, ArrowLeft,
-  Settings, Loader2
+  Settings, Loader2, GraduationCap
 } from "lucide-react";
 import { useStudents, CLASSES } from "../data/studentsData";
 import { useTeachers } from "../data/teachersData";

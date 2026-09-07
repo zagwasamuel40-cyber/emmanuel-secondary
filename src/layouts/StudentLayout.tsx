@@ -10,11 +10,13 @@ import {
   Bell,
   Menu,
   LogOut,
-  Calendar
+  Calendar,
+  QrCode
 } from "lucide-react";
 
 const navigation = [
   { name: 'My Dashboard', href: '/student', icon: Home },
+  { name: 'Digital ID Card', href: '/student/id-card', icon: QrCode },
   { name: 'My Subjects & CBT', href: '/student/subjects', icon: BookOpen },
   { name: 'Fees & Payments', href: '/student/fees', icon: CreditCard },
   { name: 'Timetable', href: '/student/timetable', icon: Calendar },

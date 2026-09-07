@@ -72,6 +72,53 @@ export default function TeacherDashboard({ teacher, stats, sessions, newsList }:
         ))}
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <Link to="/dashboard/qr-scanner" className="block">
+          <Card className="hover:border-brand-300 hover:shadow-md transition-all cursor-pointer h-full group">
+            <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+              <div className="w-12 h-12 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <FileText size={24} />
+              </div>
+              <h3 className="font-semibold text-slate-800 text-sm">Student QR Scanner</h3>
+              <p className="text-xs text-slate-500 mt-1">Scan student ID cards for attendance</p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to="/dashboard/attendance" className="block">
+          <Card className="hover:border-emerald-300 hover:shadow-md transition-all cursor-pointer h-full group">
+            <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+              <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <Clock size={24} />
+              </div>
+              <h3 className="font-semibold text-slate-800 text-sm">Student Attendance</h3>
+              <p className="text-xs text-slate-500 mt-1">View student attendance reports</p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to="/dashboard/staff-qr-scanner" className="block">
+          <Card className="hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer h-full group">
+            <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+              <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <Users size={24} />
+              </div>
+              <h3 className="font-semibold text-slate-800 text-sm">Staff Check-in/out</h3>
+              <p className="text-xs text-slate-500 mt-1">Scan staff QR code for attendance</p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to="/dashboard/id-cards" className="block">
+          <Card className="hover:border-amber-300 hover:shadow-md transition-all cursor-pointer h-full group">
+            <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+              <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <Book size={24} />
+              </div>
+              <h3 className="font-semibold text-slate-800 text-sm">ID Card Center</h3>
+              <p className="text-xs text-slate-500 mt-1">Manage student & staff ID cards</p>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="col-span-1 lg:col-span-2 border-0 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2 border-none">

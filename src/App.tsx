@@ -29,6 +29,12 @@ import StudentSubjects from "./pages/student/StudentSubjects";
 import StudentTimetable from "./pages/student/StudentTimetable";
 import StudentFees from "./pages/student/StudentFees";
 import StudentProfile from "./pages/student/StudentProfile";
+import StudentDigitalIDCard from "./pages/student/StudentDigitalIDCard";
+import QRScannerPage from "./pages/staff/QRScannerPage";
+import AttendanceDashboard from "./pages/staff/AttendanceDashboard";
+import StudentIDCardCenter from "./pages/admin/StudentIDCardCenter";
+import StaffQRScannerPage from "./pages/admin/StaffQRScannerPage";
+import StaffAttendanceReports from "./pages/admin/StaffAttendanceReports";
 
 export default function App() {
   return (
@@ -48,9 +54,14 @@ export default function App() {
         
         <Route path="/login" element={<Login />} />
         
-        {/* Admin Dashboard */}
+        {/* Admin & Staff Dashboard */}
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<Dashboard />} />
+          <Route path="qr-scanner" element={<QRScannerPage />} />
+          <Route path="staff-qr-scanner" element={<StaffQRScannerPage />} />
+          <Route path="attendance" element={<AttendanceDashboard />} />
+          <Route path="staff-attendance" element={<StaffAttendanceReports />} />
+          <Route path="id-cards" element={<StudentIDCardCenter />} />
           <Route path="admissions" element={<AdmissionsManagement />} />
           <Route path="students" element={<Students />} />
           <Route path="enrollment" element={<Enrollment />} />
@@ -67,6 +78,7 @@ export default function App() {
         {/* Student Portal */}
         <Route path="/student" element={<StudentLayout />}>
           <Route index element={<StudentDashboard />} />
+          <Route path="id-card" element={<StudentDigitalIDCard />} />
           <Route path="subjects" element={<StudentSubjects />} />
           <Route path="timetable" element={<StudentTimetable />} />
           <Route path="fees" element={<StudentFees />} />

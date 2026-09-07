@@ -1,12 +1,16 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@/src/components/ui";
-import { Search, Filter, Edit, Trash2, Eye, X, CheckCircle, Camera } from "lucide-react";
+import { Search, Filter, Edit, Trash2, Eye, X, CheckCircle, Camera, CreditCard, QrCode, Download } from "lucide-react";
 import { CLASSES } from "../../data/studentsData";
+import { ensureStudentHasIdCard, useIDCardDesignSettings } from "../../data/idCardAndAttendanceData";
+import StudentIDCard from "../../components/idcard/StudentIDCard";
 
 export default function StudentDirectory({ students, setStudents }: any) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [editingStudent, setEditingStudent] = useState<any | null>(null);
+  const [viewingIdStudent, setViewingIdStudent] = useState<any | null>(null);
+  const [designSettings] = useIDCardDesignSettings();
   const [successMsg, setSuccessMsg] = useState("");
 
   const filteredStudents = students.filter((s: any) => {
@@ -152,6 +156,20 @@ export default function StudentDirectory({ students, setStudents }: any) {
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-end gap-1.5">
                       <button 
+                        onClick={() => setViewingIdStudent(student)} 
+                        className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                        title="Download Student ID Card (PDF / PNG)"
+                      >
+                        <Download size={16} />
+                      </button>
+                      <button 
+                        onClick={() => setViewingIdStudent(student)} 
+                        className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="View & Print Official ID Card"
+                      >
+                        <CreditCard size={16} />
+                      </button>
+                      <button 
                         onClick={() => handleImpersonateStudent(student)} 
                         className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
                         title="View Dashboard"
@@ -287,6 +305,38 @@ export default function StudentDirectory({ students, setStudents }: any) {
               </form>
             </CardContent>
           </Card>
+        </div>
+      )}
+      {/* ID Card Preview Modal */}
+      {viewingIdStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 border border-slate-200 max-w-md w-full relative">
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Student Official ID Card
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {viewingIdStudent.name} • {viewingIdStudent.id}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewingIdStudent(null)}
+                className="h-8 text-xs"
+              >
+                Close
+              </Button>
+            </div>
+
+            <StudentIDCard
+              student={viewingIdStudent}
+              cardInfo={ensureStudentHasIdCard(viewingIdStudent)}
+              customization={designSettings}
+              showActions={true}
+            />
+          </div>
         </div>
       )}
     </div>

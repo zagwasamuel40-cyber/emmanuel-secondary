@@ -3,26 +3,32 @@ import { Outlet, Link, useLocation, Navigate, useNavigate } from "react-router-d
 import { Printer, 
   LayoutDashboard, 
   Users, 
-  UserCheck,
+  UserCheck, 
   UserPlus,
   GraduationCap, 
   CreditCard, 
-  Settings,
-  Bell,
-  Search,
-  Menu,
-  LogOut,
-  ClipboardList,
-  User,
-  FileCheck
+  Settings, 
+  Bell, 
+  Search, 
+  Menu, 
+  LogOut, 
+  ClipboardList, 
+  User, 
+  FileCheck,
+  QrCode,
+  Clock
 } from "lucide-react";
 import { Input } from "@/src/components/ui";
 import { usePortalSettings } from "../data/portalSettingsData";
 import { useTeachers } from "../data/teachersData";
 
-
 const navigation = [
   { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Student Scanner', href: '/dashboard/qr-scanner', icon: QrCode },
+  { name: 'Student Attendance', href: '/dashboard/attendance', icon: Clock },
+  { name: 'Staff Scanner', href: '/dashboard/staff-qr-scanner', icon: QrCode },
+  { name: 'Staff Attendance', href: '/dashboard/staff-attendance', icon: Clock },
+  { name: 'ID Cards', href: '/dashboard/id-cards', icon: CreditCard },
   { name: 'Admissions', href: '/dashboard/admissions', icon: FileCheck },
   { name: 'Enrollment', href: '/dashboard/enrollment', icon: UserCheck },
   { name: 'Students', href: '/dashboard/students', icon: Users },
@@ -62,6 +68,11 @@ export default function DashboardLayout() {
 
   const routeAccessMap: Record<string, string[]> = {
     '/dashboard': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'Examination Admin', 'Admission Officer', 'Portal Admin', 'Finance/Admin Officer', 'Academic Admin', 'HR/Staff Admin'],
+    '/dashboard/qr-scanner': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'Examination Admin', 'Admission Officer', 'Portal Admin', 'Academic Admin'],
+    '/dashboard/attendance': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'Examination Admin', 'Admission Officer', 'Portal Admin', 'Academic Admin'],
+    '/dashboard/staff-qr-scanner': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'HR/Staff Admin'],
+    '/dashboard/staff-attendance': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'HR/Staff Admin'],
+    '/dashboard/id-cards': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'Portal Admin', 'Admission Officer', 'Academic Admin'],
     '/dashboard/admissions': ['Admin', 'Super Admin', 'General Admin', 'Admission Officer'],
     '/dashboard/enrollment': ['Admin', 'Super Admin', 'General Admin', 'Admission Officer', 'Teacher', 'Academic Admin'],
     '/dashboard/students': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'Academic Admin'],
