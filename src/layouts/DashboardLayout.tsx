@@ -5,6 +5,9 @@ import { Printer,
   Users, 
   UserCheck, 
   UserPlus,
+  UserX,
+  Briefcase,
+  History,
   GraduationCap, 
   CreditCard, 
   Settings, 
@@ -16,18 +19,33 @@ import { Printer,
   User, 
   FileCheck,
   QrCode,
-  Clock
+  Clock,
+  Sliders
 } from "lucide-react";
 import { Input } from "@/src/components/ui";
 import { usePortalSettings } from "../data/portalSettingsData";
 import { useTeachers } from "../data/teachersData";
 
-const navigation = [
+// Dedicated Attendance Officer Sidebar Navigation (per Requirement 15)
+const attendanceOfficerNavigation = [
+  { name: 'Dashboard', href: '/dashboard/attendance-officer', icon: LayoutDashboard },
+  { name: 'Scan Student ID', href: '/dashboard/attendance-officer?section=scan-student', icon: QrCode },
+  { name: 'Scan Staff ID', href: '/dashboard/attendance-officer?section=scan-staff', icon: Briefcase },
+  { name: "Today's Attendance", href: '/dashboard/attendance-officer?section=today', icon: Clock },
+  { name: 'Student Attendance', href: '/dashboard/attendance-officer?section=students', icon: GraduationCap },
+  { name: 'Staff Attendance', href: '/dashboard/attendance-officer?section=staff', icon: Briefcase },
+  { name: 'Attendance History', href: '/dashboard/attendance-officer?section=history', icon: History },
+  { name: 'Absent Students', href: '/dashboard/attendance-officer?section=absent-students', icon: UserX },
+  { name: 'Absent Staff', href: '/dashboard/attendance-officer?section=absent-staff', icon: UserX },
+  { name: 'Attendance Reports', href: '/dashboard/attendance-officer?section=reports', icon: ClipboardList },
+  { name: 'Attendance Settings', href: '/dashboard/attendance-officer?section=settings', icon: Sliders },
+  { name: 'My Profile', href: '/dashboard/profile', icon: User },
+];
+
+// Admin & General Staff Navigation (Attendance scanning tools removed, replaced with Attendance Officer menu item per Requirement 14)
+const generalNavigation = [
   { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Student Scanner', href: '/dashboard/qr-scanner', icon: QrCode },
-  { name: 'Student Attendance', href: '/dashboard/attendance', icon: Clock },
-  { name: 'Staff Scanner', href: '/dashboard/staff-qr-scanner', icon: QrCode },
-  { name: 'Staff Attendance', href: '/dashboard/staff-attendance', icon: Clock },
+  { name: 'Attendance Officer', href: '/dashboard/attendance-officers', icon: UserCheck },
   { name: 'ID Cards', href: '/dashboard/id-cards', icon: CreditCard },
   { name: 'Admissions', href: '/dashboard/admissions', icon: FileCheck },
   { name: 'Enrollment', href: '/dashboard/enrollment', icon: UserCheck },
@@ -56,23 +74,24 @@ export default function DashboardLayout() {
     if (r === 'admin') roles = ['Admin'];
     else if (r === 'superadmin') roles = ['Admission Officer'];
     else if (r === 'portaladmin') roles = ['Portal Admin'];
+    else if (r === 'attendance') roles = ['Attendance Officer'];
     else roles = ['Teacher'];
   }
 
-  // Determine role booleans for layout UI (like colored tags or headers)
-  // Even if a user has multiple roles, we can use the highest precedence or combine them.
+  // Determine role booleans for layout UI
   const isAdmin = roles.includes('Admin') || roles.includes('Super Admin') || roles.includes('General Admin');
-  const isSuperAdmin = roles.includes('Admission Officer');
-  const isPortalAdmin = roles.includes('Portal Admin');
-  const isStaff = roles.includes('Teacher');
+  const isAttendanceOfficer = roles.includes('Attendance Officer');
 
   const routeAccessMap: Record<string, string[]> = {
-    '/dashboard': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'Examination Admin', 'Admission Officer', 'Portal Admin', 'Finance/Admin Officer', 'Academic Admin', 'HR/Staff Admin'],
-    '/dashboard/qr-scanner': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'Examination Admin', 'Admission Officer', 'Portal Admin', 'Academic Admin'],
-    '/dashboard/attendance': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'Examination Admin', 'Admission Officer', 'Portal Admin', 'Academic Admin'],
-    '/dashboard/staff-qr-scanner': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'HR/Staff Admin'],
-    '/dashboard/staff-attendance': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'HR/Staff Admin'],
-    '/dashboard/id-cards': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'Portal Admin', 'Admission Officer', 'Academic Admin'],
+    '/dashboard': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer', 'Teacher', 'Examination Admin', 'Admission Officer', 'Portal Admin', 'Finance/Admin Officer', 'Academic Admin', 'HR/Staff Admin'],
+    '/dashboard/attendance-officers': ['Admin', 'Super Admin', 'General Admin', 'Portal Admin'],
+    '/dashboard/attendance-officer': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer', 'Teacher', 'HR/Staff Admin'],
+    '/dashboard/scan-attendance': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer'],
+    '/dashboard/qr-scanner': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer', 'Teacher', 'Examination Admin', 'Admission Officer', 'Portal Admin', 'Academic Admin'],
+    '/dashboard/attendance': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer', 'Teacher', 'Examination Admin', 'Admission Officer', 'Portal Admin', 'Academic Admin'],
+    '/dashboard/staff-qr-scanner': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer', 'Teacher', 'HR/Staff Admin'],
+    '/dashboard/staff-attendance': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer', 'Teacher', 'HR/Staff Admin'],
+    '/dashboard/id-cards': ['Admin', 'Super Admin', 'General Admin', 'Portal Admin', 'Admission Officer'],
     '/dashboard/admissions': ['Admin', 'Super Admin', 'General Admin', 'Admission Officer'],
     '/dashboard/enrollment': ['Admin', 'Super Admin', 'General Admin', 'Admission Officer', 'Teacher', 'Academic Admin'],
     '/dashboard/students': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'Academic Admin'],
@@ -87,6 +106,19 @@ export default function DashboardLayout() {
   };
 
   const hasAccessToRoute = (path: string, userRoles: string[]) => {
+    // Attendance Officer restricted access: only attendance and profile
+    if (userRoles.includes('Attendance Officer') && !isAdmin) {
+      if (
+        path.startsWith('/dashboard/attendance-officer') ||
+        path.startsWith('/dashboard/scan-attendance') ||
+        path.startsWith('/dashboard/profile') ||
+        path === '/dashboard'
+      ) {
+        return true;
+      }
+      return false;
+    }
+
     // Check if any defined route matches the path, longest paths first
     const sortedKeys = Object.keys(routeAccessMap).sort((a, b) => b.length - a.length);
     const matchingKey = sortedKeys.find(key => path === key || path.startsWith(key + '/'));
@@ -139,10 +171,12 @@ export default function DashboardLayout() {
     navigate('/');
   };
 
+  const currentNavList = (isAttendanceOfficer && !isAdmin) ? attendanceOfficerNavigation : generalNavigation;
+
   // Check redirects if user lacks access to current route
   if (!hasAccessToRoute(location.pathname, roles)) {
     // Find the first accessible route
-    const firstAllowedItem = navigation.find(item => hasAccessToRoute(item.href, roles));
+    const firstAllowedItem = currentNavList.find(item => hasAccessToRoute(item.href.split('?')[0], roles));
     if (firstAllowedItem) {
       return <Navigate to={firstAllowedItem.href} replace />;
     } else {
@@ -150,7 +184,7 @@ export default function DashboardLayout() {
     }
   }
 
-  const filteredNavigation = navigation.filter(item => hasAccessToRoute(item.href, roles));
+  const filteredNavigation = currentNavList.filter(item => hasAccessToRoute(item.href.split('?')[0], roles));
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
@@ -165,14 +199,17 @@ export default function DashboardLayout() {
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
           {filteredNavigation.map((item) => {
-            const isActive = location.pathname === item.href || (item.href !== '/dashboard' && location.pathname.startsWith(item.href));
+            const currentFullUrl = location.pathname + location.search;
+            const isActive = item.href.includes('?')
+              ? currentFullUrl === item.href
+              : location.pathname === item.href || (item.href !== '/dashboard' && location.pathname.startsWith(item.href) && !location.search);
             return (
               <Link
                 key={item.name}
                 to={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive 
-                    ? 'bg-brand-600 text-white' 
+                    ? 'bg-brand-600 text-white shadow-sm' 
                     : 'hover:bg-slate-800 hover:text-white'
                 }`}
               >

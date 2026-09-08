@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { useStudents } from "../data/studentsData";
+import { useStudents, generateNextStudentId } from "../data/studentsData";
 import { useTeachers, Teacher } from "../data/teachersData";
+import { ensureStaffHasIdCard } from "../data/idCardAndAttendanceData";
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@/src/components/ui";
 import { 
   Search, Plus, Filter, Edit, Trash2, X, Eye, 
@@ -144,6 +145,7 @@ export default function Teachers() {
     assignedClasses: string[];
     password: string;
     isAdmin: boolean;
+    isAttendanceOfficer?: boolean;
     customId: string;
     passportUrl?: string;
   }>({
@@ -158,6 +160,7 @@ export default function Teachers() {
     assignedClasses: ["SSS 1A"],
     password: "pass" + Math.floor(1000 + Math.random() * 9000),
     isAdmin: false,
+    isAttendanceOfficer: false,
     customId: ""
   });
 
@@ -167,6 +170,11 @@ export default function Teachers() {
     if (!createStaffForm.name.trim()) return;
 
     const assignedId = createStaffForm.customId.trim() || `TCH/2026/${String(teachers.length + 1).padStart(3, '0')}`;
+    
+    const assignedRoles: any[] = ["Teacher"];
+    if (createStaffForm.isAdmin) assignedRoles.push("Admin");
+    if (createStaffForm.isAttendanceOfficer) assignedRoles.push("Attendance Officer");
+
     const newStaffMember: Teacher = {
       id: assignedId,
       name: createStaffForm.name.trim(),
@@ -179,9 +187,12 @@ export default function Teachers() {
       subjects: createStaffForm.subjects,
       assignedClasses: createStaffForm.assignedClasses,
       password: createStaffForm.password || "teacher123",
-      systemRoles: createStaffForm.isAdmin ? ["Teacher", "Admin"] : ["Teacher"],
+      systemRoles: assignedRoles,
       passportUrl: createStaffForm.passportUrl
     };
+
+    // Auto-generate Staff ID Card with unique QR token
+    ensureStaffHasIdCard(newStaffMember);
 
     setTeachers([newStaffMember, ...teachers]);
     setActiveModal(null);
@@ -197,11 +208,12 @@ export default function Teachers() {
       assignedClasses: ["SSS 1A"],
       password: "pass" + Math.floor(1000 + Math.random() * 9000),
       isAdmin: false,
+      isAttendanceOfficer: false,
       customId: "",
       passportUrl: undefined
     });
 
-    setNotificationMsg(`Success: Created Staff Profile for ${newStaffMember.name} (${newStaffMember.id})!`);
+    setNotificationMsg(`Success: Created Staff Profile for ${newStaffMember.name} (${newStaffMember.id}) & generated Staff ID Card!`);
     setTimeout(() => setNotificationMsg(""), 4000);
   };
 
@@ -343,7 +355,7 @@ export default function Teachers() {
     e.preventDefault();
     if (!newStudentForm.name.trim()) return;
 
-    const newId = `ESS/2026/${String(students.length + 1).padStart(3, '0')}`;
+    const newId = generateNextStudentId(students);
     const enrolled: Student = {
       id: newId,
       name: newStudentForm.name.trim(),
@@ -1101,16 +1113,27 @@ export default function Teachers() {
                   </div>
 
                   <div className="space-y-1.5 flex flex-col justify-center">
-                    <Label className="text-xs font-bold text-slate-700 mb-2">Administrative Privileges</Label>
-                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
-                      <input 
-                        type="checkbox"
-                        checked={createStaffForm.isAdmin}
-                        onChange={(e) => setCreateStaffForm({ ...createStaffForm, isAdmin: e.target.checked })}
-                        className="w-4 h-4 text-brand-600 rounded border-slate-300"
-                      />
-                      <span>Make this user an Administrative Staff Member</span>
-                    </label>
+                    <Label className="text-xs font-bold text-slate-700 mb-2">Role Privileges</Label>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
+                        <input 
+                          type="checkbox"
+                          checked={createStaffForm.isAdmin}
+                          onChange={(e) => setCreateStaffForm({ ...createStaffForm, isAdmin: e.target.checked })}
+                          className="w-4 h-4 text-brand-600 rounded border-slate-300"
+                        />
+                        <span>Make this user an Administrative Staff Member</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
+                        <input 
+                          type="checkbox"
+                          checked={createStaffForm.isAttendanceOfficer}
+                          onChange={(e) => setCreateStaffForm({ ...createStaffForm, isAttendanceOfficer: e.target.checked })}
+                          className="w-4 h-4 text-brand-600 rounded border-slate-300"
+                        />
+                        <span className="text-emerald-700 font-bold">Assign Attendance Officer Role (QR Scanner Access)</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
 
@@ -1504,6 +1527,7 @@ export default function Teachers() {
                   {[
                     'Teacher', 
                     'General Admin', 
+                    'Attendance Officer',
                     'Examination Admin', 
                     'Admission Officer', 
                     'Portal Admin', 

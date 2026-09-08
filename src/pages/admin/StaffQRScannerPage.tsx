@@ -54,15 +54,45 @@ export default function StaffQRScannerPage() {
     setCameraError("");
     try {
       if (!html5QrCodeRef.current) html5QrCodeRef.current = new Html5Qrcode(scannerContainerId);
+
+      // Check for mediaDevices support first
+      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+        setCameraError("Camera access is not supported by this browser. Please use the Manual ID / Staff Code entry below.");
+        setIsScanning(false);
+        return;
+      }
+
+      // Query available camera devices safely
+      const devices = await Html5Qrcode.getCameras().catch(() => []);
+      if (!devices || devices.length === 0) {
+        setCameraError("No physical camera detected on this device. Please use the Manual ID / Staff Code entry below.");
+        setIsScanning(false);
+        return;
+      }
+
+      // If available, prefer back/environment camera, else use the first detected camera ID
+      const backCamera = devices.find(d => /back|rear|environment/i.test(d.label));
+      const cameraId = backCamera ? backCamera.id : devices[0].id;
+
       await html5QrCodeRef.current.start(
-        { facingMode: "environment" },
+        cameraId,
         { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
         (decodedText) => handleScannedText(decodedText),
         () => {}
       );
       setIsScanning(true);
     } catch (err: any) {
-      setCameraError(err?.message || "Could not access device camera.");
+      const errStr = String(err?.message || err?.name || err);
+      const isNotFound = /NotFoundError|Requested device not found|device not found|no camera/i.test(errStr);
+      const isNotAllowed = /NotAllowedError|Permission denied|PermissionDismissed/i.test(errStr);
+
+      if (isNotFound) {
+        setCameraError("No physical camera detected on this device. Please use the Manual ID / Staff Code entry below.");
+      } else if (isNotAllowed) {
+        setCameraError("Camera permission was denied. Please allow camera access in your browser or use manual entry below.");
+      } else {
+        setCameraError(err?.message || "Could not access device camera. Please use manual entry below.");
+      }
       setIsScanning(false);
     }
   };

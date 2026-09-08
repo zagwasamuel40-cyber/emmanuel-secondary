@@ -19,7 +19,7 @@ export interface IDCard {
   notes?: string;
 }
 
-export type AttendanceStatus = 'Present' | 'Late' | 'Absent' | 'Excused';
+export type AttendanceStatus = 'Present' | 'Late' | 'Absent' | 'Excused' | 'On Leave' | 'Early Departure';
 export type AttendanceMethod = 'qr_scan' | 'manual';
 export type AttendancePeriod = 'Morning Assembly' | 'Daily Attendance' | 'Afternoon Rollcall' | 'Exam Session';
 
@@ -30,7 +30,9 @@ export interface AttendanceRecord {
   admissionNo: string;
   class: string;
   date: string; // YYYY-MM-DD
-  time: string; // HH:MM:SS AM/PM
+  time: string; // HH:MM:SS AM/PM (check-in time)
+  checkInTime?: string;
+  checkOutTime?: string; // HH:MM:SS AM/PM (check-out time)
   period: AttendancePeriod;
   status: AttendanceStatus;
   method: AttendanceMethod;
@@ -38,6 +40,8 @@ export interface AttendanceRecord {
   scannedByStaffName: string;
   note?: string;
   lateMinutes?: number;
+  personType?: 'Student' | 'Staff';
+  timestamp?: string;
 }
 
 export interface StaffAttendanceRecord {
@@ -52,6 +56,34 @@ export interface StaffAttendanceRecord {
   status: AttendanceStatus;
   method: AttendanceMethod;
   lateMinutes?: number;
+  scannedByStaffId?: string;
+  scannedByStaffName?: string;
+  note?: string;
+  timestamp?: string;
+}
+
+export interface AttendanceSettings {
+  schoolStartTime: string; // e.g. "07:45"
+  studentLateCutoff: string; // e.g. "08:00"
+  staffStartTime: string; // e.g. "07:30"
+  staffLateCutoff: string; // e.g. "08:00"
+  studentDismissalTime: string; // e.g. "14:00"
+  staffDismissalTime: string; // e.g. "16:00"
+  checkOutThreshold: string; // e.g. "12:30" - scans after this are treated as Check-Out
+  preventDuplicatePerDay: boolean;
+  enableAudioFeedback: boolean;
+  enableVibrationFeedback: boolean;
+  autoResumeDelaySeconds: number; // e.g. 2.5
+}
+
+export interface AttendanceOfficerPermissions {
+  canScanStudents: boolean;
+  canScanStaff: boolean;
+  canManualAttendance: boolean;
+  canOverrideCheckOut: boolean;
+  canEditRemarks: boolean;
+  canExportReports: boolean;
+  canViewAuditLogs: boolean;
 }
 
 export type ScanPurpose = 
@@ -65,10 +97,11 @@ export type ScanResultStatus = 'Verified' | 'Card Deactivated' | 'Invalid Token'
 export interface QRScanLog {
   id: string;
   qrToken: string;
-  studentId: string;
+  personType?: 'student' | 'staff';
+  studentId: string; // Used for person ID (student or staff)
   studentName: string;
   admissionNo: string;
-  studentClass: string;
+  studentClass: string; // Class or Department
   scannedByStaffId: string;
   scannedByStaffName: string;
   timestamp: string;

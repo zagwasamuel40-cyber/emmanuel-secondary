@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useNews } from "../data/newsData";
 import { useSessions, TERMS } from "../data/sessionsData";
-import { useStudents, useAdmissionApps } from "../data/studentsData";
+import { useStudents, useAdmissionApps, generateNextStudentId } from "../data/studentsData";
 import { usePins, PinRecord } from "../data/pinsData";
 import { useInquiries } from "../data/inquiriesData";
 import { useTeachers } from "../data/teachersData";
@@ -16,6 +16,7 @@ import {
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import TeacherDashboard from "./dashboard/TeacherDashboard";
+import AttendanceOfficerDashboard from "./staff/AttendanceOfficerDashboard";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface PinAuditLog {
@@ -74,6 +75,7 @@ export default function Dashboard() {
   const isFinanceOfficer = userRoles.includes('Finance/Admin Officer');
   const isHRAdmin = userRoles.includes('HR/Staff Admin');
   const isAcademicAdmin = userRoles.includes('Academic Admin');
+  const isAttendanceOfficer = userRoles.includes('Attendance Officer');
 
   const [teachers] = useTeachers();
   const loggedInUserId = localStorage.getItem('loggedInUserId');
@@ -98,6 +100,11 @@ export default function Dashboard() {
     { title: "Fee Collection", value: "₦45.2M", icon: TrendingUp, trend: "+15.3%", color: "text-amber-600", bg: "bg-amber-50", show: isGeneralAdmin || isFinanceOfficer },
   ].filter(s => s.show);
 
+  // Dedicated Attendance Officer Dashboard
+  if (isAttendanceOfficer && !isGeneralAdmin && !isPortalAdmin) {
+    return <AttendanceOfficerDashboard />;
+  }
+
   const isTeacherOnly = isTeacher && !isGeneralAdmin && !isPortalAdmin && !isExaminationAdmin && !isAdmissionOfficer && !isFinanceOfficer && !isHRAdmin && !isAcademicAdmin;
   if (isTeacherOnly && teacher) {
     return <TeacherDashboard teacher={teacher} stats={stats} sessions={SESSIONS} newsList={newsList} />;
@@ -108,7 +115,7 @@ export default function Dashboard() {
     const app = admissionApps.find(a => a.id === appId);
     if (!app) return;
 
-    const newStudentId = `ESS/2026/${String(students.length + 1).padStart(3, '0')}`;
+    const newStudentId = generateNextStudentId(students);
     const newStudent = {
       id: newStudentId,
       name: app.name,
@@ -423,6 +430,48 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Reorganized Attendance System: Dedicated Attendance Officer Hub */}
+      {(isGeneralAdmin || isPortalAdmin) && (
+        <Card className="border border-emerald-200/80 bg-gradient-to-r from-emerald-50/80 via-teal-50/40 to-white shadow-sm overflow-hidden">
+          <CardContent className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                <UserCheck size={24} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Attendance Administration
+                  </span>
+                  <span className="text-xs text-slate-500">Centralized Gate Attendance</span>
+                </div>
+                <h3 className="text-base font-bold text-slate-900 mt-0.5">
+                  Attendance Officer &amp; Gate Punctuality Hub
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5 max-w-xl">
+                  Manage assigned Attendance Officers, reset security credentials, configure arrival cutoffs, and review daily audit logs. All physical camera scanning is securely isolated inside the Attendance Officer Dashboard.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <Link to="/dashboard/attendance-officers">
+                <Button variant="brand" className="h-9 px-4 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shadow-sm">
+                  <UserCheck size={14} />
+                  Manage Attendance Officers
+                </Button>
+              </Link>
+              <Link to="/dashboard/attendance-officer">
+                <Button variant="outline" className="h-9 px-4 text-xs font-semibold bg-white border-slate-300 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5">
+                  Open Officer Terminal
+                  <ArrowRight size={14} />
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ========================================================================= */}
       {/* EXPLICIT REQUESTED PIN GENERATION & RESULT PIN CONTROL CENTER */}
@@ -1672,8 +1721,8 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800 text-slate-200">
-                    {auditLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-slate-800/60">
+                    {auditLogs.map((log, idx) => (
+                      <tr key={`${log.id}_${idx}`} className="hover:bg-slate-800/60">
                         <td className="p-3 font-mono text-slate-400">{log.id}</td>
                         <td className="p-3 font-bold text-white">{log.studentName} ({log.studentId})</td>
                         <td className="p-3">{log.class}</td>

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@/src/components/ui";
 import { UserPlus, CheckCircle2, QrCode, Printer, Download, Eye, Sparkles } from "lucide-react";
-import { CLASSES } from "../../data/studentsData";
+import { CLASSES, generateNextStudentId } from "../../data/studentsData";
 import { ensureStudentHasIdCard, useIDCardDesignSettings } from "../../data/idCardAndAttendanceData";
 import StudentIDCard from "../../components/idcard/StudentIDCard";
 
@@ -46,17 +46,7 @@ export default function RegisterStudent({ students, setStudents }: any) {
     e.preventDefault();
 
     // Prevent duplicate student IDs by calculating next unique index
-    const highestNum = students.reduce((max: number, s: any) => {
-      const match = s.id?.match(/ESS\/\d{4}\/(\d+)/);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        return num > max ? num : max;
-      }
-      return max;
-    }, 0);
-
-    const nextIdNum = Math.max(highestNum + 1, students.length + 1);
-    const id = `ESS/2026/${String(nextIdNum).padStart(3, '0')}`;
+    const id = generateNextStudentId(students);
 
     const studentRecord = { 
       id, 

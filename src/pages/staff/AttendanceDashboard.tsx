@@ -441,8 +441,8 @@ export default function AttendanceDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredList.map(({ student, status, time, method }) => (
-                  <tr key={student.id} className="hover:bg-slate-50/70 transition-colors">
+                {filteredList.map(({ student, status, time, method }, idx) => (
+                  <tr key={`${student.id}_${idx}`} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-6 py-3.5">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 overflow-hidden shrink-0 border border-slate-200">

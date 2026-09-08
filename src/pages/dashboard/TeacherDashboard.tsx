@@ -106,14 +106,14 @@ export default function TeacherDashboard({ teacher, stats, sessions, newsList }:
             </CardContent>
           </Card>
         </Link>
-        <Link to="/dashboard/id-cards" className="block">
+        <Link to="/dashboard/academics" className="block">
           <Card className="hover:border-amber-300 hover:shadow-md transition-all cursor-pointer h-full group">
             <CardContent className="p-4 flex flex-col items-center justify-center text-center">
               <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                 <Book size={24} />
               </div>
-              <h3 className="font-semibold text-slate-800 text-sm">ID Card Center</h3>
-              <p className="text-xs text-slate-500 mt-1">Manage student & staff ID cards</p>
+              <h3 className="font-semibold text-slate-800 text-sm">Academic Curriculum</h3>
+              <p className="text-xs text-slate-500 mt-1">Manage subjects, syllabus & classes</p>
             </CardContent>
           </Card>
         </Link>

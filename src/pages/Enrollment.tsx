@@ -541,8 +541,8 @@ export default function Enrollment() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {foundStudents.length > 0 ? foundStudents.map((student) => (
-                            <tr key={student.id} className="hover:bg-slate-50">
+                          {foundStudents.length > 0 ? foundStudents.map((student, idx) => (
+                            <tr key={`${student.id}_${idx}`} className="hover:bg-slate-50">
                               <td className="p-3 font-medium text-slate-900">{student.name}</td>
                               <td className="p-3 text-slate-500 font-mono">{student.id}</td>
                               <td className="p-3 text-slate-700">{student.class}</td>
@@ -688,8 +688,8 @@ export default function Enrollment() {
                       onChange={(e) => setRemoveStudentId(e.target.value)}
                     >
                       <option value="">-- Select a Student --</option>
-                      {enrollments.filter(s => s.session === removeSession && s.term === removeTerm && s.class === removeClass).map(s => (
-                        <option key={s.id} value={s.id}>{s.name} ({s.id})</option>
+                      {enrollments.filter(s => s.session === removeSession && s.term === removeTerm && s.class === removeClass).map((s, idx) => (
+                        <option key={`${s.id}_${idx}`} value={s.id}>{s.name} ({s.id})</option>
                       ))}
                     </select>
                   </div>

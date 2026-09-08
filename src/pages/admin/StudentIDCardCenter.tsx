@@ -383,8 +383,8 @@ export default function StudentIDCardCenter() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredUserCards.map(({ user, card }) => (
-                    <tr key={user.id} className="hover:bg-slate-50/70 transition-colors">
+                  {filteredUserCards.map(({ user, card }, idx) => (
+                    <tr key={`${user.id}_${idx}`} className="hover:bg-slate-50/70 transition-colors">
                       <td className="px-6 py-3.5">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 overflow-hidden shrink-0 border border-slate-200">
@@ -572,8 +572,8 @@ export default function StudentIDCardCenter() {
             <CardContent className="p-6">
               {bulkUsers.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 justify-items-center print:grid-cols-2 print:gap-4">
-                  {bulkUsers.map(({ user, card }) => (
-                    <div key={user.id} className="flex flex-col items-center">
+                  {bulkUsers.map(({ user, card }, idx) => (
+                    <div key={`${user.id}_${idx}`} className="flex flex-col items-center">
                       <div className="bulk-card-item-card">
                         <StudentIDCard
                           student={user}

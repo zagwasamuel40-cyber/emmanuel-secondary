@@ -2,7 +2,8 @@ import React, { useState, useMemo } from "react";
 import { 
   useAdmissionApps, 
   useStudents, 
-  CLASSES 
+  CLASSES,
+  generateNextStudentId 
 } from "../data/studentsData";
 import { useSessions, TERMS } from "../data/sessionsData";
 import { useInquiries } from "../data/inquiriesData";
@@ -252,8 +253,7 @@ export default function AdmissionsManagement() {
     }
 
     // Generate Student ID
-    const studentCount = students.length + 1;
-    const generatedStudentId = `ESS/2026/${String(studentCount).padStart(3, '0')}`;
+    const generatedStudentId = generateNextStudentId(students);
 
     const newStudentObj = {
       id: generatedStudentId,

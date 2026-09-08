@@ -10,8 +10,22 @@ export const CLASSES = [
   "Graduated / Alumni"
 ];
 
+export interface Student {
+  id: string;
+  name: string;
+  class: string;
+  previousClass?: string;
+  gender: string;
+  status: string;
+  fees?: string;
+  email?: string;
+  parentNumber?: string;
+  address?: string;
+  password?: string;
+  enrollmentStatus?: string;
+}
 
-export const initialStudents = [
+export const initialStudents: Student[] = [
   { id: "ESS/2026/001", name: "Oluwaseun Adebayo", class: "SSS 3A", previousClass: "SSS 2A", gender: "Male", status: "Active", fees: "Paid", email: "o.adebayo@student.ess.edu.ng", parentNumber: "+234 803 123 4567", address: "14 High Street, Makurdi, Benue State", password: "password123", enrollmentStatus: "Promoted" },
   { id: "ESS/2026/002", name: "Chioma Nwosu", class: "SSS 2B", previousClass: "SSS 1B", gender: "Female", status: "Active", fees: "Partial", email: "c.nwosu@student.ess.edu.ng", parentNumber: "+234 802 987 6543", address: "8 Commercial Avenue, Makurdi", password: "password123", enrollmentStatus: "Promoted" },
   { id: "ESS/2026/003", name: "Abubakar Ibrahim", class: "JSS 1A", previousClass: "Primary 6", gender: "Male", status: "Active", fees: "Paid", email: "a.ibrahim@student.ess.edu.ng", parentNumber: "+234 805 555 1212", address: "22 Airport Road, Makurdi", password: "password123", enrollmentStatus: "Newly Enrolled" },
@@ -19,10 +33,75 @@ export const initialStudents = [
   { id: "ESS/2026/005", name: "David Emmanuel", class: "JSS 3B", previousClass: "JSS 2B", gender: "Male", status: "Active", fees: "Paid", email: "d.emmanuel@student.ess.edu.ng", parentNumber: "+234 809 111 2233", address: "19 Ankpa Quarters, Makurdi", password: "password123", enrollmentStatus: "Promoted" },
 ];
 
+// Ensure every student in state or localStorage has a strictly unique ID, eliminating any historical duplicate keys
+export function sanitizeStudentsList(list: any[]): any[] {
+  if (!Array.isArray(list)) return initialStudents;
+  const seenIds = new Set<string>();
+  let highestNum = 0;
+
+  // Scan existing numeric IDs to find current ceiling
+  list.forEach((s) => {
+    if (s && s.id) {
+      const match = String(s.id).match(/ESS\/\d{4}\/(\d+)/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > highestNum) highestNum = num;
+      }
+    }
+  });
+
+  return list.map((student) => {
+    if (!student || typeof student !== "object") return student;
+    let studentId = student.id;
+    // If ID is missing or already seen, re-assign a unique ID
+    if (!studentId || seenIds.has(studentId)) {
+      highestNum = Math.max(highestNum + 1, list.length + 1);
+      studentId = `ESS/2026/${String(highestNum).padStart(3, "0")}`;
+    }
+    seenIds.add(studentId);
+    return {
+      ...student,
+      id: studentId,
+    };
+  });
+}
+
+// Generates the next guaranteed non-colliding student ID
+export function generateNextStudentId(existingStudents: any[]): string {
+  let highest = 0;
+  const existingIds = new Set<string>();
+
+  (existingStudents || []).forEach((s) => {
+    if (s && s.id) {
+      existingIds.add(String(s.id).trim());
+      const match = String(s.id).match(/ESS\/\d{4}\/(\d+)/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > highest) highest = num;
+      }
+    }
+  });
+
+  let nextNum = Math.max(highest + 1, (existingStudents?.length || 0) + 1);
+  let candidate = `ESS/2026/${String(nextNum).padStart(3, "0")}`;
+  while (existingIds.has(candidate)) {
+    nextNum++;
+    candidate = `ESS/2026/${String(nextNum).padStart(3, "0")}`;
+  }
+  return candidate;
+}
+
 export function useStudents() {
   const [students, setStudentsState] = useState<any[]>(() => {
     const saved = localStorage.getItem("ess_students");
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return sanitizeStudentsList(parsed);
+      } catch (e) {
+        return initialStudents;
+      }
+    }
     return initialStudents;
   });
 

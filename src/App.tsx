@@ -35,6 +35,9 @@ import AttendanceDashboard from "./pages/staff/AttendanceDashboard";
 import StudentIDCardCenter from "./pages/admin/StudentIDCardCenter";
 import StaffQRScannerPage from "./pages/admin/StaffQRScannerPage";
 import StaffAttendanceReports from "./pages/admin/StaffAttendanceReports";
+import AttendanceOfficerDashboard from "./pages/staff/AttendanceOfficerDashboard";
+import { AttendanceOfficerManagement } from "./pages/admin/AttendanceOfficerManagement";
+import ScanAttendancePage from "./pages/staff/ScanAttendancePage";
 
 export default function App() {
   return (
@@ -57,6 +60,9 @@ export default function App() {
         {/* Admin & Staff Dashboard */}
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<Dashboard />} />
+          <Route path="attendance-officer" element={<AttendanceOfficerDashboard />} />
+          <Route path="attendance-officers" element={<AttendanceOfficerManagement />} />
+          <Route path="scan-attendance" element={<ScanAttendancePage />} />
           <Route path="qr-scanner" element={<QRScannerPage />} />
           <Route path="staff-qr-scanner" element={<StaffQRScannerPage />} />
           <Route path="attendance" element={<AttendanceDashboard />} />

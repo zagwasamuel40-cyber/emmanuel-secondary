@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { BookOpen, User, Lock, ArrowRight, CheckCircle2, Shield, GraduationCap, Users, Sparkles, AlertCircle } from "lucide-react";
+import { BookOpen, User, Lock, ArrowRight, CheckCircle2, Shield, GraduationCap, Users, Sparkles, AlertCircle, UserCheck } from "lucide-react";
 import { usePortalSettings } from "../data/portalSettingsData";
 import { useTeachers } from "../data/teachersData";
 import { useStudents } from "../data/studentsData";
@@ -124,7 +124,8 @@ export default function Login() {
           setLoading(false);
           
           // Determine best initial route
-          if (roles.includes('General Admin') || roles.includes('Admin') || roles.includes('Super Admin')) navigate('/dashboard');
+          if (roles.includes('Attendance Officer')) navigate('/dashboard/attendance-officer');
+          else if (roles.includes('General Admin') || roles.includes('Admin') || roles.includes('Super Admin')) navigate('/dashboard');
           else if (roles.includes('Admission Officer')) navigate('/dashboard/admissions');
           else if (roles.includes('Portal Admin')) navigate('/dashboard/portal-manager');
           else if (roles.includes('HR/Staff Admin')) navigate('/dashboard/teachers');
@@ -182,7 +183,7 @@ export default function Login() {
   };
 
   // Demo Login Quick Fillers
-  const fillDemo = (demoType: 'student' | 'teacher' | 'admin' | 'superadmin' | 'portaladmin') => {
+  const fillDemo = (demoType: 'student' | 'teacher' | 'admin' | 'superadmin' | 'portaladmin' | 'attendance') => {
     if (demoType === 'student') {
       setIdentifier('ESS/2026/001');
       setPassword('password123');
@@ -190,6 +191,10 @@ export default function Login() {
     } else if (demoType === 'teacher') {
       setIdentifier('TCH/2026/042');
       setPassword('teacher123');
+      setDetectedRole('teacher');
+    } else if (demoType === 'attendance') {
+      setIdentifier('attendance@ess.edu.ng');
+      setPassword('officer123');
       setDetectedRole('teacher');
     } else if (demoType === 'superadmin') {
       setIdentifier('admission@ess.edu.ng');
@@ -402,28 +407,27 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => fillDemo('student')}
-                  className="p-2 border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 rounded-lg text-xs font-medium text-slate-700 flex flex-col items-center gap-1 transition-all"
+                  className="p-2.5 border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 rounded-lg text-xs font-medium text-slate-700 flex flex-col items-center gap-1.5 transition-all"
                 >
-                  <GraduationCap size={16} className="text-indigo-600" />
+                  <GraduationCap size={18} className="text-indigo-600" />
                   <span>Student</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => fillDemo('teacher')}
-                  className="p-2 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50 rounded-lg text-xs font-medium text-slate-700 flex flex-col items-center gap-1 transition-all"
+                  className="p-2.5 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50 rounded-lg text-xs font-medium text-slate-700 flex flex-col items-center gap-1.5 transition-all"
                 >
-                  <Users size={16} className="text-emerald-600" />
+                  <Users size={18} className="text-emerald-600" />
                   <span>Teacher</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => fillDemo('admin')}
-                  className="p-2 border border-slate-200 hover:border-brand-300 hover:bg-brand-50/50 rounded-lg text-xs font-medium text-slate-700 flex flex-col items-center gap-1 transition-all"
+                  className="p-2.5 border border-slate-200 hover:border-brand-300 hover:bg-brand-50/50 rounded-lg text-xs font-medium text-slate-700 flex flex-col items-center gap-1.5 transition-all"
                 >
-                  <Shield size={16} className="text-brand-600" />
+                  <Shield size={18} className="text-brand-600" />
                   <span>Admin</span>
                 </button>
-
               </div>
 
             </div>

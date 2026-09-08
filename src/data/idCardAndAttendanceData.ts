@@ -2,11 +2,15 @@ import { useState, useEffect } from "react";
 import { 
   IDCard, 
   AttendanceRecord, 
+  StaffAttendanceRecord,
+  AttendanceMethod,
   QRScanLog, 
   IDCardCustomization,
   AttendanceStatus,
   AttendancePeriod,
-  ScanPurpose
+  ScanPurpose,
+  AttendanceSettings,
+  AttendanceOfficerPermissions
 } from "../types/idCardAndAttendance";
 import { initialStudents } from "./studentsData";
 
@@ -75,6 +79,61 @@ export const initialIdCards: IDCard[] = [
     reissueCount: 0,
     lastScannedAt: "2026-09-07 08:02 AM",
     notes: "Original issue."
+  },
+  {
+    id: "IDC-STF-001",
+    studentId: "ADM/2026/001",
+    userType: 'staff',
+    qrToken: "STAFF-9x8w7v-ADM2026001-adm001",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "ADM2026001",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:30 AM",
+    notes: "Official Staff Card for System Administrator"
+  },
+  {
+    id: "IDC-STF-002",
+    studentId: "TCH/2026/042",
+    userType: 'staff',
+    qrToken: "STAFF-5p4o3n-TCH2026042-tch042",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "TCH2026042",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:38 AM",
+    notes: "Official Staff Card for Mrs. Grace Adeyemi"
+  },
+  {
+    id: "IDC-STF-003",
+    studentId: "TCH/2026/001",
+    userType: 'staff',
+    qrToken: "STAFF-2m1l0k-TCH2026001-tch001",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "TCH2026001",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:44 AM",
+    notes: "Official Staff Card for Dr. Samuel Okoh"
+  },
+  {
+    id: "IDC-STF-004",
+    studentId: "STF/2026/088",
+    userType: 'staff',
+    qrToken: "STAFF-7j6h5g-STF2026088-stf088",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "STF2026088",
+    reissueCount: 0,
+    notes: "Official Staff Card for Attendance Officer"
   }
 ];
 
@@ -202,6 +261,52 @@ export const initialScanLogs: QRScanLog[] = [
   }
 ];
 
+// Initial Staff Attendance Records
+export const initialStaffAttendance: StaffAttendanceRecord[] = [
+  {
+    id: "ATT-STF-101",
+    staffId: "ADM/2026/001",
+    staffName: "System Administrator",
+    department: "Administration",
+    role: "General Admin",
+    date: getTodayDateString(),
+    checkInTime: "07:30 AM",
+    checkOutTime: undefined,
+    status: "Present",
+    method: "qr_scan",
+    scannedByStaffId: "STF/2026/088",
+    scannedByStaffName: "Mr. Emmanuel Terhemba"
+  },
+  {
+    id: "ATT-STF-102",
+    staffId: "TCH/2026/042",
+    staffName: "Mrs. Grace Adeyemi",
+    department: "Languages",
+    role: "English Teacher",
+    date: getTodayDateString(),
+    checkInTime: "07:38 AM",
+    checkOutTime: undefined,
+    status: "Present",
+    method: "qr_scan",
+    scannedByStaffId: "STF/2026/088",
+    scannedByStaffName: "Mr. Emmanuel Terhemba"
+  },
+  {
+    id: "ATT-STF-103",
+    staffId: "TCH/2026/001",
+    staffName: "Dr. Samuel Okoh",
+    department: "Sciences",
+    role: "Senior Master & HOD Science",
+    date: getTodayDateString(),
+    checkInTime: "07:44 AM",
+    checkOutTime: undefined,
+    status: "Present",
+    method: "qr_scan",
+    scannedByStaffId: "STF/2026/088",
+    scannedByStaffName: "Mr. Emmanuel Terhemba"
+  }
+];
+
 export const defaultIDCardDesign: IDCardCustomization = {
   schoolName: "EMMANUEL SECONDARY SCHOOL, MAKURDI",
   schoolMotto: "Excellence, Knowledge & Moral Discipline",
@@ -247,19 +352,19 @@ export function saveStoredIdCards(cards: IDCard[]) {
   window.dispatchEvent(new Event("ess_id_cards_change"));
 }
 
-export function getStoredStaffAttendance(): any[] {
-  if (typeof window === "undefined") return [];
+export function getStoredStaffAttendance(): StaffAttendanceRecord[] {
+  if (typeof window === "undefined") return initialStaffAttendance;
   const saved = localStorage.getItem("ess_staff_attendance");
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     } catch {}
   }
-  return [];
+  return initialStaffAttendance;
 }
 
-export function saveStoredStaffAttendance(records: any[]) {
+export function saveStoredStaffAttendance(records: StaffAttendanceRecord[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem("ess_staff_attendance", JSON.stringify(records));
   window.dispatchEvent(new Event("ess_staff_attendance_change"));
@@ -310,6 +415,110 @@ export function getStoredIDCardDesign(): IDCardCustomization {
     } catch {}
   }
   return defaultIDCardDesign;
+}
+
+export const defaultAttendanceSettings: AttendanceSettings = {
+  schoolStartTime: "07:45",
+  studentLateCutoff: "08:00",
+  staffStartTime: "07:30",
+  staffLateCutoff: "08:00",
+  studentDismissalTime: "14:00",
+  staffDismissalTime: "16:00",
+  checkOutThreshold: "12:30",
+  preventDuplicatePerDay: true,
+  enableAudioFeedback: true,
+  enableVibrationFeedback: true,
+  autoResumeDelaySeconds: 2.5
+};
+
+export function getStoredAttendanceSettings(): AttendanceSettings {
+  if (typeof window === "undefined") return defaultAttendanceSettings;
+  const saved = localStorage.getItem("ess_attendance_settings");
+  if (saved) {
+    try {
+      return { ...defaultAttendanceSettings, ...JSON.parse(saved) };
+    } catch {}
+  }
+  return defaultAttendanceSettings;
+}
+
+export function saveStoredAttendanceSettings(settings: AttendanceSettings) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("ess_attendance_settings", JSON.stringify(settings));
+  window.dispatchEvent(new Event("ess_attendance_settings_change"));
+}
+
+export function useAttendanceSettings() {
+  const [settings, setSettingsState] = useState<AttendanceSettings>(getStoredAttendanceSettings);
+
+  useEffect(() => {
+    const handleUpdate = () => setSettingsState(getStoredAttendanceSettings());
+    window.addEventListener("ess_attendance_settings_change", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener("ess_attendance_settings_change", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
+  }, []);
+
+  const setSettings = (updater: AttendanceSettings | ((prev: AttendanceSettings) => AttendanceSettings)) => {
+    const current = getStoredAttendanceSettings();
+    const next = typeof updater === "function" ? updater(current) : updater;
+    saveStoredAttendanceSettings(next);
+  };
+
+  return [settings, setSettings] as const;
+}
+
+// Time helper to determine if scan is past late cutoff
+export function calculateLateStatus(timeStr: string, cutoffTime24: string): { isLate: boolean; lateMinutes: number } {
+  let hours = 0;
+  let minutes = 0;
+  const match = timeStr.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?/i);
+  if (match) {
+    hours = parseInt(match[1], 10);
+    minutes = parseInt(match[2], 10);
+    const meridiem = match[3]?.toUpperCase();
+    if (meridiem === 'PM' && hours < 12) hours += 12;
+    if (meridiem === 'AM' && hours === 12) hours = 0;
+  } else {
+    const now = new Date();
+    hours = now.getHours();
+    minutes = now.getMinutes();
+  }
+  const currentTotalMins = hours * 60 + minutes;
+
+  const [cutoffH, cutoffM] = (cutoffTime24 || "08:00").split(':').map(Number);
+  const cutoffTotalMins = (cutoffH || 8) * 60 + (cutoffM || 0);
+
+  if (currentTotalMins > cutoffTotalMins) {
+    return { isLate: true, lateMinutes: currentTotalMins - cutoffTotalMins };
+  }
+  return { isLate: false, lateMinutes: 0 };
+}
+
+// Check if current scan time is past checkout threshold
+export function isPastCheckOutTime(timeStr: string, thresholdTime24: string): boolean {
+  let hours = 0;
+  let minutes = 0;
+  const match = timeStr.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?/i);
+  if (match) {
+    hours = parseInt(match[1], 10);
+    minutes = parseInt(match[2], 10);
+    const meridiem = match[3]?.toUpperCase();
+    if (meridiem === 'PM' && hours < 12) hours += 12;
+    if (meridiem === 'AM' && hours === 12) hours = 0;
+  } else {
+    const now = new Date();
+    hours = now.getHours();
+    minutes = now.getMinutes();
+  }
+  const currentTotalMins = hours * 60 + minutes;
+
+  const [threshH, threshM] = (thresholdTime24 || "12:30").split(':').map(Number);
+  const threshTotalMins = (threshH || 12) * 60 + (threshM || 30);
+
+  return currentTotalMins >= threshTotalMins;
 }
 
 export function saveStoredIDCardDesign(design: IDCardCustomization) {
@@ -513,11 +722,12 @@ export function setStudentCardStatus(studentId: string, status: IDCard["cardStat
 
 export function logScanEvent(
   qrToken: string,
-  student: any,
+  person: any,
   staffUser: { id: string; name: string },
   purpose: ScanPurpose,
   status: 'Verified' | 'Card Deactivated' | 'Invalid Token',
-  deviceInfo = "Staff Portal Web Scanner"
+  deviceInfo = "Staff Portal Web Scanner",
+  personType: 'student' | 'staff' = 'student'
 ): QRScanLog {
   const now = new Date();
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
@@ -526,10 +736,11 @@ export function logScanEvent(
   const newLog: QRScanLog = {
     id: `LOG-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
     qrToken,
-    studentId: student?.id || "UNKNOWN",
-    studentName: student?.name || "Unrecognized Student",
-    admissionNo: student?.id || "N/A",
-    studentClass: student?.class || "N/A",
+    personType,
+    studentId: person?.id || "UNKNOWN",
+    studentName: person?.name || "Unrecognized Person",
+    admissionNo: person?.id || "N/A",
+    studentClass: person?.class || person?.department || "N/A",
     scannedByStaffId: staffUser.id || "STAFF",
     scannedByStaffName: staffUser.name || "Authorized Staff",
     timestamp: `${dateStr} ${timeStr}`,
@@ -547,65 +758,114 @@ export function logScanEvent(
 
 export function recordStudentAttendance(params: {
   student: any;
-  status: AttendanceStatus;
+  status?: AttendanceStatus;
   period?: AttendancePeriod;
   method?: 'qr_scan' | 'manual';
+  mode?: 'auto' | 'check_in' | 'check_out';
   staffUser: { id: string; name: string };
   lateMinutes?: number;
   note?: string;
   forceOverride?: boolean;
-}): { success: boolean; message: string; record?: AttendanceRecord; duplicate?: boolean } {
+}): { success: boolean; message: string; record?: AttendanceRecord; duplicate?: boolean; action?: 'check_in' | 'check_out' | 'duplicate' } {
   const { 
     student, 
-    status, 
+    status: explicitStatus, 
     period = "Morning Assembly", 
     method = "qr_scan", 
+    mode = "auto",
     staffUser, 
-    lateMinutes, 
+    lateMinutes: explicitLateMinutes, 
     note, 
     forceOverride 
   } = params;
 
   const today = getTodayDateString();
   const currentRecords = getStoredAttendance();
+  const settings = getStoredAttendanceSettings();
 
-  // Check for duplicate attendance entry for the same student on the same date and period
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+
+  // Check for existing attendance today
   const existingIdx = currentRecords.findIndex(
     r => r.studentId === student.id && r.date === today && r.period === period
   );
 
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-  if (existingIdx !== -1 && !forceOverride) {
+  // Check-In vs Check-Out determination
+  if (existingIdx !== -1) {
     const existing = currentRecords[existingIdx];
-    return {
-      success: false,
-      duplicate: true,
-      record: existing,
-      message: `${student.name} – Attendance already recorded today at ${existing.time} (Status: ${existing.status}).`
-    };
-  }
 
-  if (existingIdx !== -1 && forceOverride) {
-    // Override existing record
+    // Check if we should record Check-Out
+    const shouldCheckOut = mode === 'check_out' || (mode === 'auto' && isPastCheckOutTime(timeStr, settings.checkOutThreshold));
+
+    if (shouldCheckOut && !existing.checkOutTime) {
+      const updated: AttendanceRecord = {
+        ...existing,
+        checkOutTime: timeStr,
+        note: note || (existing.note ? `${existing.note}; Dismissal Check-Out at ${timeStr}` : `Dismissal Check-Out at ${timeStr}`)
+      };
+      currentRecords[existingIdx] = updated;
+      saveStoredAttendance([...currentRecords]);
+      return {
+        success: true,
+        action: 'check_out',
+        message: `${student.name} – Dismissal Check-Out Recorded Successfully (${timeStr})`,
+        record: updated
+      };
+    }
+
+    if (existing.checkOutTime && !forceOverride) {
+      return {
+        success: false,
+        duplicate: true,
+        action: 'duplicate',
+        record: existing,
+        message: `${student.name} – Student already completed Check-In (${existing.time}) and Check-Out (${existing.checkOutTime}) today.`
+      };
+    }
+
+    if (!forceOverride) {
+      return {
+        success: false,
+        duplicate: true,
+        action: 'duplicate',
+        record: existing,
+        message: `${student.name} – Attendance Already Recorded Today at ${existing.time} (Status: ${existing.status}).`
+      };
+    }
+
+    // Force override
     const updated: AttendanceRecord = {
-      ...currentRecords[existingIdx],
-      status,
+      ...existing,
+      status: explicitStatus || existing.status,
       time: timeStr,
+      checkInTime: timeStr,
       method,
       scannedByStaffId: staffUser.id,
       scannedByStaffName: staffUser.name,
-      lateMinutes,
-      note: note || `Updated attendance to ${status}`
+      lateMinutes: explicitLateMinutes !== undefined ? explicitLateMinutes : existing.lateMinutes,
+      note: note || `Updated attendance to ${explicitStatus || existing.status}`
     };
     currentRecords[existingIdx] = updated;
     saveStoredAttendance([...currentRecords]);
     return {
       success: true,
-      message: `${student.name} – Attendance Updated to ${status} (${timeStr})`,
+      action: 'check_in',
+      message: `${student.name} – Attendance Updated to ${explicitStatus || existing.status} (${timeStr})`,
       record: updated
     };
+  }
+
+  // Automatic late evaluation based on settings if status was not manually set to something else
+  let finalStatus: AttendanceStatus = explicitStatus || 'Present';
+  let finalLateMinutes = explicitLateMinutes || 0;
+
+  if (!explicitStatus || explicitStatus === 'Present') {
+    const lateCalc = calculateLateStatus(timeStr, settings.studentLateCutoff);
+    if (lateCalc.isLate) {
+      finalStatus = 'Late';
+      finalLateMinutes = lateCalc.lateMinutes;
+    }
   }
 
   // Create new record
@@ -617,13 +877,16 @@ export function recordStudentAttendance(params: {
     class: student.class,
     date: today,
     time: timeStr,
+    checkInTime: timeStr,
     period,
-    status,
+    status: finalStatus,
     method,
     scannedByStaffId: staffUser.id,
     scannedByStaffName: staffUser.name,
-    lateMinutes,
-    note
+    lateMinutes: finalLateMinutes > 0 ? finalLateMinutes : undefined,
+    note: note || (finalStatus === 'Late' ? `Late arrival (+${finalLateMinutes}m after ${settings.studentLateCutoff})` : undefined),
+    personType: 'Student',
+    timestamp: `${today} ${timeStr}`
   };
 
   saveStoredAttendance([newRecord, ...currentRecords]);
@@ -641,7 +904,290 @@ export function recordStudentAttendance(params: {
 
   return {
     success: true,
-    message: `${student.name} – Attendance Marked ${status} (${timeStr})`,
+    action: 'check_in',
+    message: `${student.name} – Attendance Recorded Successfully (${timeStr}${finalStatus === 'Late' ? ' - Marked Late' : ''})`,
     record: newRecord
+  };
+}
+
+export function recordStaffAttendance(params: {
+  staff: any;
+  status?: AttendanceStatus;
+  method?: AttendanceMethod;
+  mode?: 'auto' | 'check_in' | 'check_out';
+  staffUser: { id: string; name: string };
+  lateMinutes?: number;
+  note?: string;
+  forceOverride?: boolean;
+}): { success: boolean; duplicate?: boolean; message: string; record?: StaffAttendanceRecord; action?: 'check_in' | 'check_out' | 'duplicate' } {
+  const {
+    staff,
+    status: explicitStatus,
+    method = "qr_scan",
+    mode = "auto",
+    staffUser,
+    lateMinutes: explicitLateMinutes,
+    note,
+    forceOverride
+  } = params;
+
+  const today = getTodayDateString();
+  const currentRecords = getStoredStaffAttendance();
+  const settings = getStoredAttendanceSettings();
+
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+
+  const existingIdx = currentRecords.findIndex(
+    r => r.staffId === staff.id && r.date === today
+  );
+
+  if (existingIdx !== -1) {
+    const existing = currentRecords[existingIdx];
+
+    // Check if user specifically requested check_out or if auto mode past checkout threshold
+    const shouldCheckOut = mode === 'check_out' || (mode === 'auto' && isPastCheckOutTime(timeStr, settings.checkOutThreshold));
+
+    if (shouldCheckOut && !existing.checkOutTime) {
+      const updated: StaffAttendanceRecord = {
+        ...existing,
+        checkOutTime: timeStr,
+        note: note || (existing.note ? `${existing.note}; Checked out at ${timeStr}` : `Checked out at ${timeStr}`),
+        timestamp: `${today} ${timeStr}`
+      };
+      currentRecords[existingIdx] = updated;
+      saveStoredStaffAttendance([...currentRecords]);
+      return {
+        success: true,
+        action: 'check_out',
+        message: `${staff.name} – Staff Check-Out Recorded Successfully (${timeStr})`,
+        record: updated
+      };
+    }
+
+    if (existing.checkOutTime && !forceOverride) {
+      return {
+        success: false,
+        duplicate: true,
+        action: 'duplicate',
+        record: existing,
+        message: `${staff.name} – Staff already checked in (${existing.checkInTime}) and checked out (${existing.checkOutTime}) today.`
+      };
+    }
+
+    if (!forceOverride) {
+      return {
+        success: false,
+        duplicate: true,
+        action: 'duplicate',
+        record: existing,
+        message: `${staff.name} – Staff Attendance Already Recorded Today at ${existing.checkInTime} (Status: ${existing.status}).`
+      };
+    } else {
+      // Force override
+      const updated: StaffAttendanceRecord = {
+        ...existing,
+        status: explicitStatus || existing.status,
+        checkInTime: timeStr,
+        method,
+        scannedByStaffId: staffUser.id,
+        scannedByStaffName: staffUser.name,
+        lateMinutes: explicitLateMinutes !== undefined ? explicitLateMinutes : existing.lateMinutes,
+        note: note || `Updated staff attendance to ${explicitStatus || existing.status}`,
+        timestamp: `${today} ${timeStr}`
+      };
+      currentRecords[existingIdx] = updated;
+      saveStoredStaffAttendance([...currentRecords]);
+      return {
+        success: true,
+        action: 'check_in',
+        message: `${staff.name} – Staff Attendance Updated to ${explicitStatus || existing.status} (${timeStr})`,
+        record: updated
+      };
+    }
+  }
+
+  // Automatic late evaluation based on settings
+  let finalStatus: AttendanceStatus = explicitStatus || 'Present';
+  let finalLateMinutes = explicitLateMinutes || 0;
+
+  if (!explicitStatus || explicitStatus === 'Present') {
+    const lateCalc = calculateLateStatus(timeStr, settings.staffLateCutoff);
+    if (lateCalc.isLate) {
+      finalStatus = 'Late';
+      finalLateMinutes = lateCalc.lateMinutes;
+    }
+  }
+
+  // Create new staff attendance check-in
+  const newRecord: StaffAttendanceRecord = {
+    id: `ATT-STF-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+    staffId: staff.id,
+    staffName: staff.name,
+    department: staff.department || "General",
+    role: staff.role || "Staff",
+    date: today,
+    checkInTime: timeStr,
+    status: finalStatus,
+    method,
+    lateMinutes: finalLateMinutes > 0 ? finalLateMinutes : undefined,
+    scannedByStaffId: staffUser.id,
+    scannedByStaffName: staffUser.name,
+    note: note || (finalStatus === 'Late' ? `Late arrival (+${finalLateMinutes}m after ${settings.staffLateCutoff})` : undefined),
+    timestamp: `${today} ${timeStr}`
+  };
+
+  saveStoredStaffAttendance([newRecord, ...currentRecords]);
+
+  // Update lastScannedAt on staff's ID card
+  const cards = getStoredIdCards();
+  const cardIdx = cards.findIndex(c => c.studentId === staff.id);
+  if (cardIdx !== -1) {
+    cards[cardIdx] = {
+      ...cards[cardIdx],
+      lastScannedAt: `${today} ${timeStr}`
+    };
+    saveStoredIdCards([...cards]);
+  }
+
+  return {
+    success: true,
+    action: 'check_in',
+    message: `${staff.name} – Staff Attendance Recorded Successfully (${timeStr}${finalStatus === 'Late' ? ' - Marked Late' : ''})`,
+    record: newRecord
+  };
+}
+
+// Unified Manual Attendance Entry
+export function recordManualAttendance(params: {
+  personType: 'student' | 'staff';
+  person: any;
+  status: AttendanceStatus;
+  checkInTime?: string;
+  checkOutTime?: string;
+  period?: AttendancePeriod;
+  officer: { id: string; name: string };
+  reason?: string;
+  forceOverride?: boolean;
+}) {
+  const { personType, person, status, period, officer, reason, forceOverride } = params;
+  const remark = reason ? `Manual Entry: ${reason}` : 'Manual Attendance Entry';
+
+  if (personType === 'student') {
+    return recordStudentAttendance({
+      student: person,
+      status,
+      period: period || "Morning Assembly",
+      method: 'manual',
+      staffUser: officer,
+      note: remark,
+      forceOverride
+    });
+  } else {
+    return recordStaffAttendance({
+      staff: person,
+      status,
+      method: 'manual',
+      mode: 'auto',
+      staffUser: officer,
+      note: remark,
+      forceOverride
+    });
+  }
+}
+
+export function updateStudentAttendanceRecord(recordId: string, updates: Partial<AttendanceRecord>): boolean {
+  const records = getStoredAttendance();
+  const idx = records.findIndex(r => r.id === recordId);
+  if (idx === -1) return false;
+
+  records[idx] = { ...records[idx], ...updates };
+  saveStoredAttendance([...records]);
+  return true;
+}
+
+export function updateStaffAttendanceRecord(recordId: string, updates: Partial<StaffAttendanceRecord>): boolean {
+  const records = getStoredStaffAttendance();
+  const idx = records.findIndex(r => r.id === recordId);
+  if (idx === -1) return false;
+
+  records[idx] = { ...records[idx], ...updates };
+  saveStoredStaffAttendance([...records]);
+  return true;
+}
+
+export function deleteStudentAttendanceRecord(recordId: string): boolean {
+  const records = getStoredAttendance();
+  const filtered = records.filter(r => r.id !== recordId);
+  if (filtered.length === records.length) return false;
+  saveStoredAttendance(filtered);
+  return true;
+}
+
+export function deleteStaffAttendanceRecord(recordId: string): boolean {
+  const records = getStoredStaffAttendance();
+  const filtered = records.filter(r => r.id !== recordId);
+  if (filtered.length === records.length) return false;
+  saveStoredStaffAttendance(filtered);
+  return true;
+}
+
+export function getTodayAttendanceSummary(
+  allTeachers: any[],
+  allStudents: any[]
+) {
+  const today = getTodayDateString();
+  const studentRecords = getStoredAttendance().filter(r => r.date === today);
+  const staffRecords = getStoredStaffAttendance().filter(r => r.date === today);
+  const recentLogs = getStoredScanLogs();
+
+  // Active students
+  const activeStudents = allStudents.filter(s => s.status !== 'Graduated' && s.status !== 'Withdrawn');
+  const totalStudentsCount = activeStudents.length;
+
+  const studentPresentCount = studentRecords.filter(r => r.status === 'Present').length;
+  const studentLateCount = studentRecords.filter(r => r.status === 'Late').length;
+  const studentExcusedCount = studentRecords.filter(r => r.status === 'Excused').length;
+  const studentRecordedCount = studentPresentCount + studentLateCount + studentExcusedCount;
+  const studentAbsentCount = Math.max(0, totalStudentsCount - studentRecordedCount);
+
+  // List of absent students
+  const recordedStudentIds = new Set(studentRecords.map(r => r.studentId));
+  const absentStudentsList = activeStudents.filter(s => !recordedStudentIds.has(s.id));
+
+  // Active staff
+  const activeStaff = allTeachers.filter(t => !['Resigned', 'Terminated', 'Retired', 'Suspended'].includes(t.status));
+  const totalStaffCount = activeStaff.length;
+
+  const staffPresentCount = staffRecords.filter(r => r.status === 'Present').length;
+  const staffLateCount = staffRecords.filter(r => r.status === 'Late').length;
+  const staffOnLeaveCount = staffRecords.filter(r => r.status === 'On Leave' || r.status === 'Excused').length;
+  const staffRecordedCount = staffPresentCount + staffLateCount + staffOnLeaveCount;
+  const staffAbsentCount = Math.max(0, totalStaffCount - staffRecordedCount);
+
+  // List of absent staff
+  const recordedStaffIds = new Set(staffRecords.map(r => r.staffId));
+  const absentStaffList = activeStaff.filter(t => !recordedStaffIds.has(t.id));
+
+  return {
+    today,
+    totalStaffCount,
+    staffPresentCount,
+    staffLateCount,
+    staffOnLeaveCount,
+    staffAbsentCount,
+    staffAttendanceRate: totalStaffCount > 0 ? Math.round(((staffPresentCount + staffLateCount) / totalStaffCount) * 100) : 0,
+    totalStudentsCount,
+    studentPresentCount,
+    studentLateCount,
+    studentExcusedCount,
+    studentsPresentCount: studentPresentCount + studentLateCount,
+    studentsAbsentCount: studentAbsentCount,
+    studentsAttendanceRate: totalStudentsCount > 0 ? Math.round(((studentPresentCount + studentLateCount) / totalStudentsCount) * 100) : 0,
+    studentRecords,
+    staffRecords,
+    absentStudentsList,
+    absentStaffList,
+    recentLogs
   };
 }

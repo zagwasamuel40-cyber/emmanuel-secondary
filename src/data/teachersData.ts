@@ -1,12 +1,25 @@
 import { useState, useEffect } from "react";
 
-export type SystemRole = 'Teacher' | 'Admin' | 'Admission Officer' | 'Portal Admin' | 'Super Admin' | 'General Admin' | 'Examination Admin' | 'Finance/Admin Officer' | 'HR/Staff Admin' | 'Academic Admin' | 'Library Admin' | 'Inventory Admin';
+export type SystemRole = 'Teacher' | 'Admin' | 'Attendance Officer' | 'Admission Officer' | 'Portal Admin' | 'Super Admin' | 'General Admin' | 'Examination Admin' | 'Finance/Admin Officer' | 'HR/Staff Admin' | 'Academic Admin' | 'Library Admin' | 'Inventory Admin';
 
 export type StaffStatus = 'Active' | 'On Leave' | 'Suspended' | 'Terminated' | 'Resigned' | 'Retired' | 'Inactive';
+
+export const DEPARTMENTS = [
+  "All Departments",
+  "Sciences",
+  "Mathematics",
+  "Languages",
+  "Humanities",
+  "Commercial",
+  "Vocational",
+  "Administration",
+  "Security & Logistics"
+];
 
 export interface Teacher {
   id: string; // Staff Number / ID
   name: string;
+  gender?: string;
   department: string;
   role: string;
   status: StaffStatus;
@@ -66,6 +79,21 @@ const initialTeachers: Teacher[] = [
     password: "teacher123",
     systemRoles: ['Teacher', 'Academic Admin'],
     employmentDate: '2020-01-15'
+  },
+  {
+    id: "STF/2026/088",
+    name: "Mr. Emmanuel Terhemba",
+    department: "Security & Operations",
+    role: "Chief Attendance Officer",
+    status: "Active",
+    email: "attendance@ess.edu.ng",
+    phone: "+234 814 555 1234",
+    address: "Security Command & Gate Office, ESS",
+    subjects: [],
+    assignedClasses: [],
+    password: "officer123",
+    systemRoles: ['Attendance Officer'],
+    employmentDate: '2023-03-01'
   }
 ];
 
