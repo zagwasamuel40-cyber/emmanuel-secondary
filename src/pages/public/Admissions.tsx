@@ -3,13 +3,17 @@ import { NIGERIA_STATES } from "../../data/nigeriaStates";
 import { Button, Input, Label, Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui";
 import { useAdmissionApps } from "../../data/studentsData";
 import { usePortalSettings, useAdmissionSettings } from "../../data/portalSettingsData";
-import { UploadCloud, FileText, CheckCircle2, Trash2, ShieldAlert, Award, FileCheck, Search, Image as ImageIcon, ClipboardList, LogIn, Save, ArrowRight, Eye, Check, Monitor } from "lucide-react";
+import { useAdmissionPortal, useAdmissionApplicants, addAdmissionAuditLog, ApplicantProfile } from "../../data/admissionsAndExamData";
+import { UploadCloud, FileText, CheckCircle2, Trash2, ShieldAlert, Award, FileCheck, Search, Image as ImageIcon, ClipboardList, LogIn, Save, ArrowRight, Eye, Check, Monitor, Clock, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function Admissions() {
   const [admissionApps, setAdmissionApps] = useAdmissionApps();
   const [portalSettings] = usePortalSettings();
   const [admissionSettings] = useAdmissionSettings();
+  const { control: portalConfig, computedStatus } = useAdmissionPortal();
+  const portalStatus = computedStatus.status;
+  const { applicants, addApplicant } = useAdmissionApplicants();
 
   const [view, setView] = useState<"inquiry" | "guidelines" | "resume" | "apply" | "review" | "success" | "cbt">("inquiry");
 
@@ -192,34 +196,98 @@ export default function Admissions() {
     }
   };
 
+  const [assignedAppNumber, setAssignedAppNumber] = useState("");
+
   const submitFinal = () => {
     if (!confirmed) return;
+
+    // Check if admission portal is currently open
+    if (portalStatus !== "open") {
+      alert("The online admission portal is currently closed or not yet open for new applications.");
+      return;
+    }
+
+    const appNumber = `ESS/ADM/2026/${String(Math.floor(100 + Math.random() * 900))}`;
+    setAssignedAppNumber(appNumber);
+
+    // Update legacy apps
     const updatedApps = admissionApps.map(app => {
       if (app.id === draftAppId) {
         return { 
           ...app, 
+          applicationNumber: appNumber,
           status: "Submitted",
           date: new Date().toISOString().split("T")[0],
           name: `${formData.firstName} ${formData.lastName}`.trim(),
           class: formData.classApplying,
-          payment: "Pending" // Assuming payment comes next or separate
+          payment: "Pending"
         };
       }
       return app;
     });
     setAdmissionApps(updatedApps);
+
+    // Also register in central Admission Officer roster
+    const newApplicantProfile: ApplicantProfile = {
+      id: draftAppId || `APP-${Date.now()}`,
+      applicationNumber: appNumber,
+      fullName: `${formData.firstName} ${formData.middleName ? formData.middleName + ' ' : ''}${formData.lastName}`.trim(),
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      middleName: formData.middleName,
+      passportUrl: passportPhotoBase64 || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
+      dob: formData.dob || "2013-05-12",
+      gender: (formData.gender === "Male" ? "Male" : "Female") as "Male" | "Female",
+      state: formData.state || "Benue",
+      lga: formData.lga || "Makurdi",
+      address: formData.address || "Makurdi, Benue State",
+      phone: formData.phone || "08012345678",
+      email: formData.email || "applicant@example.com",
+      parentName: formData.parentName || "Parent",
+      parentPhone: formData.parentPhone || "08098765432",
+      parentEmail: formData.parentEmail || "parent@example.com",
+      parentOccupation: "Civil Servant",
+      classApplied: formData.classApplying || "JSS 1",
+      previousSchool: formData.previousSchool || "Emmanuel Model Primary School",
+      applicationDate: new Date().toISOString().split("T")[0],
+      status: "Pending",
+      examStatus: "Examination Scheduled"
+    };
+
+    addApplicant(newApplicantProfile);
+
+    // Log to admission audit
+    addAdmissionAuditLog(
+      "Online Application Submission",
+      `Applicant ${newApplicantProfile.fullName} registered online. Assigned Application Number: ${appNumber}.`,
+      "Candidate Self-Service"
+    );
+
+    // Save app id and applicant profile for immediate lookup and detection in CBT portal
+    localStorage.setItem("ess_latest_app_id", appNumber);
+    localStorage.setItem("ess_admission_app_num", appNumber);
+    localStorage.setItem(
+      "ess_latest_applicant",
+      JSON.stringify({
+        applicationNumber: appNumber,
+        id: newApplicantProfile.id,
+        fullName: newApplicantProfile.fullName,
+        classApplied: newApplicantProfile.classApplied
+      })
+    );
+
     setView("success");
   };
 
   const copyAppCode = () => {
-    navigator.clipboard.writeText(`App Code: ${draftAppId} | Password: ${draftPassword}`);
+    navigator.clipboard.writeText(`App Code: ${assignedAppNumber || draftAppId} | Password: ${draftPassword}`);
     alert("Copied to clipboard!");
   };
 
   if (view === "inquiry") {
     return (
       <div className="max-w-5xl mx-auto px-4 py-12">
-        <div className="text-center mb-10">
+        <div className="text-center mb-8">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-100 text-brand-800 mb-3">
             <Award size={14} /> 2026/2027 Admission Session
           </span>
@@ -227,6 +295,47 @@ export default function Admissions() {
           <p className="text-slate-600 text-lg max-w-2xl mx-auto">
             Welcome to {portalSettings.schoolName}. Start your journey with us today.
           </p>
+        </div>
+
+        {/* Live Admission Portal Status Banner (Per Requirement 1) */}
+        <div className="mb-10 max-w-3xl mx-auto">
+          <Card className={`border-2 ${
+            portalStatus === 'open' 
+              ? 'border-emerald-500 bg-emerald-50/70' 
+              : portalStatus === 'not_yet_open'
+              ? 'border-amber-400 bg-amber-50/70'
+              : 'border-rose-400 bg-rose-50/70'
+          }`}>
+            <CardContent className="p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3 text-center sm:text-left">
+                <span className="text-2xl">
+                  {portalStatus === 'open' ? '🟢' : portalStatus === 'not_yet_open' ? '🟡' : '🔴'}
+                </span>
+                <div>
+                  <div className="font-bold text-slate-900 text-base flex items-center gap-2 justify-center sm:justify-start">
+                    <span>Admission Status:</span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold ${
+                      portalStatus === 'open' 
+                        ? 'bg-emerald-600 text-white' 
+                        : portalStatus === 'not_yet_open'
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-rose-600 text-white'
+                    }`}>
+                      {portalStatus === 'open' ? 'Admission Open' : portalStatus === 'not_yet_open' ? 'Admission Not Yet Open' : 'Admission Closed'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-1">
+                    {portalConfig.noticeMessage || "Applications are processed by the Admission Directorate."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-xs font-mono text-slate-600 bg-white/80 p-2.5 rounded-lg border border-slate-200 text-right shrink-0">
+                <div>Opens: <strong className="text-slate-900">{portalConfig.openingDateTime?.replace('T', ' ')}</strong></div>
+                <div>Closes: <strong className="text-slate-900">{portalConfig.closingDateTime?.replace('T', ' ')}</strong></div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {admissionSettings.galleryImages && admissionSettings.galleryImages.length > 0 && (
@@ -252,16 +361,27 @@ export default function Admissions() {
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-          <Button size="lg" variant="brand" className="w-full sm:w-auto text-lg gap-2 px-8" onClick={() => setView("guidelines")}>
-            <ClipboardList size={20} /> 📋 GUIDELINES
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <Button 
+            size="lg" 
+            variant="brand" 
+            disabled={portalStatus !== 'open'}
+            className="w-full sm:w-auto text-base gap-2 px-8 font-bold" 
+            onClick={() => setView("guidelines")}
+          >
+            <ClipboardList size={20} /> {portalStatus === 'open' ? '📋 START APPLICATION' : 'PORTAL CURRENTLY CLOSED'}
           </Button>
-          <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg gap-2 px-8 border-slate-300" onClick={() => setView("resume")}>
+          <Button size="lg" variant="outline" className="w-full sm:w-auto text-base gap-2 px-8 border-slate-300" onClick={() => setView("resume")}>
             <LogIn size={20} /> Resume Application
           </Button>
           <Link to="/admission-status">
-            <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg gap-2 px-8 bg-brand-50 border-brand-200 text-brand-700">
+            <Button size="lg" variant="outline" className="w-full sm:w-auto text-base gap-2 px-8 bg-brand-50 border-brand-200 text-brand-700">
               <Search size={20} /> Check Admission Status
+            </Button>
+          </Link>
+          <Link to="/entrance-exam">
+            <Button size="lg" variant="outline" className="w-full sm:w-auto text-base gap-2 px-8 bg-indigo-50 border-indigo-200 text-indigo-700">
+              <Monitor size={20} /> CBT Entrance Exam
             </Button>
           </Link>
         </div>
@@ -598,6 +718,7 @@ export default function Admissions() {
   }
 
   if (view === "success") {
+    const finalAppNumber = assignedAppNumber || draftAppId;
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 text-center">
         <div className="bg-white p-10 rounded-3xl shadow-sm border border-slate-200">
@@ -605,29 +726,35 @@ export default function Admissions() {
             <CheckCircle2 size={48} />
           </div>
           <h2 className="text-3xl font-bold font-heading text-slate-900 mb-2">Application Submitted!</h2>
-          <p className="text-slate-600 mb-6 text-lg">Your application has been successfully submitted and is now under review.</p>
+          <p className="text-slate-600 mb-6 text-lg">Your application has been successfully submitted and registered.</p>
           
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 mb-8 text-left">
-            <p className="text-sm text-slate-500 uppercase tracking-wider font-bold mb-1">Your Application Code</p>
-            <p className="text-3xl font-black text-brand-700 mb-4">{draftAppId}</p>
-            <p className="text-sm text-slate-600 bg-white p-3 rounded-lg border border-slate-200">
-              <strong>IMPORTANT:</strong> Please keep this code safe. You will need it to check your admission status and access your CBT examination dashboard.
-            </p>
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 mb-8 text-left space-y-3">
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Official Application Number</p>
+              <p className="text-3xl font-black text-brand-700 font-mono">{finalAppNumber}</p>
+            </div>
+            <div className="text-xs text-slate-600 bg-white p-3.5 rounded-lg border border-slate-200 space-y-1">
+              <p><strong>Candidate:</strong> {formData.firstName} {formData.lastName} ({formData.classApplying})</p>
+              <p><strong>Entrance Examination Status:</strong> <span className="font-bold text-indigo-700">Scheduled</span></p>
+              <p className="text-slate-500 pt-1">
+                <strong>IMPORTANT:</strong> Please keep this application number safe. You will need it to log in on examination day and check admission offers.
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <Button variant="brand" size="lg" onClick={() => {
-              // Usually we might log them into the applicant dashboard here.
-              // We'll redirect to the CBT view in this flow for demo purposes.
-              setView("cbt");
-            }}>
-              Go to Applicant Dashboard (CBT)
-            </Button>
-            <Button variant="outline" onClick={() => window.print()}>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link to={`/entrance-exam?appId=${encodeURIComponent(finalAppNumber)}`} className="w-full sm:w-auto">
+              <Button variant="brand" size="lg" className="w-full gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
+                <Monitor size={18} /> Open CBT Entrance Exam
+              </Button>
+            </Link>
+            <Button variant="outline" size="lg" onClick={() => window.print()}>
               Print Application Slip
             </Button>
+          </div>
+          <div className="mt-4">
             <Link to="/admission-status">
-              <Button variant="ghost" className="w-full text-slate-500">
+              <Button variant="ghost" className="text-slate-500 text-xs">
                 Check Admission Status
               </Button>
             </Link>
@@ -691,7 +818,7 @@ export default function Admissions() {
             
             {/* The actual CBT link or action would go here */}
             <div className="pt-4 text-center">
-               <Link to="/entrance-exam">
+               <Link to={`/entrance-exam?appId=${encodeURIComponent(assignedAppNumber || draftAppId)}`}>
                  <Button variant="brand" size="lg" className="w-full sm:w-auto">Take CBT Examination</Button>
                </Link>
             </div>

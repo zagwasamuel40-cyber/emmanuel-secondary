@@ -19,16 +19,18 @@ import {
   Sparkles,
   Loader2,
   Users,
-  GraduationCap
+  GraduationCap,
+  UserCheck
 } from "lucide-react";
 import { useStudents, CLASSES } from "../../data/studentsData";
-import { useTeachers } from "../../data/teachersData";
+import { useTeachers, DEPARTMENTS } from "../../data/teachersData";
 import { 
   useIdCards, 
   useQRScanLogs,
   useIDCardDesignSettings,
   ensureStudentHasIdCard,
   ensureStaffHasIdCard,
+  generateStaffIdCardsForAll,
   reissueStudentQRToken,
   setStudentCardStatus
 } from "../../data/idCardAndAttendanceData";
@@ -54,6 +56,7 @@ export default function StudentIDCardCenter() {
   const [userTypeFilter, setUserTypeFilter] = useState<"student" | "staff">("student");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterClass, setFilterClass] = useState("All");
+  const [filterDepartment, setFilterDepartment] = useState("All");
   const [filterStatus, setFilterStatus] = useState("All");
   
   // Modals & previews
@@ -72,6 +75,12 @@ export default function StudentIDCardCenter() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(""), 3500);
+  };
+
+  const handleGenerateAllStaffCards = () => {
+    const res = generateStaffIdCardsForAll();
+    showToast(`Official Staff ID cards generated & verified for all ${res.totalStaff} staff members of Emmanuel Secondary School!`);
+    setUserTypeFilter("staff");
   };
 
   // Ensure every active user (student/staff) has a card record
@@ -101,18 +110,20 @@ export default function StudentIDCardCenter() {
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.id.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesClass = filterClass === "All" || userTypeFilter === "staff" || ('class' in user && user.class === filterClass);
+      const matchesDept = userTypeFilter === "student" || filterDepartment === "All" || ((user as any).department === filterDepartment);
       const matchesStatus = filterStatus === "All" || card.cardStatus === filterStatus;
-      return matchesSearch && matchesClass && matchesStatus;
+      return matchesSearch && matchesClass && matchesDept && matchesStatus;
     });
-  }, [userCardsList, searchTerm, filterClass, filterStatus, userTypeFilter]);
+  }, [userCardsList, searchTerm, filterClass, filterDepartment, filterStatus, userTypeFilter]);
 
   // Bulk cards for selected class/group
   const bulkUsers = useMemo(() => {
     if (userTypeFilter === "staff") {
-      return userCardsList;
+      if (filterDepartment === "All") return userCardsList;
+      return userCardsList.filter(({ user }) => (user as any).department === filterDepartment);
     }
     return userCardsList.filter(({ user }) => 'class' in user && user.class === bulkClass);
-  }, [userCardsList, bulkClass, userTypeFilter]);
+  }, [userCardsList, bulkClass, userTypeFilter, filterDepartment]);
 
   const handleReissueConfirm = () => {
     if (!reissueModalStudent) return;
@@ -266,14 +277,24 @@ export default function StudentIDCardCenter() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button 
+            onClick={handleGenerateAllStaffCards}
+            variant="outline"
+            className="text-xs gap-1.5 border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100 shadow-sm font-semibold"
+            title="Generate and verify ID cards for all faculty and staff members"
+          >
+            <Sparkles size={15} className="text-amber-600" />
+            Generate Staff ID Cards ({teachers.length} Staff)
+          </Button>
+
           <Button 
             onClick={() => setActiveTab("bulk")}
             variant="brand"
             className="text-xs gap-1.5 shadow-sm"
           >
             <Layers size={15} />
-            Bulk Print Class Cards
+            Bulk Print ID Cards
           </Button>
         </div>
       </div>
@@ -335,14 +356,15 @@ export default function StudentIDCardCenter() {
                   onChange={(e) => {
                     setUserTypeFilter(e.target.value as "student" | "staff");
                     setFilterClass("All");
+                    setFilterDepartment("All");
                   }}
-                  className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700"
+                  className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-800"
                 >
-                  <option value="student">Students</option>
-                  <option value="staff">Staff Members</option>
+                  <option value="student">Students ({students.length})</option>
+                  <option value="staff">Staff Members ({teachers.length})</option>
                 </select>
 
-                {userTypeFilter === "student" && (
+                {userTypeFilter === "student" ? (
                   <select
                     value={filterClass}
                     onChange={(e) => setFilterClass(e.target.value)}
@@ -351,6 +373,17 @@ export default function StudentIDCardCenter() {
                     <option value="All">All Classes</option>
                     {CLASSES.filter(c => !c.includes("Graduated")).map(c => (
                       <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    value={filterDepartment}
+                    onChange={(e) => setFilterDepartment(e.target.value)}
+                    className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700"
+                  >
+                    <option value="All">All Departments ({teachers.length} Staff)</option>
+                    {DEPARTMENTS.map(d => (
+                      <option key={d} value={d}>{d}</option>
                     ))}
                   </select>
                 )}
@@ -375,7 +408,7 @@ export default function StudentIDCardCenter() {
                   <tr>
                     <th className="px-6 py-3.5">{userTypeFilter === 'student' ? 'Student Details' : 'Staff Details'}</th>
                     <th className="px-4 py-3.5">ID No.</th>
-                    <th className="px-4 py-3.5">{userTypeFilter === 'student' ? 'Class' : 'Role'}</th>
+                    <th className="px-4 py-3.5">{userTypeFilter === 'student' ? 'Class' : 'Role & Department'}</th>
                     <th className="px-4 py-3.5">Card Status</th>
                     <th className="px-4 py-3.5">QR Token Preview</th>
                     <th className="px-4 py-3.5">Issued / Reissued</th>
@@ -402,8 +435,15 @@ export default function StudentIDCardCenter() {
                       </td>
 
                       <td className="px-4 py-3.5 font-mono font-semibold text-slate-700">{user.id}</td>
-                      <td className="px-4 py-3.5 font-semibold text-slate-800">
-                        {userTypeFilter === 'student' ? (user as any).class : ((user as any).systemRoles?.[0] || 'Staff')}
+                      <td className="px-4 py-3.5">
+                        {userTypeFilter === 'student' ? (
+                          <span className="font-semibold text-slate-800">{(user as any).class}</span>
+                        ) : (
+                          <div>
+                            <div className="font-bold text-slate-900 text-xs">{(user as any).role || 'Faculty Member'}</div>
+                            <div className="text-[11px] text-slate-500 font-normal">{(user as any).department || 'Administration'}</div>
+                          </div>
+                        )}
                       </td>
 
                       <td className="px-4 py-3.5">
@@ -515,7 +555,7 @@ export default function StudentIDCardCenter() {
                     <option value="staff">Staff Members</option>
                   </select>
 
-                  {userTypeFilter === "student" && (
+                  {userTypeFilter === "student" ? (
                     <select
                       value={bulkClass}
                       onChange={(e) => setBulkClass(e.target.value)}
@@ -523,6 +563,17 @@ export default function StudentIDCardCenter() {
                     >
                       {CLASSES.filter(c => !c.includes("Graduated")).map(c => (
                         <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <select
+                      value={filterDepartment}
+                      onChange={(e) => setFilterDepartment(e.target.value)}
+                      className="h-8 px-3 rounded-lg border border-slate-200 bg-white font-bold text-slate-800 ml-1"
+                    >
+                      <option value="All">All Departments ({teachers.length} Staff)</option>
+                      {DEPARTMENTS.map(d => (
+                        <option key={d} value={d}>{d}</option>
                       ))}
                     </select>
                   )}

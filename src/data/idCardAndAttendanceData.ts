@@ -13,8 +13,9 @@ import {
   AttendanceOfficerPermissions
 } from "../types/idCardAndAttendance";
 import { initialStudents } from "./studentsData";
+import { getStoredTeachers } from "./teachersData";
 
-// Default Initial ID Cards for seeded students
+// Default Initial ID Cards for seeded students and staff
 export const initialIdCards: IDCard[] = [
   {
     id: "IDC-2026-001",
@@ -82,6 +83,48 @@ export const initialIdCards: IDCard[] = [
   },
   {
     id: "IDC-STF-001",
+    studentId: "PRN/2026/001",
+    userType: 'staff',
+    qrToken: "STAFF-prn001-PRN2026001-essdir",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "PRN2026001",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:25 AM",
+    notes: "Official Staff Card for Principal & Director Dr. Emmanuel A. Vershima"
+  },
+  {
+    id: "IDC-STF-002",
+    studentId: "VPA/2026/002",
+    userType: 'staff',
+    qrToken: "STAFF-vpa002-VPA2026002-vpacd",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "VPA2026002",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:28 AM",
+    notes: "Official Staff Card for Vice Principal (Academics) Mrs. Victoria N. Alabi"
+  },
+  {
+    id: "IDC-STF-003",
+    studentId: "VPA/2026/003",
+    userType: 'staff',
+    qrToken: "STAFF-vpa003-VPA2026003-vpadm",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "VPA2026003",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:30 AM",
+    notes: "Official Staff Card for Vice Principal (Admin) Mr. Kenneth O. Agbo"
+  },
+  {
+    id: "IDC-STF-004",
     studentId: "ADM/2026/001",
     userType: 'staff',
     qrToken: "STAFF-9x8w7v-ADM2026001-adm001",
@@ -91,25 +134,11 @@ export const initialIdCards: IDCard[] = [
     academicSession: "2025/2026",
     barcode: "ADM2026001",
     reissueCount: 0,
-    lastScannedAt: "2026-09-08 07:30 AM",
-    notes: "Official Staff Card for System Administrator"
+    lastScannedAt: "2026-09-08 07:32 AM",
+    notes: "Official Staff Card for Head of ICT Mr. Clement U. Oche"
   },
   {
-    id: "IDC-STF-002",
-    studentId: "TCH/2026/042",
-    userType: 'staff',
-    qrToken: "STAFF-5p4o3n-TCH2026042-tch042",
-    cardStatus: "active",
-    issueDate: "2026-01-05",
-    expiryDate: "2028-12-31",
-    academicSession: "2025/2026",
-    barcode: "TCH2026042",
-    reissueCount: 0,
-    lastScannedAt: "2026-09-08 07:38 AM",
-    notes: "Official Staff Card for Mrs. Grace Adeyemi"
-  },
-  {
-    id: "IDC-STF-003",
+    id: "IDC-STF-005",
     studentId: "TCH/2026/001",
     userType: 'staff',
     qrToken: "STAFF-2m1l0k-TCH2026001-tch001",
@@ -120,10 +149,122 @@ export const initialIdCards: IDCard[] = [
     barcode: "TCH2026001",
     reissueCount: 0,
     lastScannedAt: "2026-09-08 07:44 AM",
-    notes: "Official Staff Card for Dr. Samuel Okoh"
+    notes: "Official Staff Card for HOD Sciences Dr. Samuel Okoh"
   },
   {
-    id: "IDC-STF-004",
+    id: "IDC-STF-006",
+    studentId: "TCH/2026/042",
+    userType: 'staff',
+    qrToken: "STAFF-5p4o3n-TCH2026042-tch042",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "TCH2026042",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:38 AM",
+    notes: "Official Staff Card for HOD Languages Mrs. Grace Adeyemi"
+  },
+  {
+    id: "IDC-STF-007",
+    studentId: "TCH/2026/015",
+    userType: 'staff',
+    qrToken: "STAFF-bl15mt-TCH2026015-tch015",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "TCH2026015",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:40 AM",
+    notes: "Official Staff Card for HOD Mathematics Mr. Babatunde Lawal"
+  },
+  {
+    id: "IDC-STF-008",
+    studentId: "TCH/2026/023",
+    userType: 'staff',
+    qrToken: "STAFF-ne23cm-TCH2026023-tch023",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "TCH2026023",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:42 AM",
+    notes: "Official Staff Card for HOD Commercial Mrs. Ngozi Eze"
+  },
+  {
+    id: "IDC-STF-009",
+    studentId: "TCH/2026/031",
+    userType: 'staff',
+    qrToken: "STAFF-ti31vc-TCH2026031-tch031",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "TCH2026031",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:45 AM",
+    notes: "Official Staff Card for HOD Vocational Mr. Terzungwe D. Iorfa"
+  },
+  {
+    id: "IDC-STF-010",
+    studentId: "TCH/2026/054",
+    userType: 'staff',
+    qrToken: "STAFF-ea54sc-TCH2026054-tch054",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "TCH2026054",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:47 AM",
+    notes: "Official Staff Card for Mrs. Esther M. Ayua"
+  },
+  {
+    id: "IDC-STF-011",
+    studentId: "TCH/2026/063",
+    userType: 'staff',
+    qrToken: "STAFF-co63sc-TCH2026063-tch063",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "TCH2026063",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:49 AM",
+    notes: "Official Staff Card for Mr. Chukwuemeka Obi"
+  },
+  {
+    id: "IDC-STF-012",
+    studentId: "TCH/2026/072",
+    userType: 'staff',
+    qrToken: "STAFF-dt72hm-TCH2026072-tch072",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "TCH2026072",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:50 AM",
+    notes: "Official Staff Card for Mrs. Deborah S. Tor"
+  },
+  {
+    id: "IDC-STF-013",
+    studentId: "BUR/2026/005",
+    userType: 'staff',
+    qrToken: "STAFF-bd05fn-BUR2026005-bur005",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "BUR2026005",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:35 AM",
+    notes: "Official Staff Card for Chief Bursar Mrs. Blessing K. Danladi"
+  },
+  {
+    id: "IDC-STF-014",
     studentId: "STF/2026/088",
     userType: 'staff',
     qrToken: "STAFF-7j6h5g-STF2026088-stf088",
@@ -133,7 +274,50 @@ export const initialIdCards: IDCard[] = [
     academicSession: "2025/2026",
     barcode: "STF2026088",
     reissueCount: 0,
-    notes: "Official Staff Card for Attendance Officer"
+    lastScannedAt: "2026-09-08 07:15 AM",
+    notes: "Official Staff Card for Chief Attendance Officer Mr. Emmanuel Terhemba"
+  },
+  {
+    id: "IDC-STF-015",
+    studentId: "STF/2026/019",
+    userType: 'staff',
+    qrToken: "STAFF-fb19cn-STF2026019-stf019",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "STF2026019",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:52 AM",
+    notes: "Official Staff Card for Counselor Mrs. Fatima Bello"
+  },
+  {
+    id: "IDC-STF-016",
+    studentId: "LIB/2026/007",
+    userType: 'staff',
+    qrToken: "STAFF-jt07lb-LIB2026007-lib007",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "LIB2026007",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:55 AM",
+    notes: "Official Staff Card for Chief Librarian Mr. John A. Tyovenda"
+  },
+  {
+    id: "IDC-STF-017",
+    studentId: "MED/2026/012",
+    userType: 'staff',
+    qrToken: "STAFF-ra12md-MED2026012-med012",
+    cardStatus: "active",
+    issueDate: "2026-01-05",
+    expiryDate: "2028-12-31",
+    academicSession: "2025/2026",
+    barcode: "MED2026012",
+    reissueCount: 0,
+    lastScannedAt: "2026-09-08 07:58 AM",
+    notes: "Official Staff Card for Nurse Rosemary K. Akor"
   }
 ];
 
@@ -337,13 +521,79 @@ export function generateUniqueQRToken(id: string, isStaff = false): string {
 export function getStoredIdCards(): IDCard[] {
   if (typeof window === "undefined") return initialIdCards;
   const saved = localStorage.getItem("ess_student_id_cards");
+  let cards: IDCard[] = initialIdCards;
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        cards = parsed;
+      }
     } catch {}
   }
-  return initialIdCards;
+
+  // Guarantee that EVERY staff member of Emmanuel Secondary School has an active ID card
+  let updated = false;
+  try {
+    const teachers = getStoredTeachers();
+    teachers.forEach(staff => {
+      const existing = cards.find(c => c.studentId === staff.id);
+      if (!existing) {
+        const cleanId = staff.id.replace(/[^a-zA-Z0-9]/g, '');
+        cards.push({
+          id: `IDC-STF-${cleanId}`,
+          studentId: staff.id,
+          userType: 'staff',
+          qrToken: generateUniqueQRToken(staff.id, true),
+          cardStatus: "active",
+          issueDate: getTodayDateString(),
+          expiryDate: "2028-12-31",
+          academicSession: "2025/2026",
+          barcode: cleanId,
+          reissueCount: 0,
+          notes: `Official Staff Card for ${staff.name} (${staff.role})`
+        });
+        updated = true;
+      }
+    });
+
+    if (updated && typeof window !== "undefined") {
+      localStorage.setItem("ess_student_id_cards", JSON.stringify(cards));
+    }
+  } catch (err) {
+    console.error("Error ensuring staff id cards:", err);
+  }
+
+  return cards;
+}
+
+export function generateStaffIdCardsForAll(): { createdCount: number; totalStaff: number } {
+  const cards = getStoredIdCards();
+  const teachers = getStoredTeachers();
+  let createdCount = 0;
+
+  teachers.forEach(staff => {
+    const existing = cards.find(c => c.studentId === staff.id);
+    if (!existing) {
+      const cleanId = staff.id.replace(/[^a-zA-Z0-9]/g, '');
+      cards.push({
+        id: `IDC-STF-${cleanId}`,
+        studentId: staff.id,
+        userType: 'staff',
+        qrToken: generateUniqueQRToken(staff.id, true),
+        cardStatus: "active",
+        issueDate: getTodayDateString(),
+        expiryDate: "2028-12-31",
+        academicSession: "2025/2026",
+        barcode: cleanId,
+        reissueCount: 0,
+        notes: `Official Staff Card for ${staff.name} (${staff.role})`
+      });
+      createdCount++;
+    }
+  });
+
+  saveStoredIdCards([...cards]);
+  return { createdCount, totalStaff: teachers.length };
 }
 
 export function saveStoredIdCards(cards: IDCard[]) {

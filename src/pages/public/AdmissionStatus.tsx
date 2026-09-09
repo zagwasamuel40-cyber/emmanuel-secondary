@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Search, Award, Printer, UserCheck, AlertCircle, Clock, MapPin, Building2, ChevronRight, Download } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Search, Award, Printer, UserCheck, AlertCircle, Clock, MapPin, Building2, ChevronRight, Download, Monitor } from "lucide-react";
 import { Button, Input, Card, CardContent } from "@/src/components/ui";
 import { useAdmissionApps } from "../../data/studentsData";
 import { usePortalSettings, useAdmissionSettings } from "../../data/portalSettingsData";
@@ -166,6 +167,26 @@ export default function AdmissionStatus() {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Direct Entrance Exam Action */}
+                <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                  <div className="flex items-center gap-3 text-left">
+                    <div className="w-10 h-10 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                      <Monitor size={20} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-slate-900">Computer-Based Testing (CBT) Entrance Exam</h4>
+                      <p className="text-xs text-slate-600">
+                        Class: <strong>{searchedApp.class}</strong> &bull; Status: <strong>{searchedApp.examStatus || "Scheduled"}</strong>
+                      </p>
+                    </div>
+                  </div>
+                  <Link to={`/entrance-exam?appId=${encodeURIComponent(searchedApp.id)}`} className="w-full sm:w-auto">
+                    <Button variant="brand" className="w-full sm:w-auto gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold">
+                      <Monitor size={15} /> Write / Open CBT Exam
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>

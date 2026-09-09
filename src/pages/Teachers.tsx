@@ -1174,6 +1174,7 @@ export default function Teachers() {
                   <tr>
                     <th className="p-2.5 border-b">Staff Numb & Name</th>
                     <th className="p-2.5 border-b">Department / Role</th>
+                    <th className="p-2.5 border-b">Official ID Card</th>
                     <th className="p-2.5 border-b">Admin Privileges</th>
                     <th className="p-2.5 border-b">Email & Password</th>
                     <th className="p-2.5 border-b text-right">Quick Actions</th>
@@ -1189,6 +1190,12 @@ export default function Teachers() {
                       <td className="p-2.5">
                         <div className="font-semibold text-slate-800">{t.department}</div>
                         <div className="text-slate-500">{t.role}</div>
+                      </td>
+                      <td className="p-2.5">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <CheckCircle size={10} /> Active ID Card
+                        </span>
+                        <div className="text-[9px] font-mono text-slate-500 mt-0.5">IDC-STF-{t.id.replace(/[^a-zA-Z0-9]/g, '')}</div>
                       </td>
                       <td className="p-2.5">
                         {t.systemRoles?.some(r => r !== "Teacher") ? (

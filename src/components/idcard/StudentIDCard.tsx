@@ -338,8 +338,10 @@ export default function StudentIDCard({
         {/* Class & Session Details Grid */}
         <div className="w-full grid grid-cols-2 gap-2 mt-3 text-left bg-slate-950/50 rounded-xl p-2.5 border border-white/10 text-[11px]">
           <div>
-            <span className="text-slate-400 block text-[9px] uppercase font-semibold">{cardInfo?.userType === 'staff' ? 'Role / Department' : 'Class / Arm'}</span>
-            <span className="font-bold text-white text-xs">{cardInfo?.userType === 'staff' ? (student as any).systemRoles?.[0] || 'Staff' : student.class}</span>
+            <span className="text-slate-400 block text-[9px] uppercase font-semibold">{cardInfo?.userType === 'staff' ? 'Role & Dept' : 'Class / Arm'}</span>
+            <span className="font-bold text-white text-xs truncate block" title={cardInfo?.userType === 'staff' ? `${(student as any).role || 'Faculty Member'} (${(student as any).department || 'Staff'})` : student.class}>
+              {cardInfo?.userType === 'staff' ? ((student as any).role || (student as any).department || 'Faculty Staff') : student.class}
+            </span>
           </div>
           <div>
             <span className="text-slate-400 block text-[9px] uppercase font-semibold">Session</span>
@@ -441,8 +443,8 @@ export default function StudentIDCard({
       <div className="space-y-2 text-[9px] bg-slate-950/60 p-2.5 rounded-xl border border-white/10 text-slate-300">
         <div className="grid grid-cols-2 gap-1.5 pb-1.5 border-b border-white/10">
           <div>
-            <span className="text-slate-400 block text-[8px] uppercase">{cardInfo?.userType === 'staff' ? 'Emergency Contact:' : 'Emergency Parent:'}</span>
-            <span className="font-semibold text-white truncate block">{student.parentNumber || customization.contactPhone}</span>
+            <span className="text-slate-400 block text-[8px] uppercase">{cardInfo?.userType === 'staff' ? 'Staff Official Contact:' : 'Emergency Parent:'}</span>
+            <span className="font-semibold text-white truncate block">{(student as any).phone || student.parentNumber || customization.contactPhone}</span>
           </div>
           <div>
             <span className="text-slate-400 block text-[8px] uppercase">Blood Group:</span>
@@ -451,7 +453,9 @@ export default function StudentIDCard({
         </div>
 
         <p className="text-[8px] leading-tight text-slate-400 text-justify">
-          {customization.customFooterNote}
+          {cardInfo?.userType === 'staff' 
+            ? "Official Emmanuel Secondary School Faculty Credential. Bearer is authorized for school access, gate biometric/QR attendance, and official duties. Property of ESS. If found, please return to the Principal's Office or call school security."
+            : customization.customFooterNote}
         </p>
 
         <div className="flex items-center justify-between pt-1 text-[8px] text-slate-400 border-t border-white/5">

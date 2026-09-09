@@ -403,30 +403,38 @@ export default function Login() {
               <p className="text-xs text-center font-medium text-slate-500">
                 ⚡ Quick Demo Sign-In (Auto-Detects Role):
               </p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 <button
                   type="button"
                   onClick={() => fillDemo('student')}
-                  className="p-2.5 border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 rounded-lg text-xs font-medium text-slate-700 flex flex-col items-center gap-1.5 transition-all"
+                  className="p-2 border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 rounded-lg text-xs font-medium text-slate-700 flex flex-col items-center gap-1.5 transition-all"
                 >
-                  <GraduationCap size={18} className="text-indigo-600" />
+                  <GraduationCap size={16} className="text-indigo-600" />
                   <span>Student</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => fillDemo('teacher')}
-                  className="p-2.5 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50 rounded-lg text-xs font-medium text-slate-700 flex flex-col items-center gap-1.5 transition-all"
+                  className="p-2 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50 rounded-lg text-xs font-medium text-slate-700 flex flex-col items-center gap-1.5 transition-all"
                 >
-                  <Users size={18} className="text-emerald-600" />
+                  <Users size={16} className="text-emerald-600" />
                   <span>Teacher</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => fillDemo('admin')}
-                  className="p-2.5 border border-slate-200 hover:border-brand-300 hover:bg-brand-50/50 rounded-lg text-xs font-medium text-slate-700 flex flex-col items-center gap-1.5 transition-all"
+                  className="p-2 border border-slate-200 hover:border-brand-300 hover:bg-brand-50/50 rounded-lg text-xs font-medium text-slate-700 flex flex-col items-center gap-1.5 transition-all"
                 >
-                  <Shield size={18} className="text-brand-600" />
+                  <Shield size={16} className="text-brand-600" />
                   <span>Admin</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillDemo('superadmin')}
+                  className="p-2 border border-slate-200 hover:border-amber-300 hover:bg-amber-50/50 rounded-lg text-xs font-medium text-slate-700 flex flex-col items-center gap-1.5 transition-all"
+                >
+                  <Sparkles size={16} className="text-amber-600" />
+                  <span className="truncate w-full text-center">Admission</span>
                 </button>
               </div>
 

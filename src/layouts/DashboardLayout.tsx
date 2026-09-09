@@ -20,11 +20,27 @@ import { Printer,
   FileCheck,
   QrCode,
   Clock,
-  Sliders
+  Sliders,
+  Calendar,
+  Zap,
+  BookOpen,
+  Award
 } from "lucide-react";
 import { Input } from "@/src/components/ui";
 import { usePortalSettings } from "../data/portalSettingsData";
 import { useTeachers } from "../data/teachersData";
+
+// Dedicated Admission Officer Sidebar Navigation
+const admissionOfficerNavigation = [
+  { name: 'Dashboard Overview', href: '/dashboard/admission-officer', icon: LayoutDashboard },
+  { name: 'Portal Control', href: '/dashboard/admission-officer?tab=portal', icon: Sliders },
+  { name: 'Applicants Roster', href: '/dashboard/admission-officer?tab=applicants', icon: Users },
+  { name: 'Entrance Exams', href: '/dashboard/admission-officer?tab=exams', icon: Calendar },
+  { name: 'Question Bank', href: '/dashboard/admission-officer?tab=questions', icon: BookOpen },
+  { name: 'Security Audit Logs', href: '/dashboard/admission-officer?tab=audit', icon: History },
+  { name: 'ID Cards', href: '/dashboard/id-cards', icon: CreditCard },
+  { name: 'My Profile', href: '/dashboard/profile', icon: User },
+];
 
 // Dedicated Attendance Officer Sidebar Navigation (per Requirement 15)
 const attendanceOfficerNavigation = [
@@ -81,9 +97,11 @@ export default function DashboardLayout() {
   // Determine role booleans for layout UI
   const isAdmin = roles.includes('Admin') || roles.includes('Super Admin') || roles.includes('General Admin');
   const isAttendanceOfficer = roles.includes('Attendance Officer');
+  const isAdmissionOfficer = roles.includes('Admission Officer');
 
   const routeAccessMap: Record<string, string[]> = {
     '/dashboard': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer', 'Teacher', 'Examination Admin', 'Admission Officer', 'Portal Admin', 'Finance/Admin Officer', 'Academic Admin', 'HR/Staff Admin'],
+    '/dashboard/admission-officer': ['Admin', 'Super Admin', 'General Admin', 'Admission Officer'],
     '/dashboard/attendance-officers': ['Admin', 'Super Admin', 'General Admin', 'Portal Admin'],
     '/dashboard/attendance-officer': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer', 'Teacher', 'HR/Staff Admin'],
     '/dashboard/scan-attendance': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer'],
@@ -111,6 +129,20 @@ export default function DashboardLayout() {
       if (
         path.startsWith('/dashboard/attendance-officer') ||
         path.startsWith('/dashboard/scan-attendance') ||
+        path.startsWith('/dashboard/profile') ||
+        path === '/dashboard'
+      ) {
+        return true;
+      }
+      return false;
+    }
+
+    // Admission Officer restricted access if not Admin
+    if (userRoles.includes('Admission Officer') && !isAdmin) {
+      if (
+        path.startsWith('/dashboard/admission-officer') ||
+        path.startsWith('/dashboard/admissions') ||
+        path.startsWith('/dashboard/id-cards') ||
         path.startsWith('/dashboard/profile') ||
         path === '/dashboard'
       ) {
@@ -171,7 +203,11 @@ export default function DashboardLayout() {
     navigate('/');
   };
 
-  const currentNavList = (isAttendanceOfficer && !isAdmin) ? attendanceOfficerNavigation : generalNavigation;
+  const currentNavList = (isAttendanceOfficer && !isAdmin)
+    ? attendanceOfficerNavigation
+    : (isAdmissionOfficer && !isAdmin)
+    ? admissionOfficerNavigation
+    : generalNavigation;
 
   // Check redirects if user lacks access to current route
   if (!hasAccessToRoute(location.pathname, roles)) {

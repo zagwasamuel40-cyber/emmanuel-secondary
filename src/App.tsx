@@ -15,6 +15,7 @@ import Examinations from "./pages/Examinations";
 import Settings from "./pages/Settings";
 import StudentPortalManager from "./pages/StudentPortalManager";
 import AdmissionsManagement from "./pages/AdmissionsManagement";
+import AdmissionOfficerDashboard from "./pages/admin/AdmissionOfficerDashboard";
 import Profile from "./pages/Profile";
 import Reports from "./pages/Reports";
 import About from "./pages/public/About";
@@ -68,7 +69,9 @@ export default function App() {
           <Route path="attendance" element={<AttendanceDashboard />} />
           <Route path="staff-attendance" element={<StaffAttendanceReports />} />
           <Route path="id-cards" element={<StudentIDCardCenter />} />
-          <Route path="admissions" element={<AdmissionsManagement />} />
+          <Route path="admission-officer" element={<AdmissionOfficerDashboard />} />
+          <Route path="admissions" element={<AdmissionOfficerDashboard />} />
+          <Route path="admissions-legacy" element={<AdmissionsManagement />} />
           <Route path="students" element={<Students />} />
           <Route path="enrollment" element={<Enrollment />} />
           <Route path="teachers" element={<Teachers />} />
