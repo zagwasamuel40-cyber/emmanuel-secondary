@@ -8,6 +8,7 @@ import {
   validateQuestionQuality,
   generateCurriculumFallback
 } from "./server/aiQuestionEngine";
+import { CbtSecurityManager } from "./server/cbtSecurityManager";
 
 dotenv.config();
 
@@ -253,6 +254,139 @@ async function startServer() {
     } catch (err: any) {
       console.error("Validation error:", err);
       res.status(500).json({ error: "Internal validation failure" });
+    }
+  });
+
+  // =========================================================================
+  // SECURE CBT EXAMINATION & ANTI-CHEATING BACKEND API
+  // =========================================================================
+
+  // 1. Start or Resume an Exam Attempt (Server-Enforced Timer & No-Restart Exploit Guard)
+  app.post("/api/cbt/start-attempt", (req, res) => {
+    try {
+      const {
+        studentId,
+        studentName,
+        studentClass,
+        examId,
+        examTitle,
+        subject,
+        durationMinutes,
+        deviceInfo
+      } = req.body;
+
+      if (!studentId || !examId) {
+        return res.status(400).json({ error: "Missing required studentId or examId parameters." });
+      }
+
+      const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket.remoteAddress || "127.0.0.1";
+      const result = CbtSecurityManager.startOrResumeAttempt({
+        studentId,
+        studentName: studentName || "Student Candidate",
+        studentClass: studentClass || "SSS 3",
+        examId,
+        examTitle: examTitle || "Terminal Examination",
+        subject: subject || "General",
+        durationMinutes: Number(durationMinutes) || 45,
+        deviceInfo: {
+          userAgent: deviceInfo?.userAgent || req.headers["user-agent"] || "Browser",
+          screenResolution: deviceInfo?.screenResolution || "Unknown",
+          platform: deviceInfo?.platform || "Desktop/Mobile",
+          ip: clientIp
+        }
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      console.error("Error in /api/cbt/start-attempt:", err);
+      res.status(500).json({ error: err.message || "Failed to initialize secure exam attempt." });
+    }
+  });
+
+  // 2. Log Security Violation & Enforce Automatic Submission
+  app.post("/api/cbt/log-violation", (req, res) => {
+    try {
+      const { attemptId, type, details, currentAnswers, autoSubmit } = req.body;
+      if (!attemptId) {
+        return res.status(400).json({ error: "Attempt ID required." });
+      }
+
+      const result = CbtSecurityManager.logViolation({
+        attemptId,
+        type: type || "FULLSCREEN_EXIT",
+        details: details || "Security violation detected.",
+        currentAnswers,
+        autoSubmit: autoSubmit !== false
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      console.error("Error in /api/cbt/log-violation:", err);
+      res.status(500).json({ error: err.message || "Failed to log security violation." });
+    }
+  });
+
+  // 3. Save Incremental Progress / Auto-Save Answers
+  app.post("/api/cbt/save-progress", (req, res) => {
+    try {
+      const { attemptId, answers } = req.body;
+      if (!attemptId || !answers) {
+        return res.status(400).json({ error: "Missing attemptId or answers." });
+      }
+      const success = CbtSecurityManager.saveProgress(attemptId, answers);
+      res.json({ success });
+    } catch (err: any) {
+      console.error("Error in /api/cbt/save-progress:", err);
+      res.status(500).json({ error: err.message || "Failed to save exam progress." });
+    }
+  });
+
+  // 4. Submit Examination (Standard or Timer Completion)
+  app.post("/api/cbt/submit-attempt", (req, res) => {
+    try {
+      const { attemptId, answers, score, totalQuestions, reason } = req.body;
+      if (!attemptId) {
+        return res.status(400).json({ error: "Attempt ID required." });
+      }
+
+      const result = CbtSecurityManager.submitAttempt({
+        attemptId,
+        answers,
+        score,
+        totalQuestions,
+        reason
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      console.error("Error in /api/cbt/submit-attempt:", err);
+      res.status(500).json({ error: err.message || "Failed to finalize examination attempt." });
+    }
+  });
+
+  // 5. Admin & Exam Officer Security Logs & Proctoring Endpoint
+  app.get("/api/cbt/security-logs", (req, res) => {
+    try {
+      const data = CbtSecurityManager.getAllAttempts();
+      res.json(data);
+    } catch (err: any) {
+      console.error("Error in /api/cbt/security-logs:", err);
+      res.status(500).json({ error: err.message || "Failed to retrieve security logs." });
+    }
+  });
+
+  // 6. Admin Reset Exam Attempt (for authorized re-sit or test)
+  app.post("/api/cbt/reset-attempt", (req, res) => {
+    try {
+      const { attemptId } = req.body;
+      if (!attemptId) {
+        return res.status(400).json({ error: "Attempt ID required." });
+      }
+      const success = CbtSecurityManager.resetAttempt(attemptId);
+      res.json({ success });
+    } catch (err: any) {
+      console.error("Error in /api/cbt/reset-attempt:", err);
+      res.status(500).json({ error: err.message || "Failed to reset attempt." });
     }
   });
 

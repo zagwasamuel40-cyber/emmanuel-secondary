@@ -56,8 +56,16 @@ import {
   ChevronRight,
   HelpCircle,
   Radio,
-  FileText
+  FileText,
+  ShieldAlert,
+  Lock,
+  Key
 } from "lucide-react";
+import { ExamSecurityLogsModal } from "../../components/exam/ExamSecurityLogsModal";
+import StudentInformationSearch from "../../components/admissions/StudentInformationSearch";
+import ForgottenAdmissionCodeRetrieval from "../../components/admissions/ForgottenAdmissionCodeRetrieval";
+import PasswordResetDesk from "../../components/admissions/PasswordResetDesk";
+import AdmissionScoresDesk from "../../components/admissions/AdmissionScoresDesk";
 
 export default function AdmissionOfficerDashboard() {
   const [portalSettings] = usePortalSettings();
@@ -69,24 +77,31 @@ export default function AdmissionOfficerDashboard() {
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<
-    "overview" | "portal" | "applicants" | "exams" | "live" | "ai-generator" | "question-bank" | "questions" | "audit"
+    "overview" | "portal" | "applicants" | "search" | "code-retrieval" | "password-reset" | "cbt-scores" | "exams" | "live" | "ai-generator" | "question-bank" | "questions" | "audit" | "security-logs"
   >(() => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get("tab");
     if (
       t === "portal" ||
       t === "applicants" ||
+      t === "search" ||
+      t === "code-retrieval" ||
+      t === "password-reset" ||
+      t === "cbt-scores" ||
       t === "exams" ||
       t === "live" ||
       t === "ai-generator" ||
       t === "question-bank" ||
       t === "questions" ||
-      t === "audit"
+      t === "audit" ||
+      t === "security-logs"
     ) {
       return t as any;
     }
     return "overview";
   });
+
+  const [showSecurityLogsModal, setShowSecurityLogsModal] = useState(false);
 
   // Server Time Sync
   const [serverTime, setServerTime] = useState<string>("");
@@ -718,6 +733,14 @@ export default function AdmissionOfficerDashboard() {
             >
               <Calendar size={20} /> SCHEDULE EXAM
             </Button>
+
+            <Button
+              size="lg"
+              onClick={() => setShowSecurityLogsModal(true)}
+              className="bg-rose-950/80 hover:bg-rose-900 text-rose-200 font-bold px-5 h-12 shadow-lg shadow-black/40 gap-2 text-sm sm:text-base border border-rose-500/50"
+            >
+              <ShieldAlert size={20} className="text-rose-400" /> CBT SECURITY LOGS
+            </Button>
           </div>
         </div>
 
@@ -1042,6 +1065,50 @@ export default function AdmissionOfficerDashboard() {
         </button>
 
         <button
+          onClick={() => setActiveTab("search")}
+          className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-2 ${
+            activeTab === "search"
+              ? "bg-slate-900 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          }`}
+        >
+          <Search size={16} /> Student Search Desk
+        </button>
+
+        <button
+          onClick={() => setActiveTab("code-retrieval")}
+          className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-2 ${
+            activeTab === "code-retrieval"
+              ? "bg-slate-900 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          }`}
+        >
+          <Key size={16} /> Code Retrieval Desk
+        </button>
+
+        <button
+          onClick={() => setActiveTab("password-reset")}
+          className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-2 ${
+            activeTab === "password-reset"
+              ? "bg-slate-900 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          }`}
+        >
+          <Lock size={16} /> Password Reset Desk
+        </button>
+
+        <button
+          onClick={() => setActiveTab("cbt-scores")}
+          className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-2 ${
+            activeTab === "cbt-scores"
+              ? "bg-slate-900 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          }`}
+        >
+          <Award size={16} /> Entrance & CBT Scores
+        </button>
+
+        <button
           onClick={() => setActiveTab("exams")}
           className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-2 ${
             activeTab === "exams"
@@ -1087,6 +1154,17 @@ export default function AdmissionOfficerDashboard() {
           }`}
         >
           <History size={16} /> Audit Logs ({logs.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab("security-logs")}
+          className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-2 border ${
+            activeTab === "security-logs"
+              ? "bg-rose-600 text-white shadow-sm border-rose-500"
+              : "text-rose-700 bg-rose-50/70 hover:bg-rose-100 hover:text-rose-900 border-rose-200"
+          }`}
+        >
+          <ShieldAlert size={16} /> Examination Security Logs
         </button>
       </div>
 
@@ -2119,6 +2197,173 @@ export default function AdmissionOfficerDashboard() {
       )}
 
       {/* --------------------------------------------------------------------- */}
+      {/* TAB: EXAMINATION SECURITY & ANTI-CHEATING AUDIT LOGS */}
+      {/* --------------------------------------------------------------------- */}
+      {activeTab === "security-logs" && (
+        <div className="space-y-6 animate-in fade-in">
+          {/* Security Banner */}
+          <div className="p-6 rounded-2xl bg-gradient-to-r from-rose-950 via-slate-900 to-indigo-950 text-white border border-rose-800/40 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                  <ShieldAlert size={24} />
+                </span>
+                <div>
+                  <h3 className="text-xl font-bold font-heading">
+                    CBT Anti-Cheating & Security Audit Command
+                  </h3>
+                  <p className="text-xs text-rose-200/80">
+                    Real-time watchdog enforcing forced fullscreen, page visibility monitoring, and server-side timer integrity.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              size="lg"
+              onClick={() => setShowSecurityLogsModal(true)}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-6 h-12 shadow-xl shadow-rose-900/40 gap-2 border border-rose-400"
+            >
+              <ShieldAlert size={20} /> Open Interactive Security Console
+            </Button>
+          </div>
+
+          {/* Security Protocols Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-rose-200 bg-rose-50/40 shadow-sm">
+              <CardContent className="p-4 space-y-1">
+                <span className="text-[10px] font-bold text-rose-800 uppercase tracking-wider block flex items-center gap-1.5">
+                  <Lock size={13} className="text-rose-600" /> Fullscreen Enforcement
+                </span>
+                <div className="text-lg font-bold text-rose-950">MANDATORY</div>
+                <p className="text-[11px] text-rose-800">
+                  Students cannot take exam in windowed mode. Exiting triggers instant termination.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-amber-200 bg-amber-50/40 shadow-sm">
+              <CardContent className="p-4 space-y-1">
+                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block flex items-center gap-1.5">
+                  <Eye size={13} className="text-amber-600" /> Tab Switch Watchdog
+                </span>
+                <div className="text-lg font-bold text-amber-950">ACTIVE BLUR DETECTION</div>
+                <p className="text-[11px] text-amber-800">
+                  Switching tabs or minimizing the browser sends an automated violation log.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-indigo-200 bg-indigo-50/40 shadow-sm">
+              <CardContent className="p-4 space-y-1">
+                <span className="text-[10px] font-bold text-indigo-800 uppercase tracking-wider block flex items-center gap-1.5">
+                  <Clock size={13} className="text-indigo-600" /> Server-Side Timer
+                </span>
+                <div className="text-lg font-bold text-indigo-950">SYNCHRONIZED</div>
+                <p className="text-[11px] text-indigo-800">
+                  Timer ticks on the server. Browser refreshes cannot reset or extend remaining time.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-emerald-200 bg-emerald-50/40 shadow-sm">
+              <CardContent className="p-4 space-y-1">
+                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block flex items-center gap-1.5">
+                  <ShieldCheck size={13} className="text-emerald-600" /> Incremental Auto-Save
+                </span>
+                <div className="text-lg font-bold text-emerald-950">REAL-TIME SYNC</div>
+                <p className="text-[11px] text-emerald-800">
+                  Candidate answers are preserved instantly without client-side data loss.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Quick Access Card */}
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader className="bg-slate-50 border-b border-slate-200 p-5 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <History size={18} className="text-indigo-600" /> Security Audit & Violation Management
+                </CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Launch the audit console to inspect candidate violation timestamps, IP/device details, and grant attempt resets if justified.
+                </p>
+              </div>
+              <Button
+                onClick={() => setShowSecurityLogsModal(true)}
+                className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1.5 h-9"
+              >
+                <ShieldAlert size={14} className="text-rose-400" /> Launch Audit Console
+              </Button>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-6 text-center space-y-4 max-w-xl mx-auto">
+                <div className="w-14 h-14 mx-auto rounded-full bg-rose-100 text-rose-600 flex items-center justify-center">
+                  <ShieldAlert size={28} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 text-base">Server Security Records Ready</h4>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                    The examination security manager stores active attempts, violation counts, and automatic submission triggers. You can inspect all candidates or reset individual student attempts directly.
+                  </p>
+                </div>
+                <Button
+                  size="lg"
+                  onClick={() => setShowSecurityLogsModal(true)}
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-bold gap-2 px-8 h-11 shadow-lg shadow-rose-900/20"
+                >
+                  <ShieldAlert size={18} /> View All Security Logs & Attempt Resets
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* --------------------------------------------------------------------- */}
+      {/* TAB: STUDENT INFORMATION SEARCH */}
+      {/* --------------------------------------------------------------------- */}
+      {activeTab === "search" && (
+        <div className="space-y-6 animate-in fade-in">
+          <StudentInformationSearch 
+            applicants={applicants} 
+            onSelectApplicant={(app) => setViewingApplicant(app)} 
+          />
+        </div>
+      )}
+
+      {/* --------------------------------------------------------------------- */}
+      {/* TAB: FORGOTTEN ADMISSION CODE RETRIEVAL */}
+      {/* --------------------------------------------------------------------- */}
+      {activeTab === "code-retrieval" && (
+        <div className="space-y-6 animate-in fade-in">
+          <ForgottenAdmissionCodeRetrieval applicants={applicants} />
+        </div>
+      )}
+
+      {/* --------------------------------------------------------------------- */}
+      {/* TAB: PASSWORD RESET DESK */}
+      {/* --------------------------------------------------------------------- */}
+      {activeTab === "password-reset" && (
+        <div className="space-y-6 animate-in fade-in">
+          <PasswordResetDesk />
+        </div>
+      )}
+
+      {/* --------------------------------------------------------------------- */}
+      {/* TAB: ENTRANCE & CBT ADMISSION SCORES */}
+      {/* --------------------------------------------------------------------- */}
+      {activeTab === "cbt-scores" && (
+        <div className="space-y-6 animate-in fade-in">
+          <AdmissionScoresDesk 
+            applicants={applicants} 
+            onUpdateApplicant={updateApplicant} 
+          />
+        </div>
+      )}
+
+      {/* --------------------------------------------------------------------- */}
       {/* MODAL: VIEW FULL APPLICANT PROFILE */}
       {/* --------------------------------------------------------------------- */}
       {viewingApplicant && (
@@ -2712,6 +2957,12 @@ export default function AdmissionOfficerDashboard() {
           </div>
         </div>
       )}
+
+      {/* CBT EXAMINATION SECURITY AUDIT MODAL */}
+      <ExamSecurityLogsModal
+        isOpen={showSecurityLogsModal}
+        onClose={() => setShowSecurityLogsModal(false)}
+      />
     </div>
   );
 }

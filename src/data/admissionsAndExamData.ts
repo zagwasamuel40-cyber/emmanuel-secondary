@@ -89,6 +89,8 @@ export interface ApplicantProfile {
   examAnswers?: Record<string, string>;
   reviewerNotes?: string;
   isTransferredToRoster?: boolean;
+  examSubmittedBy?: string;
+  examSecurityViolations?: number;
 }
 
 export interface AdmissionPortalControl {

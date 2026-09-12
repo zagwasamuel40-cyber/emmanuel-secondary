@@ -1,5 +1,6 @@
 import React from "react";
 import { usePortalSettings } from "../data/portalSettingsData";
+import { calculateStudentAttendanceStats } from "../data/attendanceResultConnector";
 
 interface StudentReportCardProps {
   session: string;
@@ -9,6 +10,7 @@ interface StudentReportCardProps {
 
 export function StudentReportCard({ session, term, student }: StudentReportCardProps) {
   const [portalSettings] = usePortalSettings();
+  const attendance = calculateStudentAttendanceStats(student?.id || "", session, term, student?.class);
 
   const mockSubjects = [
     { name: "BUSINESS EDUCATION", ca1: 10, ca2: 7, ca3: 9, ca4: 10, exam: 53 },
@@ -107,7 +109,7 @@ export function StudentReportCard({ session, term, student }: StudentReportCardP
         <div className="p-1.5 flex justify-center gap-6 text-center">
           <span>GENDER: {student?.gender || 'FEMALE'}</span>
           <span>SUBJECTS TAKEN: {results.length}</span>
-          <span>ATTENDANCE : 128 DAYS OUT OF 130</span>
+          <span>ATTENDANCE: {attendance.daysInSchool} DAYS OUT OF {attendance.totalSchoolDays} ({attendance.attendancePercentage}%)</span>
         </div>
       </div>
 
@@ -249,6 +251,46 @@ export function StudentReportCard({ session, term, student }: StudentReportCardP
                   <td className="p-[3px] font-bold text-[9px]">{a.v}</td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+
+          {/* Attendance Record Section */}
+          <table className="w-full border-collapse border-l-[1.5px] border-r-[1.5px] border-b-[1.5px] border-black text-[10px] text-center bg-white mt-[-1.5px]">
+            <thead>
+              <tr className="font-bold border-y-[1.5px] border-black bg-cyan-100 text-black">
+                <th className="border-r-[1.5px] border-black p-1 text-left pl-1 leading-tight text-[9px]">Attendance</th>
+                <th className="p-1 w-9 text-right pr-1 text-[9px]">Number</th>
+              </tr>
+            </thead>
+            <tbody className="leading-tight text-[9px]">
+              <tr className="border-b-[1.5px] border-black">
+                <td className="border-r-[1.5px] border-black p-[3px] text-left pl-1">Total School Days</td>
+                <td className="p-[3px] font-bold text-right pr-1">{attendance.totalSchoolDays}</td>
+              </tr>
+              <tr className="border-b-[1.5px] border-black">
+                <td className="border-r-[1.5px] border-black p-[3px] text-left pl-1">Days Present</td>
+                <td className="p-[3px] font-bold text-right pr-1 text-emerald-800">{attendance.daysPresent}</td>
+              </tr>
+              <tr className="border-b-[1.5px] border-black">
+                <td className="border-r-[1.5px] border-black p-[3px] text-left pl-1">Days Absent</td>
+                <td className="p-[3px] font-bold text-right pr-1 text-rose-800">{attendance.daysAbsent}</td>
+              </tr>
+              <tr className="border-b-[1.5px] border-black">
+                <td className="border-r-[1.5px] border-black p-[3px] text-left pl-1">Days Late</td>
+                <td className="p-[3px] font-bold text-right pr-1 text-amber-800">{attendance.daysLate}</td>
+              </tr>
+              <tr className="border-b-[1.5px] border-black">
+                <td className="border-r-[1.5px] border-black p-[3px] text-left pl-1">Days in School</td>
+                <td className="p-[3px] font-bold text-right pr-1">{attendance.daysInSchool}</td>
+              </tr>
+              <tr className="border-b-[1.5px] border-black">
+                <td className="border-r-[1.5px] border-black p-[3px] text-left pl-1">Days Out of School</td>
+                <td className="p-[3px] font-bold text-right pr-1">{attendance.daysOutSchool}</td>
+              </tr>
+              <tr className="bg-slate-100 font-bold">
+                <td className="border-r-[1.5px] border-black p-[3px] text-left pl-1">Attendance Percentage</td>
+                <td className="p-[3px] font-bold text-right pr-1 text-emerald-800">{attendance.attendancePercentage}%</td>
+              </tr>
             </tbody>
           </table>
         </div>

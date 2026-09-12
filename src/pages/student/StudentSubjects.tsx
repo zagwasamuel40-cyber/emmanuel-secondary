@@ -15,6 +15,7 @@ import { isResultReleased, useResultsRelease } from "../../data/resultsReleaseDa
 import { usePortalSettings } from "../../data/portalSettingsData";
 import { useSessions } from "../../data/sessionsData";
 import { useStudents } from "../../data/studentsData";
+import { SecureExamRunner } from "../../components/exam/SecureExamRunner";
 
 export default function StudentSubjects() {
   const [activeTab, setActiveTab] = useState("subjects");
@@ -103,6 +104,8 @@ export default function StudentSubjects() {
   const [pinModalExam, setPinModalExam] = useState<any>(null);
   const [enteredPin, setEnteredPin] = useState("");
   const [pinError, setPinError] = useState("");
+  const [preExamNoticeExam, setPreExamNoticeExam] = useState<any>(null);
+  const [lastExamResult, setLastExamResult] = useState<any>(null);
 
   const handleStartCbt = (exam: any) => {
     if (exam.accessCode) {
@@ -110,16 +113,15 @@ export default function StudentSubjects() {
       setEnteredPin("");
       setPinError("");
     } else {
-      setActiveCbtExam(exam); 
-      setExamActive(true);
+      setPreExamNoticeExam(exam);
     }
   };
 
   const handleVerifyPin = () => {
     if (pinModalExam && enteredPin === pinModalExam.accessCode) {
-      setActiveCbtExam(pinModalExam);
-      setExamActive(true);
+      const targetExam = pinModalExam;
       setPinModalExam(null);
+      setPreExamNoticeExam(targetExam);
     } else {
       setPinError("Invalid Access Code. Please try again or contact your teacher.");
     }
@@ -227,102 +229,101 @@ export default function StudentSubjects() {
   }
 
   if (examActive && activeQuestions.length > 0) {
-    const q = activeQuestions[cbtQIndex];
     return (
-      <div className="fixed inset-0 z-50 bg-slate-50 overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-slate-200 p-4 shadow-sm flex items-center justify-between z-10">
-          <div>
-            <h2 className="font-bold text-lg text-slate-900">{activeCbtExam?.title || "First Term Examinations"}</h2>
-            <p className="text-sm font-semibold text-brand-600">{activeCbtExam?.subject || q.subject}</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="font-mono text-lg font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-lg">
-              89:59
-            </span>
-            <div className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-bold text-slate-700 hidden sm:block">
-              Question {cbtQIndex + 1} of {activeQuestions.length}
-            </div>
-          </div>
-        </div>
-        
-        <div className="max-w-3xl mx-auto p-6 space-y-8">
-          <Card className="border-0 shadow-md">
-            <CardContent className="p-6 sm:p-8 space-y-6">
-              <p className="font-medium text-slate-900 mb-4 text-lg">
-                {cbtQIndex + 1}. {q.text}
-              </p>
-              <div className="space-y-3">
-                {q.options.map((opt, i) => {
-                  const isSelected = cbtAnswers[q.id] === opt;
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => setCbtAnswers(prev => ({ ...prev, [q.id]: opt }))}
-                      className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 ${
-                        isSelected 
-                          ? 'border-brand-500 bg-brand-50 text-brand-900 font-medium shadow-sm' 
-                          : 'border-slate-200 hover:border-brand-300 hover:bg-slate-50 text-slate-700'
-                      }`}
-                    >
-                      <span className={`inline-block w-6 h-6 rounded-full text-center text-sm font-bold mr-3 ${
-                        isSelected ? 'bg-brand-500 text-white' : 'bg-slate-200 text-slate-600'
-                      }`}>
-                        {String.fromCharCode(65 + i)}
-                      </span>
-                      {opt}
-                    </button>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="mt-6 flex flex-col items-center justify-between gap-6 sm:flex-row">
-            <div className="flex gap-4 w-full sm:w-auto order-2 sm:order-1">
-              <Button 
-                variant="outline" 
-                onClick={handleCbtPrev}
-                disabled={cbtQIndex === 0}
-                className="flex-1 sm:flex-none"
-              >
-                Previous
-              </Button>
-              {cbtQIndex < activeQuestions.length - 1 ? (
-                <Button variant="brand" onClick={handleCbtNext} className="flex-1 sm:flex-none">
-                  Next Question
-                </Button>
-              ) : (
-                <Button variant="brand" className="bg-emerald-600 hover:bg-emerald-700 flex-1 sm:flex-none" onClick={() => { setExamActive(false); setExamSubmitted(true); setCbtQIndex(0); }}>
-                  Submit Exam
-                </Button>
-              )}
-            </div>
-            
-            <div className="flex gap-1 overflow-x-auto px-1 hide-scrollbar max-w-full sm:max-w-[40%] order-1 sm:order-2">
-              {activeQuestions.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setCbtQIndex(idx)}
-                  className={`w-8 h-8 shrink-0 rounded-full text-xs font-bold transition-colors ${
-                    cbtQIndex === idx 
-                      ? 'bg-brand-600 text-white ring-4 ring-brand-200 ring-offset-1 scale-110'
-                      : cbtAnswers[activeQuestions[idx].id] 
-                        ? 'bg-emerald-500 text-white shadow-sm hover:bg-emerald-600'
-                        : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
-                  }`}
-                >
-                  {idx + 1}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+      <SecureExamRunner
+        exam={{
+          id: activeCbtExam?.id || "cbt-term-1",
+          title: activeCbtExam?.title || "Terminal CBT Examination",
+          subject: activeCbtExam?.subject || activeQuestions[0]?.subject || "Mathematics",
+          durationMinutes: activeCbtExam?.duration || 45
+        }}
+        student={{
+          id: currentStudent?.id || loggedInId || "ESS/2026/001",
+          name: currentStudent?.name || "Student Candidate",
+          class: currentStudent?.class || studentClass
+        }}
+        questions={activeQuestions}
+        onComplete={(result) => {
+          setExamActive(false);
+          setExamSubmitted(true);
+          setLastExamResult(result);
+        }}
+        onExit={() => {
+          setExamActive(false);
+        }}
+      />
     );
   }
 
   return (
     <div className="space-y-6">
+
+      {/* PRE-EXAM SECURITY & FULLSCREEN READINESS AGREEMENT MODAL */}
+      {preExamNoticeExam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <Card className="w-full max-w-lg border-0 bg-slate-900 text-white shadow-2xl overflow-hidden rounded-3xl animate-in zoom-in-95">
+            <CardHeader className="bg-slate-950 border-b border-slate-800 p-6 text-center space-y-2">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mx-auto shadow-inner">
+                <Lock size={32} />
+              </div>
+              <div>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wider">
+                  Secure Examination Environment
+                </span>
+                <CardTitle className="text-xl font-bold font-heading text-white mt-2">
+                  {preExamNoticeExam.title} - {preExamNoticeExam.subject}
+                </CardTitle>
+                <p className="text-xs text-slate-400 mt-1">
+                  Duration: {preExamNoticeExam.duration || 45} Minutes &bull; {preExamNoticeExam.questions?.length || 5} Questions
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 sm:p-8 space-y-5 text-xs">
+              <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700 text-slate-300 space-y-2.5 leading-relaxed">
+                <h4 className="font-bold text-amber-400 text-sm flex items-center gap-1.5">
+                  <AlertTriangle size={16} /> Strict Anti-Cheating Protocol Notice:
+                </h4>
+                <ul className="space-y-2 text-slate-300 text-[11px] list-disc pl-4">
+                  <li>
+                    <strong className="text-white">Mandatory Fullscreen Mode:</strong> When you start, your browser will immediately expand to full screen. Exiting fullscreen will trigger an automatic submission with a violation report.
+                  </li>
+                  <li>
+                    <strong className="text-white">No Tab or Application Switching:</strong> Switching browser tabs, minimizing the window, or opening other programs will be recorded and auto-submits your test immediately.
+                  </li>
+                  <li>
+                    <strong className="text-white">Server-Enforced Timer:</strong> The countdown is controlled by the server. Refreshing the webpage will NOT reset the timer.
+                  </li>
+                  <li>
+                    <strong className="text-white">Live Auto-Save:</strong> Every answer you select is saved instantly to the school's central examination server.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300 h-11 text-xs"
+                  onClick={() => setPreExamNoticeExam(null)}
+                >
+                  Cancel & Return
+                </Button>
+                <Button
+                  variant="brand"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11 text-xs shadow-lg shadow-emerald-900/40"
+                  onClick={() => {
+                    const examToRun = preExamNoticeExam;
+                    setPreExamNoticeExam(null);
+                    setActiveCbtExam(examToRun);
+                    setExamActive(true);
+                  }}
+                >
+                  I Understand & Start Examination &rarr;
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {pinModalExam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">

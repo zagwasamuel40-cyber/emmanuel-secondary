@@ -39,6 +39,8 @@ import StaffAttendanceReports from "./pages/admin/StaffAttendanceReports";
 import AttendanceOfficerDashboard from "./pages/staff/AttendanceOfficerDashboard";
 import { AttendanceOfficerManagement } from "./pages/admin/AttendanceOfficerManagement";
 import ScanAttendancePage from "./pages/staff/ScanAttendancePage";
+import PermissionGuard from "./components/auth/PermissionGuard";
+import AuditLogsPage from "./pages/admin/AuditLogsPage";
 
 export default function App() {
   return (
@@ -58,30 +60,121 @@ export default function App() {
         
         <Route path="/login" element={<Login />} />
         
-        {/* Admin & Staff Dashboard */}
+        {/* Admin & Staff Dashboard with Departmental RBAC Permission Guards */}
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<Dashboard />} />
-          <Route path="attendance-officer" element={<AttendanceOfficerDashboard />} />
-          <Route path="attendance-officers" element={<AttendanceOfficerManagement />} />
-          <Route path="scan-attendance" element={<ScanAttendancePage />} />
+
+          {/* Attendance Department */}
+          <Route path="attendance-officer" element={
+            <PermissionGuard requiredPermission="attendance.view" moduleName="Attendance & Gate Controller Hub">
+              <AttendanceOfficerDashboard />
+            </PermissionGuard>
+          } />
+          <Route path="attendance-officers" element={
+            <PermissionGuard requiredPermission="attendance.view" moduleName="Attendance Operations">
+              <AttendanceOfficerManagement />
+            </PermissionGuard>
+          } />
+          <Route path="scan-attendance" element={
+            <PermissionGuard requiredPermission="attendance.scan" moduleName="Gate Attendance Scanner">
+              <ScanAttendancePage />
+            </PermissionGuard>
+          } />
           <Route path="qr-scanner" element={<QRScannerPage />} />
-          <Route path="staff-qr-scanner" element={<StaffQRScannerPage />} />
+          <Route path="staff-qr-scanner" element={
+            <PermissionGuard requiredPermission="attendance.scan" moduleName="Staff Gate QR Scanner">
+              <StaffQRScannerPage />
+            </PermissionGuard>
+          } />
           <Route path="attendance" element={<AttendanceDashboard />} />
-          <Route path="staff-attendance" element={<StaffAttendanceReports />} />
-          <Route path="id-cards" element={<StudentIDCardCenter />} />
-          <Route path="admission-officer" element={<AdmissionOfficerDashboard />} />
-          <Route path="admissions" element={<AdmissionOfficerDashboard />} />
-          <Route path="admissions-legacy" element={<AdmissionsManagement />} />
+          <Route path="staff-attendance" element={
+            <PermissionGuard requiredPermission="attendance.reports" moduleName="Staff Attendance Reports">
+              <StaffAttendanceReports />
+            </PermissionGuard>
+          } />
+
+          {/* Admissions Department */}
+          <Route path="id-cards" element={
+            <PermissionGuard requiredPermission="admission.view" moduleName="Student ID Card Center">
+              <StudentIDCardCenter />
+            </PermissionGuard>
+          } />
+          <Route path="admission-officer" element={
+            <PermissionGuard requiredPermission="admission.view" moduleName="Admissions Directorate">
+              <AdmissionOfficerDashboard />
+            </PermissionGuard>
+          } />
+          <Route path="admissions" element={
+            <PermissionGuard requiredPermission="admission.view" moduleName="Admissions Directorate">
+              <AdmissionOfficerDashboard />
+            </PermissionGuard>
+          } />
+          <Route path="admissions-legacy" element={
+            <PermissionGuard requiredPermission="admission.view" moduleName="Admissions Management">
+              <AdmissionsManagement />
+            </PermissionGuard>
+          } />
+
+          {/* Core Staff & Academics */}
           <Route path="students" element={<Students />} />
-          <Route path="enrollment" element={<Enrollment />} />
-          <Route path="teachers" element={<Teachers />} />
-          <Route path="finance" element={<Finance />} />
-          <Route path="academics" element={<Academics />} />
-          <Route path="examinations" element={<Examinations />} />
-          <Route path="portal-manager" element={<StudentPortalManager />} />
-          <Route path="settings" element={<Settings />} />
+          <Route path="enrollment" element={
+            <PermissionGuard requiredPermission="staff.manage" moduleName="Enrollment Directorate">
+              <Enrollment />
+            </PermissionGuard>
+          } />
+          <Route path="teachers" element={
+            <PermissionGuard requiredPermission="staff.manage" moduleName="Staff & Roles Administration">
+              <Teachers />
+            </PermissionGuard>
+          } />
+
+          {/* Finance & Bursary Department */}
+          <Route path="finance" element={
+            <PermissionGuard requiredPermission="finance.view" moduleName="Finance & Bursary Directorate">
+              <Finance />
+            </PermissionGuard>
+          } />
+
+          {/* Academic Affairs Department */}
+          <Route path="academics" element={
+            <PermissionGuard requiredPermission="academic.view" moduleName="Academic Affairs Directorate">
+              <Academics />
+            </PermissionGuard>
+          } />
+
+          {/* Examinations & CBT Center */}
+          <Route path="examinations" element={
+            <PermissionGuard requiredPermission="examination.view" moduleName="Examinations & CBT Center">
+              <Examinations />
+            </PermissionGuard>
+          } />
+
+          {/* Portal & Website CMS */}
+          <Route path="portal-manager" element={
+            <PermissionGuard requiredPermission="portal.view" moduleName="Portal & Website CMS">
+              <StudentPortalManager />
+            </PermissionGuard>
+          } />
+
+          {/* Compliance & Security Audit Logs */}
+          <Route path="audit-logs" element={
+            <PermissionGuard requiredPermission="audit.view" moduleName="System Security & Audit Trail">
+              <AuditLogsPage />
+            </PermissionGuard>
+          } />
+
+          {/* System Settings & User Profile */}
+          <Route path="settings" element={
+            <PermissionGuard requiredPermission="settings.manage" moduleName="System & School Settings">
+              <Settings />
+            </PermissionGuard>
+          } />
           <Route path="profile" element={<Profile />} />
-          <Route path="reports" element={<Reports />} />
+          <Route path="reports" element={
+            <PermissionGuard requiredPermission="reports.view" moduleName="Executive Report Center">
+              <Reports />
+            </PermissionGuard>
+          } />
         </Route>
 
         {/* Student Portal */}

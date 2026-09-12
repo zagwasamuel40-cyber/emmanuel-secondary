@@ -1,13 +1,13 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet, Link, useLocation, Navigate, useNavigate } from "react-router-dom";
-import { Printer, 
+import { 
   LayoutDashboard, 
   Users, 
   UserCheck, 
   UserPlus,
   UserX,
-  Briefcase,
-  History,
+  Briefcase, 
+  History, 
   GraduationCap, 
   CreditCard, 
   Settings, 
@@ -22,149 +22,50 @@ import { Printer,
   Clock,
   Sliders,
   Calendar,
-  Zap,
   BookOpen,
-  Award
+  Printer,
+  ShieldCheck,
+  Building2,
+  DollarSign,
+  FileSpreadsheet,
+  Globe,
+  SlidersHorizontal,
+  ChevronDown,
+  Layers,
+  Sparkles,
+  ArrowRight,
+  CheckCircle
 } from "lucide-react";
 import { Input } from "@/src/components/ui";
 import { usePortalSettings } from "../data/portalSettingsData";
 import { useTeachers } from "../data/teachersData";
+import { useCurrentUserRoles, ALL_ROLES_METADATA, Permission } from "../data/rolesAndPermissions";
 
-// Dedicated Admission Officer Sidebar Navigation
-const admissionOfficerNavigation = [
-  { name: 'Dashboard Overview', href: '/dashboard/admission-officer', icon: LayoutDashboard },
-  { name: 'Portal Control', href: '/dashboard/admission-officer?tab=portal', icon: Sliders },
-  { name: 'Applicants Roster', href: '/dashboard/admission-officer?tab=applicants', icon: Users },
-  { name: 'Entrance Exams', href: '/dashboard/admission-officer?tab=exams', icon: Calendar },
-  { name: 'Question Bank', href: '/dashboard/admission-officer?tab=questions', icon: BookOpen },
-  { name: 'Security Audit Logs', href: '/dashboard/admission-officer?tab=audit', icon: History },
-  { name: 'ID Cards', href: '/dashboard/id-cards', icon: CreditCard },
-  { name: 'My Profile', href: '/dashboard/profile', icon: User },
-];
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  permission?: Permission;
+  badge?: string;
+}
 
-// Dedicated Attendance Officer Sidebar Navigation (per Requirement 15)
-const attendanceOfficerNavigation = [
-  { name: 'Dashboard', href: '/dashboard/attendance-officer', icon: LayoutDashboard },
-  { name: 'Scan Student ID', href: '/dashboard/attendance-officer?section=scan-student', icon: QrCode },
-  { name: 'Scan Staff ID', href: '/dashboard/attendance-officer?section=scan-staff', icon: Briefcase },
-  { name: "Today's Attendance", href: '/dashboard/attendance-officer?section=today', icon: Clock },
-  { name: 'Student Attendance', href: '/dashboard/attendance-officer?section=students', icon: GraduationCap },
-  { name: 'Staff Attendance', href: '/dashboard/attendance-officer?section=staff', icon: Briefcase },
-  { name: 'Attendance History', href: '/dashboard/attendance-officer?section=history', icon: History },
-  { name: 'Absent Students', href: '/dashboard/attendance-officer?section=absent-students', icon: UserX },
-  { name: 'Absent Staff', href: '/dashboard/attendance-officer?section=absent-staff', icon: UserX },
-  { name: 'Attendance Reports', href: '/dashboard/attendance-officer?section=reports', icon: ClipboardList },
-  { name: 'Attendance Settings', href: '/dashboard/attendance-officer?section=settings', icon: Sliders },
-  { name: 'My Profile', href: '/dashboard/profile', icon: User },
-];
-
-// Admin & General Staff Navigation (Attendance scanning tools removed, replaced with Attendance Officer menu item per Requirement 14)
-const generalNavigation = [
-  { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Attendance Officer', href: '/dashboard/attendance-officers', icon: UserCheck },
-  { name: 'ID Cards', href: '/dashboard/id-cards', icon: CreditCard },
-  { name: 'Admissions', href: '/dashboard/admissions', icon: FileCheck },
-  { name: 'Enrollment', href: '/dashboard/enrollment', icon: UserCheck },
-  { name: 'Students', href: '/dashboard/students', icon: Users },
-  { name: 'Staff & Teachers', href: '/dashboard/teachers', icon: UserPlus },
-  { name: 'Academics', href: '/dashboard/academics', icon: GraduationCap },
-  { name: 'Examinations & CA', href: '/dashboard/examinations', icon: ClipboardList },
-  { name: 'Finance', href: '/dashboard/finance', icon: CreditCard },
-  { name: 'Portal Manager', href: '/dashboard/portal-manager', icon: Settings },
-  { name: 'Report Center', href: '/dashboard/reports', icon: Printer },
-  { name: 'My Profile', href: '/dashboard/profile', icon: User },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
-];
+interface NavSection {
+  title: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  items: NavItem[];
+  requiredPermission?: Permission;
+}
 
 export default function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-
-  let roles: string[] = [];
-  try {
-    roles = JSON.parse(localStorage.getItem('userRoles') || '[]');
-  } catch (e) {}
-
-  if (roles.length === 0) {
-    const r = localStorage.getItem('userRole') || 'admin';
-    if (r === 'admin') roles = ['Admin'];
-    else if (r === 'superadmin') roles = ['Admission Officer'];
-    else if (r === 'portaladmin') roles = ['Portal Admin'];
-    else if (r === 'attendance') roles = ['Attendance Officer'];
-    else roles = ['Teacher'];
-  }
-
-  // Determine role booleans for layout UI
-  const isAdmin = roles.includes('Admin') || roles.includes('Super Admin') || roles.includes('General Admin');
-  const isAttendanceOfficer = roles.includes('Attendance Officer');
-  const isAdmissionOfficer = roles.includes('Admission Officer');
-
-  const routeAccessMap: Record<string, string[]> = {
-    '/dashboard': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer', 'Teacher', 'Examination Admin', 'Admission Officer', 'Portal Admin', 'Finance/Admin Officer', 'Academic Admin', 'HR/Staff Admin'],
-    '/dashboard/admission-officer': ['Admin', 'Super Admin', 'General Admin', 'Admission Officer'],
-    '/dashboard/attendance-officers': ['Admin', 'Super Admin', 'General Admin', 'Portal Admin'],
-    '/dashboard/attendance-officer': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer', 'Teacher', 'HR/Staff Admin'],
-    '/dashboard/scan-attendance': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer'],
-    '/dashboard/qr-scanner': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer', 'Teacher', 'Examination Admin', 'Admission Officer', 'Portal Admin', 'Academic Admin'],
-    '/dashboard/attendance': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer', 'Teacher', 'Examination Admin', 'Admission Officer', 'Portal Admin', 'Academic Admin'],
-    '/dashboard/staff-qr-scanner': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer', 'Teacher', 'HR/Staff Admin'],
-    '/dashboard/staff-attendance': ['Admin', 'Super Admin', 'General Admin', 'Attendance Officer', 'Teacher', 'HR/Staff Admin'],
-    '/dashboard/id-cards': ['Admin', 'Super Admin', 'General Admin', 'Portal Admin', 'Admission Officer'],
-    '/dashboard/admissions': ['Admin', 'Super Admin', 'General Admin', 'Admission Officer'],
-    '/dashboard/enrollment': ['Admin', 'Super Admin', 'General Admin', 'Admission Officer', 'Teacher', 'Academic Admin'],
-    '/dashboard/students': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'Academic Admin'],
-    '/dashboard/teachers': ['Admin', 'Super Admin', 'General Admin', 'HR/Staff Admin'],
-    '/dashboard/academics': ['Admin', 'Super Admin', 'General Admin', 'Academic Admin'],
-    '/dashboard/examinations': ['Admin', 'Super Admin', 'General Admin', 'Teacher', 'Examination Admin'],
-    '/dashboard/finance': ['Admin', 'Super Admin', 'General Admin', 'Finance/Admin Officer'],
-    '/dashboard/portal-manager': ['Admin', 'Super Admin', 'General Admin', 'Portal Admin'],
-    '/dashboard/settings': ['Admin', 'Super Admin', 'General Admin', 'Portal Admin'],
-    '/dashboard/reports': ['Admin', 'Super Admin', 'General Admin', 'Finance/Admin Officer', 'Examination Admin', 'Academic Admin'],
-    '/dashboard/profile': ['*'],
-  };
-
-  const hasAccessToRoute = (path: string, userRoles: string[]) => {
-    // Attendance Officer restricted access: only attendance and profile
-    if (userRoles.includes('Attendance Officer') && !isAdmin) {
-      if (
-        path.startsWith('/dashboard/attendance-officer') ||
-        path.startsWith('/dashboard/scan-attendance') ||
-        path.startsWith('/dashboard/profile') ||
-        path === '/dashboard'
-      ) {
-        return true;
-      }
-      return false;
-    }
-
-    // Admission Officer restricted access if not Admin
-    if (userRoles.includes('Admission Officer') && !isAdmin) {
-      if (
-        path.startsWith('/dashboard/admission-officer') ||
-        path.startsWith('/dashboard/admissions') ||
-        path.startsWith('/dashboard/id-cards') ||
-        path.startsWith('/dashboard/profile') ||
-        path === '/dashboard'
-      ) {
-        return true;
-      }
-      return false;
-    }
-
-    // Check if any defined route matches the path, longest paths first
-    const sortedKeys = Object.keys(routeAccessMap).sort((a, b) => b.length - a.length);
-    const matchingKey = sortedKeys.find(key => path === key || path.startsWith(key + '/'));
-    if (!matchingKey) return true; // Default allow if not explicitly restricted
-
-    const allowedRoles = routeAccessMap[matchingKey];
-    if (allowedRoles.includes('*')) return true;
-
-    return userRoles.some(role => allowedRoles.includes(role));
-  };
-
+  const { roles, permissions, hasPermission, isSuperAdmin, isGeneralAdmin } = useCurrentUserRoles();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [portalSettings] = usePortalSettings();
   const [teachers] = useTeachers();
-  const teacher = teachers.find(t => t.id === localStorage.getItem("loggedInUserId"));
+
+  const loggedInUserId = localStorage.getItem("loggedInUserId");
+  const teacher = teachers.find(t => t.id === loggedInUserId);
   const impersonatingName = localStorage.getItem('impersonatingName');
 
   useEffect(() => {
@@ -175,7 +76,7 @@ export default function DashboardLayout() {
       navigate('/login?error=account_deactivated');
     }
   }, [teacher, navigate]);
-  
+
   const handleStopImpersonating = () => {
     const originalUserId = localStorage.getItem('originalAdminUserId');
     const originalRoles = localStorage.getItem('originalAdminRoles');
@@ -192,6 +93,7 @@ export default function DashboardLayout() {
     localStorage.removeItem('originalAdminRole');
     localStorage.removeItem('loggedInStudentId');
     
+    window.dispatchEvent(new Event('ess_roles_change'));
     navigate('/dashboard/teachers');
   };
 
@@ -200,119 +102,328 @@ export default function DashboardLayout() {
     localStorage.removeItem('loggedInStudentId');
     localStorage.removeItem('userRole');
     localStorage.removeItem('userRoles');
+    window.dispatchEvent(new Event('ess_roles_change'));
     navigate('/');
   };
 
-  const currentNavList = (isAttendanceOfficer && !isAdmin)
-    ? attendanceOfficerNavigation
-    : (isAdmissionOfficer && !isAdmin)
-    ? admissionOfficerNavigation
-    : generalNavigation;
+  /**
+   * Structured navigation sections according to Section 1 & Section 12:
+   * 1. Staff Workspace (Base features retained by EVERY administrator)
+   * 2. Departmental Sections (Displayed strictly if user holds permission for that department)
+   */
+  const navSections: NavSection[] = [
+    // 1. Base Staff Features - Visible to all staff and admins
+    {
+      title: "Staff Workspace",
+      icon: Briefcase,
+      items: [
+        { name: "My Staff Dashboard", href: "/dashboard", icon: LayoutDashboard },
+        { name: "My Classes & Students", href: "/dashboard/students", icon: Users },
+        { name: "Class Attendance", href: "/dashboard/attendance", icon: UserCheck },
+        { name: "My Teaching Schedule", href: "/dashboard/academics?view=timetable", icon: Calendar },
+        { name: "My Staff Profile", href: "/dashboard/profile", icon: User },
+      ]
+    },
 
-  // Check redirects if user lacks access to current route
-  if (!hasAccessToRoute(location.pathname, roles)) {
-    // Find the first accessible route
-    const firstAllowedItem = currentNavList.find(item => hasAccessToRoute(item.href.split('?')[0], roles));
-    if (firstAllowedItem) {
-      return <Navigate to={firstAllowedItem.href} replace />;
-    } else {
-      return <Navigate to="/" replace />;
+    // 2. Admission Directorate
+    {
+      title: "Admissions Directorate",
+      icon: FileCheck,
+      requiredPermission: 'admission.view',
+      items: [
+        { name: "Admissions Control Desk", href: "/dashboard/admissions", icon: Sliders },
+        { name: "Applicants Roster", href: "/dashboard/admissions?tab=applicants", icon: Users },
+        { name: "Entrance Examination", href: "/dashboard/admissions?tab=exams", icon: Calendar },
+        { name: "Admission Shortlist", href: "/dashboard/admissions?tab=shortlist", icon: ClipboardList },
+        { name: "Admission Reports", href: "/dashboard/admissions?tab=reports", icon: Printer },
+        { name: "Applicant ID Cards", href: "/dashboard/id-cards", icon: CreditCard },
+      ]
+    },
+
+    // 3. Finance & Bursary
+    {
+      title: "Finance & Bursary",
+      icon: DollarSign,
+      requiredPermission: 'finance.view',
+      items: [
+        { name: "Finance Overview", href: "/dashboard/finance", icon: LayoutDashboard },
+        { name: "School Fees & Tuition", href: "/dashboard/finance?tab=fees", icon: CreditCard },
+        { name: "Payment Verification", href: "/dashboard/finance?tab=payments", icon: UserCheck },
+        { name: "Receipts & Invoicing", href: "/dashboard/finance?tab=receipts", icon: Printer },
+        { name: "Expense Management", href: "/dashboard/finance?tab=expenses", icon: FileSpreadsheet },
+        { name: "Financial Reports", href: "/dashboard/finance?tab=reports", icon: History },
+      ]
+    },
+
+    // 4. Examinations & CBT Center
+    {
+      title: "Examinations & CBT",
+      icon: ClipboardList,
+      requiredPermission: 'examination.view',
+      items: [
+        { name: "Examinations Desk", href: "/dashboard/examinations", icon: LayoutDashboard },
+        { name: "CBT Question Bank", href: "/dashboard/examinations?tab=questions", icon: BookOpen },
+        { name: "AI Question Generator", href: "/dashboard/examinations?tab=ai-generate", icon: Sparkles, badge: "AI" },
+        { name: "Live CBT Monitoring", href: "/dashboard/examinations?tab=monitor", icon: Clock },
+        { name: "Results & Approval", href: "/dashboard/examinations?tab=results", icon: CheckCircle2 },
+        { name: "Term Exam Reports", href: "/dashboard/examinations?tab=reports", icon: Printer },
+      ]
+    },
+
+    // 5. Academic Affairs
+    {
+      title: "Academic Affairs",
+      icon: GraduationCap,
+      requiredPermission: 'academic.view',
+      items: [
+        { name: "Academic Dashboard", href: "/dashboard/academics", icon: LayoutDashboard },
+        { name: "Classes & Arms", href: "/dashboard/academics?tab=classes", icon: Building2 },
+        { name: "Subjects & Curriculum", href: "/dashboard/academics?tab=subjects", icon: BookOpen },
+        { name: "Teacher Allocation", href: "/dashboard/academics?tab=allocation", icon: UserPlus },
+        { name: "Timetables & Calendar", href: "/dashboard/academics?tab=timetable", icon: Calendar },
+        { name: "Student Promotion", href: "/dashboard/academics?tab=promotion", icon: Layers },
+        { name: "Academic Reports", href: "/dashboard/academics?tab=reports", icon: Printer },
+      ]
+    },
+
+    // 6. Attendance & Security
+    {
+      title: "Attendance & Gate",
+      icon: QrCode,
+      requiredPermission: 'attendance.view',
+      items: [
+        { name: "Gate Controller Hub", href: "/dashboard/attendance-officer", icon: LayoutDashboard },
+        { name: "Scan Student ID", href: "/dashboard/attendance-officer?section=scan-student", icon: QrCode },
+        { name: "Scan Staff ID", href: "/dashboard/attendance-officer?section=scan-staff", icon: Briefcase },
+        { name: "Today's Gate Register", href: "/dashboard/attendance-officer?section=today", icon: Clock },
+        { name: "Student Attendance", href: "/dashboard/attendance-officer?section=students", icon: Users },
+        { name: "Staff Attendance Logs", href: "/dashboard/attendance-officer?section=staff", icon: Briefcase },
+        { name: "Attendance Reports", href: "/dashboard/attendance-officer?section=reports", icon: Printer },
+      ]
+    },
+
+    // 7. Portal & Website CMS
+    {
+      title: "Portal & Website CMS",
+      icon: Globe,
+      requiredPermission: 'portal.view',
+      items: [
+        { name: "Website Dashboard", href: "/dashboard/portal-manager", icon: LayoutDashboard },
+        { name: "Homepage CMS", href: "/dashboard/portal-manager?tab=homepage", icon: Sliders },
+        { name: "News & Announcements", href: "/dashboard/portal-manager?tab=news", icon: Bell },
+        { name: "Photo Gallery", href: "/dashboard/portal-manager?tab=gallery", icon: Layers },
+        { name: "Contact Information", href: "/dashboard/portal-manager?tab=contact", icon: Building2 },
+        { name: "SEO & Web Settings", href: "/dashboard/portal-manager?tab=seo", icon: Settings },
+      ]
+    },
+
+    // 8. System & School Administration (General Admin & Super Admin)
+    {
+      title: "System Administration",
+      icon: ShieldCheck,
+      requiredPermission: 'staff.manage',
+      items: [
+        { name: "Staff & Role Management", href: "/dashboard/teachers", icon: UserPlus },
+        { name: "Student Enrollment", href: "/dashboard/enrollment", icon: UserCheck },
+        { name: "Security & Audit Trail", href: "/dashboard/audit-logs", icon: History, badge: "Sec" },
+        { name: "Report Center", href: "/dashboard/reports", icon: Printer },
+        { name: "School Configuration", href: "/dashboard/settings", icon: Settings },
+      ]
     }
-  }
+  ];
 
-  const filteredNavigation = currentNavList.filter(item => hasAccessToRoute(item.href.split('?')[0], roles));
+  // Filter sections based on permissions
+  const authorizedSections = navSections.filter(section => {
+    if (!section.requiredPermission) return true; // Base staff workspace
+    return hasPermission(section.requiredPermission);
+  });
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-      <aside className="w-full md:w-64 bg-slate-900 text-slate-300 md:min-h-screen flex-shrink-0 flex flex-col print:hidden">
-        <div className="h-16 flex items-center px-6 bg-slate-950/50 justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={handleLogout} title="Click to logout">
-            {portalSettings.logoUrl && <img src={portalSettings.logoUrl} alt="School Logo" className="w-8 h-8 rounded-full object-cover" />}
-            <span className="font-heading font-bold text-white text-sm tracking-wide line-clamp-1">
-              {portalSettings.schoolName || "Admin Dashboard"}
-            </span>
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans">
+      {/* Sidebar */}
+      <aside className={`w-full md:w-68 bg-slate-900 text-slate-300 md:min-h-screen flex-shrink-0 flex flex-col print:hidden ${mobileMenuOpen ? 'block' : 'hidden md:flex'}`}>
+        {/* Brand Header */}
+        <div className="h-16 flex items-center px-5 bg-slate-950/70 border-b border-slate-800/80 justify-between">
+          <Link to="/dashboard" className="flex items-center gap-3">
+            {portalSettings.logoUrl ? (
+              <img src={portalSettings.logoUrl} alt="School Logo" className="w-8 h-8 rounded-full object-cover border border-white/20" />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-xs">
+                ESS
+              </div>
+            )}
+            <div className="leading-tight">
+              <span className="font-heading font-bold text-white text-sm tracking-wide line-clamp-1">
+                {portalSettings.schoolName || "Emmanuel Sec. School"}
+              </span>
+              <span className="text-[10px] text-indigo-300 uppercase tracking-wider font-semibold block">
+                Management Portal
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        {/* User Identity Mini-Card */}
+        <div className="px-4 py-3 bg-slate-800/50 border-b border-slate-800/60">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs bg-indigo-600 text-white border border-indigo-400 flex-shrink-0">
+              {teacher?.passportUrl ? (
+                <img src={teacher.passportUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                teacher ? teacher.name.split(' ').map(n => n[0]).slice(0, 2).join('') : 'ST'
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-white truncate">
+                {impersonatingName || (teacher ? teacher.name : "Staff Member")}
+              </p>
+              <p className="text-[11px] text-slate-400 font-mono truncate">
+                {teacher?.id || loggedInUserId || "STF/2026/001"}
+              </p>
+            </div>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {roles.map(r => (
+              <span key={r} className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-700/80 text-indigo-200 border border-slate-600">
+                {r}
+              </span>
+            ))}
           </div>
         </div>
-        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-          {filteredNavigation.map((item) => {
-            const currentFullUrl = location.pathname + location.search;
-            const isActive = item.href.includes('?')
-              ? currentFullUrl === item.href
-              : location.pathname === item.href || (item.href !== '/dashboard' && location.pathname.startsWith(item.href) && !location.search);
-            return (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive 
-                    ? 'bg-brand-600 text-white shadow-sm' 
-                    : 'hover:bg-slate-800 hover:text-white'
-                }`}
-              >
-                <item.icon size={18} className={isActive ? 'text-white' : 'text-slate-400'} />
-                {item.name}
-              </Link>
-            )
-          })}
+
+        {/* Navigation Stream grouped by Department */}
+        <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto max-h-[calc(100vh-180px)]">
+          {authorizedSections.map((section, sIdx) => (
+            <div key={section.title} className="space-y-1">
+              <div className="px-3 py-1 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                <section.icon size={13} className="text-indigo-400" />
+                <span>{section.title}</span>
+              </div>
+              {section.items.map(item => {
+                const currentFullUrl = location.pathname + location.search;
+                const isActive = item.href.includes('?')
+                  ? currentFullUrl === item.href
+                  : location.pathname === item.href;
+
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                      isActive 
+                        ? 'bg-indigo-600 text-white font-semibold shadow-xs' 
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <item.icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
+                      <span className="truncate">{item.name}</span>
+                    </div>
+                    {item.badge && (
+                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
+                        isActive ? 'bg-white/20 text-white' : 'bg-indigo-500/30 text-indigo-300'
+                      }`}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
-        <div className="p-4 border-t border-slate-800">
-          <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:text-white transition-colors w-full text-left">
-            <LogOut size={18} className="text-slate-400" />
-            Sign Out
+
+        {/* Footer Logout */}
+        <div className="p-3 border-t border-slate-800 bg-slate-950/40">
+          <button 
+            onClick={handleLogout} 
+            className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-400 hover:text-rose-400 hover:bg-slate-800/60 rounded-lg transition-colors w-full text-left"
+          >
+            <LogOut size={16} />
+            Sign Out of Account
           </button>
         </div>
       </aside>
 
+      {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0">
+        {/* Impersonation Banner */}
         {impersonatingName && (
-          <div className="bg-amber-500 text-amber-950 px-4 py-2 text-sm font-semibold flex items-center justify-between shadow-md print:hidden z-50">
+          <div className="bg-amber-500 text-amber-950 px-4 py-2 text-xs font-semibold flex items-center justify-between shadow-md print:hidden z-50">
             <div className="flex items-center gap-2">
-              <UserCheck size={18} />
-              <span>Administrator View — You are viewing this account as {impersonatingName}.</span>
+              <UserCheck size={16} />
+              <span>Viewing account as <strong>{impersonatingName}</strong> with their departmental role permissions.</span>
             </div>
             <button 
               onClick={handleStopImpersonating}
-              className="px-3 py-1 bg-amber-900 text-amber-50 rounded hover:bg-amber-950 transition-colors text-xs"
+              className="px-2.5 py-1 bg-amber-950 text-white rounded text-xs hover:bg-amber-900 transition-colors"
             >
-              Return to Admin Dashboard
+              Exit to Admin Dashboard
             </button>
           </div>
         )}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 lg:px-8 print:hidden">
-          <div className="flex items-center gap-4 flex-1">
-            <button className="md:hidden text-slate-500 hover:text-slate-700">
-              <Menu size={24} />
+
+        {/* Top Header */}
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 lg:px-8 print:hidden sticky top-0 z-40 shadow-2xs">
+          <div className="flex items-center gap-3 flex-1">
+            <button 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100"
+            >
+              <Menu size={20} />
             </button>
             <div className="max-w-md w-full hidden sm:block relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <Input className="pl-10 bg-slate-50 border-slate-200" placeholder="Search students, staff..." />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <Input 
+                className="pl-9 h-9 text-xs bg-slate-50 border-slate-200" 
+                placeholder="Search students, subjects, classes, reports..." 
+              />
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex gap-1.5 items-center max-w-sm overflow-x-auto pr-2 hide-scrollbar">
+
+          <div className="flex items-center gap-3">
+            {/* Active Departmental Badges */}
+            <div className="hidden sm:flex gap-1 items-center max-w-sm overflow-x-auto pr-1">
               {roles.map(r => (
-                <span key={r} className="whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200">
+                <span 
+                  key={r} 
+                  className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap"
+                >
                   {r}
                 </span>
               ))}
             </div>
-            <button className="relative p-2 text-slate-400 hover:text-slate-600 transition-colors">
-              <Bell size={20} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand-500 rounded-full border border-white"></span>
-            </button>
-            <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center font-bold text-sm bg-brand-100 text-brand-700 border border-brand-200">
-              {teacher?.passportUrl ? (
-                <img src={teacher.passportUrl} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                teacher ? teacher.name.split(' ').map(n => n[0]).slice(0, 2).join('') : (roles.includes('General Admin') || roles.includes('Super Admin') ? 'AD' : roles.length ? roles[0].substring(0, 2).toUpperCase() : 'U')
-              )}
-            </div>
+
+            <Link
+              to="/dashboard/profile"
+              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors text-xs flex items-center gap-1.5 font-medium"
+              title="My Account"
+            >
+              <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs bg-indigo-100 text-indigo-700 border border-indigo-200">
+                {teacher?.passportUrl ? (
+                  <img src={teacher.passportUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  teacher ? teacher.name.split(' ').map(n => n[0]).slice(0, 2).join('') : 'ST'
+                )}
+              </div>
+              <span className="hidden md:inline text-slate-800 font-semibold max-w-[120px] truncate">
+                {impersonatingName || (teacher ? teacher.name.split(' ')[1] || teacher.name : "Officer")}
+              </span>
+            </Link>
           </div>
         </header>
+
+        {/* Page Outlet Body */}
         <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
           <Outlet />
         </div>
       </main>
     </div>
   );
+}
+
+// Add missing Lucide icon helper
+function CheckCircle2(props: { size?: number; className?: string }) {
+  return <CheckCircle size={props.size || 16} className={props.className} />;
 }

@@ -6,6 +6,8 @@ import { getStoredScores, ScoreRecord } from "../../data/scoresData";
 import { useSkillsDb } from "../../data/skillsData";
 import { getStoredPins, saveStoredPins } from "../../data/pinsData";
 import { isResultReleased } from "../../data/resultsReleaseData";
+import { calculateStudentAttendanceStats } from "../../data/attendanceResultConnector";
+import { AttendanceRecordTable } from "../../components/AttendanceRecordTable";
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@/src/components/ui";
 import { Search, Printer, Award, CheckCircle, AlertCircle, FileText, UserCheck, RefreshCw, Key } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -331,6 +333,9 @@ export default function ResultChecker() {
             </div>
 
             {/* OFFICIAL REPORT CARD SHEET */}
+            {(() => {
+              const studentAttendance = foundStudent ? calculateStudentAttendanceStats(foundStudent.id, selectedSessionYear, selectedTerm, foundStudent.class) : null;
+              return (
             <div className="bg-white p-6 sm:p-10 rounded-2xl shadow-xl border border-slate-200 text-slate-900 space-y-6 print:shadow-none print:border-none print:p-0">
               
               {/* SCHOOL LETTERHEAD HEADER */}
@@ -402,7 +407,9 @@ export default function ResultChecker() {
                     </tr>
                     <tr className="bg-slate-50">
                       <td className="p-2 border border-slate-300 text-slate-500">ATTENDANCE:</td>
-                      <td className="p-2 border border-slate-300 text-emerald-800 font-bold">122 DAYS OUT OF 125 DAYS</td>
+                      <td className="p-2 border border-slate-300 text-emerald-800 font-bold">
+                        {studentAttendance ? `${studentAttendance.daysInSchool} DAYS OUT OF ${studentAttendance.totalSchoolDays} DAYS (${studentAttendance.attendancePercentage}%)` : "122 DAYS OUT OF 125 DAYS"}
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -454,6 +461,13 @@ export default function ResultChecker() {
                   </tbody>
                 </table>
               </div>
+
+              {/* ATTENDANCE RECORD TABLE */}
+              {studentAttendance && (
+                <div className="space-y-1.5">
+                  <AttendanceRecordTable attendance={studentAttendance} />
+                </div>
+              )}
 
               {/* SUMMARY & REMARKS */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
@@ -530,6 +544,8 @@ export default function ResultChecker() {
               </div>
 
             </div>
+              );
+            })()}
           </div>
         )}
 

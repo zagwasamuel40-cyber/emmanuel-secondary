@@ -17,8 +17,10 @@ import {
   ArrowUpDown, BookOpen, GraduationCap, Award, Lock, Unlock, Printer,
   Layers, RefreshCw, AlertTriangle, ShieldCheck, FileText, BarChart3,
   ListOrdered, Calculator, UserCheck, Table, FileCheck, Video,
-  Paperclip, ExternalLink, FileUp, CheckCircle2, Clock
+  Paperclip, ExternalLink, FileUp, CheckCircle2, Clock, ShieldAlert, Sliders
 } from "lucide-react";
+import { ExamSecurityLogsModal } from "../components/exam/ExamSecurityLogsModal";
+import { AssessmentWeightingConfigModal } from "../components/AssessmentWeightingConfigModal";
 
 
 
@@ -112,10 +114,12 @@ export default function Examinations() {
   // Specific Modal Trigger States
   const [students, setStudents] = useStudents();
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [isSecurityLogsOpen, setIsSecurityLogsOpen] = useState(false);
 
   const { assignments, setAssignments, submissions, setSubmissions } = useAssignments();
   
   const [isGiveAssModalOpen, setIsGiveAssModalOpen] = useState(false);
+  const [isWeightingConfigOpen, setIsWeightingConfigOpen] = useState(false);
   const [newAssignment, setNewAssignment] = useState({
     title: "",
     description: "",
@@ -649,6 +653,24 @@ export default function Examinations() {
               {isPublished ? <Unlock size={15} /> : <Lock size={15} />}
               {isPublished ? "Result Released" : "Release Result"}
             </Button>
+
+            <Button 
+              variant="outline" 
+              className="gap-1.5 text-xs bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100 font-bold"
+              onClick={() => setIsWeightingConfigOpen(true)}
+            >
+              <Sliders size={15} className="text-amber-700" />
+              Assessment Weighting
+            </Button>
+
+            <Button 
+              variant="outline" 
+              className="gap-1.5 text-xs bg-rose-50 border-rose-200 text-rose-800 hover:bg-rose-100 font-bold"
+              onClick={() => setIsSecurityLogsOpen(true)}
+            >
+              <ShieldAlert size={15} className="text-rose-600" />
+              Exam Security Logs
+            </Button>
           </div>
         )}
       </div>
@@ -995,6 +1017,14 @@ export default function Examinations() {
                     <AlertTriangle size={14} className="text-rose-400 shrink-0" />
                     <span className="truncate">Delete Single Annual</span>
                   </Button>
+                  <Button
+                    variant="outline"
+                    className="bg-slate-800 border-slate-700 text-slate-100 hover:bg-rose-950 hover:text-white justify-start gap-2 h-9 text-[11px]"
+                    onClick={() => setIsSecurityLogsOpen(true)}
+                  >
+                    <ShieldAlert size={14} className="text-rose-400 shrink-0" />
+                    <span className="truncate">Exam Security Logs</span>
+                  </Button>
                 </div>
               </div>
             </>
@@ -1003,6 +1033,21 @@ export default function Examinations() {
 
         </CardContent>
       </Card>
+
+      {/* CBT EXAMINATION SECURITY AUDIT MODAL */}
+      <ExamSecurityLogsModal
+        isOpen={isSecurityLogsOpen}
+        onClose={() => setIsSecurityLogsOpen(false)}
+      />
+
+      {/* ASSESSMENT WEIGHTING CONFIGURATION MODAL */}
+      <AssessmentWeightingConfigModal
+        isOpen={isWeightingConfigOpen}
+        onClose={() => setIsWeightingConfigOpen(false)}
+        classes={CLASSES}
+        subjects={SUBJECTS}
+        sessions={sessions}
+      />
 
 
       {/* MODAL: LIVE CLASSES */}

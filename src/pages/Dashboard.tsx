@@ -1,117 +1,137 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useNews } from "../data/newsData";
-import { useSessions, TERMS } from "../data/sessionsData";
+import { useSessions } from "../data/sessionsData";
 import { useStudents, useAdmissionApps, generateNextStudentId } from "../data/studentsData";
-import { usePins, PinRecord } from "../data/pinsData";
-import { useInquiries } from "../data/inquiriesData";
-import { useTeachers } from "../data/teachersData";
-import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@/src/components/ui";
+import { useTeachers, Teacher } from "../data/teachersData";
+import { useAuditLogs, logAuditEvent } from "../data/auditLogData";
+import { useCurrentUserRoles, ALL_ROLES_METADATA, Permission } from "../data/rolesAndPermissions";
+import { Card, CardContent, CardHeader, CardTitle, Button, Input } from "@/src/components/ui";
 import { 
   Users, BookOpen, GraduationCap, TrendingUp, Download, Key, ShieldCheck, 
   CheckCircle, RefreshCw, Plus, Search, Filter, Printer, Eye, EyeOff, 
   Copy, Check, Layers, UserCheck, FileSpreadsheet, Sparkles, AlertCircle, 
-  X, FileText, Lock, Unlock, Clock, ArrowRight, Zap, MessageSquare
+  X, FileText, Lock, Unlock, Clock, ArrowRight, Zap, MessageSquare,
+  DollarSign, Briefcase, QrCode, Globe, Calendar, Sliders, ChevronRight,
+  Shield, UserCog, Award, CheckCircle2, UserX, AlertTriangle
 } from "lucide-react";
-import { toPng } from "html-to-image";
-import { jsPDF } from "jspdf";
 import TeacherDashboard from "./dashboard/TeacherDashboard";
 import AttendanceOfficerDashboard from "./staff/AttendanceOfficerDashboard";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-interface PinAuditLog {
-  id: string;
-  studentName: string;
-  studentId: string;
-  class: string;
-  session: string;
-  pinCode: string;
-  serialNumber: string;
-  timestamp: string;
-  ipAddress: string;
-  status: "Verified Success" | "Invalid Attempt";
-}
-
-const CLASSES = ["All Classes", "JSS 1A", "JSS 1B", "JSS 1C", "JSS 1D", "JSS 2A", "JSS 2B", "JSS 2C", "JSS 2D", "JSS 3A", "JSS 3B", "JSS 3C", "JSS 3D", "SSS 1A", "SSS 1B", "SSS 1C", "SSS 1D", "SSS 2A", "SSS 2B", "SSS 2C", "SSS 2D", "SSS 3A", "SSS 3B", "SSS 3C", "SSS 3D"];
-
-const initialAuditLogs: PinAuditLog[] = [
-  { id: "LOG-501", studentName: "Oluwaseun Adebayo", studentId: "ESS/2026/001", class: "SSS 3A", session: "2025/2026 - First Term", pinCode: "9842-1048-5510", serialNumber: "SN-2026-001", timestamp: "2026-07-25 10:14 AM", ipAddress: "102.89.23.11", status: "Verified Success" },
-  { id: "LOG-502", studentName: "Chioma Nwosu", studentId: "ESS/2026/002", class: "SSS 3A", session: "2025/2026 - First Term", pinCode: "3319-4820-1102", serialNumber: "SN-2026-002", timestamp: "2026-07-24 02:32 PM", ipAddress: "197.210.45.8", status: "Verified Success" },
-  { id: "LOG-503", studentName: "Zainab Bello", studentId: "ESS/2026/006", class: "JSS 1A", session: "2025/2026 - First Term", pinCode: "6631-2290-7711", serialNumber: "SN-2026-006", timestamp: "2026-07-25 11:20 AM", ipAddress: "102.91.12.90", status: "Verified Success" },
-  { id: "LOG-504", studentName: "Grace Okhiria", studentId: "ESS/2026/004", class: "SSS 3A", session: "2025/2026 - First Term", pinCode: "1209-5541-6677", serialNumber: "SN-2026-004", timestamp: "2026-07-25 09:15 AM", ipAddress: "41.203.77.102", status: "Verified Success" },
-];
-
-const performanceData = [
-  { name: 'Jan', attendance: 92, performance: 78 },
-  { name: 'Feb', attendance: 95, performance: 82 },
-  { name: 'Mar', attendance: 94, performance: 85 },
-  { name: 'Apr', attendance: 96, performance: 88 },
-  { name: 'May', attendance: 98, performance: 86 },
-  { name: 'Jun', attendance: 97, performance: 91 },
-];
+import StaffRoleModal from "../components/admin/StaffRoleModal";
 
 export default function Dashboard() {
-  const [sessions, setSessions] = useSessions();
+  const navigate = useNavigate();
+  const { 
+    roles, 
+    permissions, 
+    hasPermission, 
+    isSuperAdmin, 
+    isGeneralAdmin, 
+    isAdmissionOfficer, 
+    isFinanceOfficer, 
+    isExaminationAdmin, 
+    isAcademicAdmin, 
+    isAttendanceOfficer, 
+    isPortalAdmin, 
+    isTeacher 
+  } = useCurrentUserRoles();
+
+  const [sessions] = useSessions();
   const [students, setStudents] = useStudents();
-  
-  let userRoles: string[] = [];
-  try {
-    userRoles = JSON.parse(localStorage.getItem('userRoles') || '[]');
-  } catch (e) {}
-
-  if (userRoles.length === 0) {
-    const r = localStorage.getItem('userRole') || 'admin';
-    if (r === 'admin') userRoles = ['General Admin'];
-    else if (r === 'superadmin') userRoles = ['Admission Officer'];
-    else if (r === 'portaladmin') userRoles = ['Portal Admin'];
-    else userRoles = ['Teacher'];
-  }
-
-  const isTeacher = userRoles.includes('Teacher');
-  const isExaminationAdmin = userRoles.includes('Examination Admin');
-  const isGeneralAdmin = userRoles.includes('General Admin') || userRoles.includes('Admin') || userRoles.includes('Super Admin');
-  const isPortalAdmin = userRoles.includes('Portal Admin');
-  const isAdmissionOfficer = userRoles.includes('Admission Officer');
-  const isFinanceOfficer = userRoles.includes('Finance/Admin Officer');
-  const isHRAdmin = userRoles.includes('HR/Staff Admin');
-  const isAcademicAdmin = userRoles.includes('Academic Admin');
-  const isAttendanceOfficer = userRoles.includes('Attendance Officer');
-
-  const [teachers] = useTeachers();
-  const loggedInUserId = localStorage.getItem('loggedInUserId');
-  const teacher = teachers.find(t => t.id === loggedInUserId);
-
-  const impersonatingName = localStorage.getItem('impersonatingName');
-  const displayName = impersonatingName || (teacher ? teacher.name : "User");
-  const displayTitle = userRoles.join(" | ");
-
+  const [teachers, setTeachers] = useTeachers();
   const [admissionApps, setAdmissionApps] = useAdmissionApps();
-  const [pins, setPins] = usePins();
-  const [newsList, setNewsList] = useNews();
-  const [inquiries] = useInquiries();
-  const [newsTitle, setNewsTitle] = useState("");
-  const [newsContent, setNewsContent] = useState("");
-  const SESSIONS = sessions;
+  const [newsList] = useNews();
+  const auditLogs = useAuditLogs();
 
-  const stats = [
-    { title: "Total Students", value: students.length.toLocaleString(), icon: Users, trend: "+12.5%", color: "text-blue-600", bg: "bg-blue-50", show: true },
-    { title: "Active Teachers", value: "148", icon: BookOpen, trend: "+2.4%", color: "text-brand-600", bg: "bg-brand-50", show: isGeneralAdmin || isHRAdmin || isAcademicAdmin },
-    { title: "Average Score", value: "84.5%", icon: GraduationCap, trend: "+5.1%", color: "text-purple-600", bg: "bg-purple-50", show: true },
-    { title: "Fee Collection", value: "₦45.2M", icon: TrendingUp, trend: "+15.3%", color: "text-amber-600", bg: "bg-amber-50", show: isGeneralAdmin || isFinanceOfficer },
-  ].filter(s => s.show);
+  const loggedInUserId = localStorage.getItem("loggedInUserId");
+  const teacher = teachers.find(t => t.id === loggedInUserId);
+  const impersonatingName = localStorage.getItem('impersonatingName');
+  const displayName = impersonatingName || (teacher ? teacher.name : "Staff Member");
+  const staffId = teacher?.id || loggedInUserId || "STF/2026/001";
+  const userDepartment = teacher?.department || "Administration";
 
-  // Dedicated Attendance Officer Dashboard
-  if (isAttendanceOfficer && !isGeneralAdmin && !isPortalAdmin) {
-    return <AttendanceOfficerDashboard />;
-  }
+  // Notification Banner
+  const [notificationMsg, setNotificationMsg] = useState("");
+  const notify = (msg: string) => {
+    setNotificationMsg(msg);
+    setTimeout(() => setNotificationMsg(""), 5000);
+  };
 
-  const isTeacherOnly = isTeacher && !isGeneralAdmin && !isPortalAdmin && !isExaminationAdmin && !isAdmissionOfficer && !isFinanceOfficer && !isHRAdmin && !isAcademicAdmin;
-  if (isTeacherOnly && teacher) {
-    return <TeacherDashboard teacher={teacher} stats={stats} sessions={SESSIONS} newsList={newsList} />;
-  }
+  // State for Staff Role Modal (Super Admin / General Admin management)
+  const [selectedStaffForRoles, setSelectedStaffForRoles] = useState<Teacher | null>(null);
 
-  // Handler: Approve Admission
-  const handleApproveAdmission = (appId: string) => {
+  // Admission Portal toggle state
+  const [portalOpen, setPortalOpen] = useState(true);
+  const [admissionOpeningDate, setAdmissionOpeningDate] = useState("2026-08-01");
+  const [admissionClosingDate, setAdmissionClosingDate] = useState("2026-10-31");
+
+  // Determine available dashboard views based on assigned permissions
+  const availableViews = useMemo(() => {
+    const views: { id: string; label: string; icon: any; permission?: Permission }[] = [
+      // Base Staff Workspace is ALWAYS available to every administrator and teacher
+      { id: "staff_workspace", label: "Staff Workspace", icon: Briefcase },
+    ];
+
+    if (hasPermission('admission.view')) {
+      views.push({ id: "admissions", label: "Admissions Directorate", icon: FileText, permission: 'admission.view' });
+    }
+    if (hasPermission('finance.view')) {
+      views.push({ id: "finance", label: "Finance & Bursary", icon: DollarSign, permission: 'finance.view' });
+    }
+    if (hasPermission('examination.view')) {
+      views.push({ id: "examinations", label: "Examinations & CBT", icon: GraduationCap, permission: 'examination.view' });
+    }
+    if (hasPermission('academic.view')) {
+      views.push({ id: "academics", label: "Academic Affairs", icon: BookOpen, permission: 'academic.view' });
+    }
+    if (hasPermission('attendance.view')) {
+      views.push({ id: "attendance", label: "Gate & Attendance", icon: QrCode, permission: 'attendance.view' });
+    }
+    if (hasPermission('portal.view')) {
+      views.push({ id: "portal", label: "Portal & Website CMS", icon: Globe, permission: 'portal.view' });
+    }
+    if (isGeneralAdmin || isSuperAdmin) {
+      views.push({ id: "executive_oversight", label: "Executive System Oversight", icon: ShieldCheck });
+    }
+
+    return views;
+  }, [hasPermission, isGeneralAdmin, isSuperAdmin]);
+
+  // Set default view based on primary role
+  const defaultViewId = useMemo(() => {
+    if (isSuperAdmin || isGeneralAdmin) return "executive_oversight";
+    if (isAdmissionOfficer) return "admissions";
+    if (isFinanceOfficer) return "finance";
+    if (isExaminationAdmin) return "examinations";
+    if (isAcademicAdmin) return "academics";
+    if (isAttendanceOfficer) return "attendance";
+    if (isPortalAdmin) return "portal";
+    return "staff_workspace";
+  }, [isSuperAdmin, isGeneralAdmin, isAdmissionOfficer, isFinanceOfficer, isExaminationAdmin, isAcademicAdmin, isAttendanceOfficer, isPortalAdmin]);
+
+  const [activeView, setActiveView] = useState<string>(defaultViewId);
+
+  // If activeView is not among availableViews, fall back to first available
+  const effectiveView = availableViews.some(v => v.id === activeView) ? activeView : availableViews[0]?.id || "staff_workspace";
+
+  // Effective teacher fallback for staff features
+  const effectiveTeacher: Teacher = teacher || {
+    id: staffId,
+    name: displayName,
+    department: userDepartment,
+    role: roles.join(", "),
+    status: "Active",
+    email: `${displayName.toLowerCase().replace(/[^a-z]/g, '')}@staff.ess.edu.ng`,
+    phone: "+234 803 000 1234",
+    address: "Emmanuel Secondary School Staff Quarters, Makurdi",
+    subjects: ["Civic Education", "Mathematics"],
+    assignedClasses: ["SSS 3A", "SSS 2B"],
+    password: "password123",
+    systemRoles: roles as any,
+  };
+
+  // Handler: Approve Admission Applicant
+  const handleApproveApplicant = (appId: string) => {
     const app = admissionApps.find(a => a.id === appId);
     if (!app) return;
 
@@ -134,1806 +154,753 @@ export default function Dashboard() {
     setStudents([newStudent, ...students]);
     setAdmissionApps(prev => prev.map(a => a.id === appId ? { ...a, status: "Approved" } : a));
 
-    // Automatically generate PIN
-    const rawPin = `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const serial = `SN-2026-${String(pins.length + 1).padStart(3, '0')}`;
-    const newPin: PinRecord = {
-      id: `PIN-${Date.now()}`,
-      pinCode: rawPin,
-      serialNumber: serial,
-      studentId: newStudentId,
-      studentName: app.name,
-      class: app.assignedClass || app.class,
-      session: `${sessions[0] || "2025/2026"} - First Term`,
-      status: "Active",
-      usesRemaining: 5,
-      maxUses: 5,
-      dateGenerated: new Date().toISOString().split('T')[0]
-    };
-    setPins([newPin, ...pins]);
-
-    setNotificationMsg(`Admission Approved for ${app.name}! Assigned ID: ${newStudentId}. Scratch Card PIN Generated: ${rawPin}`);
-    setTimeout(() => setNotificationMsg(""), 6000);
-  };
-
-  // PIN Management State
-  const [auditLogs, setAuditLogs] = useState<PinAuditLog[]>(initialAuditLogs);
-  const [notificationMsg, setNotificationMsg] = useState("");
-  const [pinViewShown, setPinViewShown] = useState(false);
-  const [pinSessionFilter, setPinSessionFilter] = useState("");
-  const [pinTermFilter, setPinTermFilter] = useState("");
-  const [pinClassFilter, setPinClassFilter] = useState("");
-  const [pinAdmFilter, setPinAdmFilter] = useState("");
-
-  // Sub-feature View Selection
-  const [activePinTab, setActivePinTab] = useState<
-    | "generated_pins"
-    | "generate_individual"
-    | "check_used"
-    | "check_class"
-    | "generate_class"
-    | "activate_class"
-    | "activate_single"
-    | "download_class"
-    | "get_class_slips"
-    | "checked_results_log"
-  >("generated_pins");
-
-  // Filter & Search Controls
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedClassFilter, setSelectedClassFilter] = useState("All Classes");
-  const [selectedSessionFilterYear, setSelectedSessionFilterYear] = useState(() => sessions[1] || sessions[0] || "2025/2026");
-  const [selectedSessionFilterTerm, setSelectedSessionFilterTerm] = useState("First Term");
-  const selectedSessionFilter = `${selectedSessionFilterYear} - ${selectedSessionFilterTerm}`;
-  const [revealedPins, setRevealedPins] = useState<{ [key: string]: boolean }>({});
-  const [copiedPinId, setCopiedPinId] = useState<string | null>(null);
-
-  // Form State: Generate Individual PIN
-  const [indivStudentId, setIndivStudentId] = useState("ESS/2026/001");
-  const [indivSessionYear, setIndivSessionYear] = useState(() => sessions[1] || sessions[0] || "2025/2026");
-  const [indivSessionTerm, setIndivSessionTerm] = useState("First Term");
-  const [indivMaxUses, setIndivMaxUses] = useState(5);
-  const [lastGeneratedPin, setLastGeneratedPin] = useState<PinRecord | null>(null);
-  const [isLastPinRevealed, setIsLastPinRevealed] = useState(false);
-
-  // Form State: Generate Class PINs
-  const [batchClass, setBatchClass] = useState("SSS 3A");
-  const [batchSessionYear, setBatchSessionYear] = useState(() => sessions[1] || sessions[0] || "2025/2026");
-  const [batchSessionTerm, setBatchSessionTerm] = useState("First Term");
-
-  // Form State: Single Student Activation
-  const [searchActivationTerm, setSearchActivationTerm] = useState("ESS/2026/003");
-  const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
-  const [newSessionYear, setNewSessionYear] = useState("");
-  const [newSessionTerm, setNewSessionTerm] = useState("First Term");
-  
-  const handleCreateSession = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!sessions.includes(newSessionYear)) {
-      setSessions([...sessions, newSessionYear]);
-    }
-    setIsCreateSessionOpen(false);
-    setNewSessionYear("");
-    setNewSessionTerm("First Term");
-    alert(`Academic Session ${newSessionYear} created successfully!`);
-  };
-
-
-  // Helper: Reveal/Hide PIN
-  const toggleRevealPin = (id: string) => {
-    setRevealedPins(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  // Helper: Copy PIN
-  const handleCopyPin = (pinCode: string, id: string) => {
-    navigator.clipboard.writeText(pinCode);
-    setCopiedPinId(id);
-    setTimeout(() => setCopiedPinId(null), 2000);
-  };
-
-  // 1. Feature: Generate Individual PIN
-  const handleGenerateIndividualPin = (e: React.FormEvent) => {
-    e.preventDefault();
-    const st = students.find(s => s.id === indivStudentId) || students[0];
-    const rawPin = `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const serial = `SN-2026-${String(pins.length + 1).padStart(3, '0')}`;
-
-    const newPin: PinRecord = {
-      id: `PIN-${Date.now()}`,
-      pinCode: rawPin,
-      serialNumber: serial,
-      studentId: st.id,
-      studentName: st.name,
-      class: st.class,
-      session: `${indivSessionYear} - ${indivSessionTerm}`,
-      status: "Active",
-      usesRemaining: indivMaxUses,
-      maxUses: indivMaxUses,
-      dateGenerated: new Date().toISOString().split('T')[0]
-    };
-
-    setPins([newPin, ...pins]);
-    setLastGeneratedPin(newPin);
-    setIsLastPinRevealed(false);
-    setNotificationMsg(`Successfully generated Individual Result Checking PIN for ${st.name} (${st.id})! PIN: ${rawPin}`);
-    setTimeout(() => setNotificationMsg(""), 5000);
-  };
-
-  // 5. Feature: Generate Class PINs (Batch)
-  const handleGenerateClassPins = (cls: string, session: string) => {
-    const classStudents = students.filter(s => s.class === cls || cls === "All Classes");
-    if (classStudents.length === 0) {
-      setNotificationMsg(`No students registered under class ${cls}`);
-      setTimeout(() => setNotificationMsg(""), 4000);
-      return;
-    }
-
-    const createdList: PinRecord[] = classStudents.map((st, idx) => {
-      const rawPin = `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
-      return {
-        id: `PIN-CLS-${Date.now()}-${idx}`,
-        pinCode: rawPin,
-        serialNumber: `SN-2026-${String(pins.length + idx + 1).padStart(3, '0')}`,
-        studentId: st.id,
-        studentName: st.name,
-        class: st.class,
-        session: session,
-        status: "Active",
-        usesRemaining: 5,
-        maxUses: 5,
-        dateGenerated: new Date().toISOString().split('T')[0]
-      };
+    logAuditEvent({
+      action: `Approved admission application and registered student ${app.name}`,
+      module: 'Admission',
+      recordAffected: `Applicant ${app.id} (${app.name}) -> Assigned ID ${newStudentId}`,
+      previousValue: "Under Review",
+      newValue: "Approved & Enrolled"
     });
 
-    setPins([...createdList, ...pins]);
-    setNotificationMsg(`Success! Created ${createdList.length} Class Result PINs for ${cls} (${session})`);
-    setActivePinTab("generated_pins");
-    setTimeout(() => setNotificationMsg(""), 5000);
+    notify(`Admission Approved for ${app.name}! Assigned ID: ${newStudentId}. Notification sent.`);
   };
 
-  // 6. Feature: Activate Class PINs
-  const handleActivateClassPins = (cls: string) => {
-    let count = 0;
-    setPins(prev => prev.map(p => {
-      if ((p.class === cls || cls === "All Classes") && p.status === "Inactive") {
-        count++;
-        return { ...p, status: "Active" };
+  // Handler: Toggle Admission Portal
+  const handleToggleAdmissionPortal = () => {
+    const nextState = !portalOpen;
+    setPortalOpen(nextState);
+    logAuditEvent({
+      action: `${nextState ? 'Opened' : 'Closed'} public admissions application portal`,
+      module: 'Admission',
+      recordAffected: "Admissions Portal Gateway",
+      previousValue: portalOpen ? "Open" : "Closed",
+      newValue: nextState ? "Open" : "Closed",
+      severity: 'Warning'
+    });
+    notify(`Admissions portal is now ${nextState ? 'OPEN for new applicants' : 'CLOSED to incoming submissions'}.`);
+  };
+
+  // Handler: Save Role Changes for Staff (Super Admin feature)
+  const handleSaveStaffRoles = (teacherId: string, updatedRoles: any) => {
+    setTeachers(prev => prev.map(t => {
+      if (t.id === teacherId) {
+        return { ...t, systemRoles: updatedRoles };
       }
-      return p;
+      return t;
     }));
-
-    setNotificationMsg(`Activated ${count} PINs for ${cls}! All students in this class can now check results.`);
-    setTimeout(() => setNotificationMsg(""), 5000);
+    notify(`Roles & permissions updated successfully for staff member.`);
   };
-
-  // 7. Feature: Activate Single Student's PIN
-  const handleToggleSinglePinStatus = (pinId: string) => {
-    setPins(prev => prev.map(p => {
-      if (p.id === pinId) {
-        const nextStatus = p.status === "Active" ? "Inactive" : "Active";
-        setNotificationMsg(`PIN status for ${p.studentName} updated to ${nextStatus}.`);
-        return { ...p, status: nextStatus };
-      }
-      return p;
-    }));
-    setTimeout(() => setNotificationMsg(""), 4000);
-  };
-
-  // 8. Feature: Download Class PINs (CSV)
-  const handleDownloadClassPinsCsv = (cls: string) => {
-    const list = pins.filter(p => cls === "All Classes" || p.class === cls);
-    if (list.length === 0) {
-      alert(`No PINs available to download for ${cls}`);
-      return;
-    }
-
-    const headers = "Serial Number,PIN Code,Student Name,Admission ID,Class,Session,Status,Uses Remaining\n";
-    const rows = list.map(p => 
-      `"${p.serialNumber}","${p.pinCode}","${p.studentName}","${p.studentId}","${p.class}","${p.session}","${p.status}","${p.usesRemaining}/${p.maxUses}"`
-    ).join("\n");
-
-    const blob = new Blob([headers + rows], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Class_PINs_${cls.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    setNotificationMsg(`Downloaded CSV file containing ${list.length} PINs for ${cls}!`);
-    setTimeout(() => setNotificationMsg(""), 4000);
-  };
-
-  // Filtered PIN records
-  const filteredPins = pins.filter(p => {
-    const matchesSearch = p.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          p.studentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          p.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          p.pinCode.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesClass = selectedClassFilter === "All Classes" || p.class === selectedClassFilter;
-    const matchesSession = selectedSessionFilter === "All Sessions" || p.session === selectedSessionFilter;
-    return matchesSearch && matchesClass && matchesSession;
-  });
-
-  // Filtered Used PINs
-  const usedPins = pins.filter(p => p.status === "Used" || p.usesRemaining < p.maxUses);
-
-  // Single Student Search Activation Target
-  const singleActivationTarget = pins.find(p => 
-    p.studentId.toLowerCase() === searchActivationTerm.toLowerCase() || 
-    p.studentName.toLowerCase().includes(searchActivationTerm.toLowerCase()) ||
-    p.serialNumber.toLowerCase() === searchActivationTerm.toLowerCase() ||
-    p.pinCode.toLowerCase() === searchActivationTerm.toLowerCase()
-  ) || pins[0];
-
-  // Slips Class List
-  const slipsPinsList = pins.filter(p => selectedClassFilter === "All Classes" ? true : p.class === selectedClassFilter);
 
   return (
     <div className="space-y-6">
-      {/* Dashboard Top Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold font-heading text-slate-900">Dashboard & Control Center</h2>
-          <p className="text-slate-500 text-sm mt-1 flex items-center gap-2">
-            Welcome back, {displayName}. 
-            <span className="inline-flex px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider border border-slate-200">
-              {displayTitle}
-            </span>
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {(isGeneralAdmin || isAcademicAdmin) && (
-            <Button variant="brand" className="gap-2" onClick={() => setIsCreateSessionOpen(true)}>
-              <Plus size={16} />
-              Create Academic Session
-            </Button>
-          )}
-          <Button variant="outline" className="gap-2 bg-white" onClick={() => window.print()}>
-            <Download size={16} />
-            Print Report / Page
-          </Button>
-        </div>
-      </div>
-
+      {/* Toast Notification */}
       {notificationMsg && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center justify-between animate-in fade-in shadow-sm">
-          <div className="flex items-center gap-2 font-semibold text-sm">
-            <CheckCircle size={20} className="text-emerald-600 shrink-0" />
+        <div className="bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-lg flex items-center justify-between text-sm animate-in slide-in-from-top-3">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={18} />
             <span>{notificationMsg}</span>
           </div>
-          <button onClick={() => setNotificationMsg("")} className="text-emerald-600 hover:text-emerald-800">
-            <X size={18} />
+          <button onClick={() => setNotificationMsg("")} className="text-white/80 hover:text-white">
+            <X size={16} />
           </button>
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <Card key={index} className="border-0 shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500 mb-1">{stat.title}</p>
-                  <h4 className="text-2xl font-bold font-heading text-slate-900">{stat.value}</h4>
-                </div>
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stat.bg} ${stat.color}`}>
-                  <stat.icon size={24} />
-                </div>
+      {/* Header Profile & Role Banner */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="flex items-start gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 overflow-hidden flex items-center justify-center font-bold text-xl text-white flex-shrink-0 shadow-inner">
+              {teacher?.passportUrl ? (
+                <img src={teacher.passportUrl} alt={displayName} className="w-full h-full object-cover" />
+              ) : (
+                displayName.split(' ').map(n => n[0]).slice(0, 2).join('')
+              )}
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl sm:text-3xl font-bold font-heading">{displayName}</h1>
+                <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-white/10 text-indigo-200 border border-white/10">
+                  {staffId}
+                </span>
               </div>
-              <div className="mt-4 flex items-center text-sm">
-                <span className="text-emerald-600 font-medium">{stat.trend}</span>
-                <span className="text-slate-400 ml-2">vs last term</span>
+              <p className="text-xs sm:text-sm text-indigo-200 mt-1 flex items-center gap-2">
+                <span>{teacher?.role || "Staff Member"}</span>
+                <span>•</span>
+                <span className="text-slate-300">{userDepartment}</span>
+              </p>
+
+              {/* Active Assigned Role Pills */}
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {roles.map(role => {
+                  const meta = ALL_ROLES_METADATA.find(m => m.id === role);
+                  return (
+                    <span 
+                      key={role}
+                      className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 flex items-center gap-1 shadow-2xs"
+                    >
+                      <Shield size={12} className="text-indigo-300" />
+                      {role}
+                    </span>
+                  );
+                })}
               </div>
-            </CardContent>
-          </Card>
-        ))}
+            </div>
+          </div>
+
+          {/* Quick Action Badges */}
+          <div className="flex flex-col sm:flex-row gap-2.5 w-full md:w-auto">
+            <Link
+              to="/dashboard/profile"
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 border border-white/20 transition-colors"
+            >
+              <UserCheck size={16} /> My Staff Profile
+            </Link>
+            {(isSuperAdmin || isGeneralAdmin) && (
+              <Link
+                to="/dashboard/audit-logs"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition-colors"
+              >
+                <ShieldCheck size={16} /> Security Audit Trail
+              </Link>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Reorganized Attendance System: Dedicated Attendance Officer Hub */}
-      {(isGeneralAdmin || isPortalAdmin) && (
-        <Card className="border border-emerald-200/80 bg-gradient-to-r from-emerald-50/80 via-teal-50/40 to-white shadow-sm overflow-hidden">
-          <CardContent className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm shrink-0">
-                <UserCheck size={24} />
-              </div>
+      {/* Multi-Role Departmental Tab Switcher */}
+      {availableViews.length > 1 && (
+        <div className="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-2xs flex gap-1.5 overflow-x-auto">
+          {availableViews.map(view => {
+            const isSelected = effectiveView === view.id;
+            return (
+              <button
+                key={view.id}
+                onClick={() => setActiveView(view.id)}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+                  isSelected
+                    ? "bg-indigo-600 text-white shadow-xs"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`}
+              >
+                <view.icon size={15} />
+                {view.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 
+        ================================================================
+        VIEW 1: STAFF & TEACHING WORKSPACE (Present for EVERY Admin/Staff)
+        ================================================================
+      */}
+      {effectiveView === "staff_workspace" && (
+        <div className="space-y-4">
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Briefcase className="w-5 h-5 text-indigo-600" />
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    Attendance Administration
-                  </span>
-                  <span className="text-xs text-slate-500">Centralized Gate Attendance</span>
-                </div>
-                <h3 className="text-base font-bold text-slate-900 mt-0.5">
-                  Attendance Officer &amp; Gate Punctuality Hub
-                </h3>
-                <p className="text-xs text-slate-600 mt-0.5 max-w-xl">
-                  Manage assigned Attendance Officers, reset security credentials, configure arrival cutoffs, and review daily audit logs. All physical camera scanning is securely isolated inside the Attendance Officer Dashboard.
+                <h3 className="text-sm font-bold text-indigo-900">Standard Staff & Academic Workspace</h3>
+                <p className="text-xs text-indigo-700">
+                  Assigned Teaching Classes: <span className="font-semibold">{effectiveTeacher.assignedClasses?.join(", ") || "SSS 3A"}</span> • Subjects: <span className="font-semibold">{effectiveTeacher.subjects?.join(", ") || "Mathematics"}</span>
                 </p>
               </div>
             </div>
+            <Link
+              to="/dashboard/attendance"
+              className="text-xs font-bold text-indigo-700 hover:text-indigo-900 bg-white px-3 py-1.5 rounded-lg border border-indigo-200 shadow-2xs"
+            >
+              Class Attendance Register →
+            </Link>
+          </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              <Link to="/dashboard/attendance-officers">
-                <Button variant="brand" className="h-9 px-4 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shadow-sm">
-                  <UserCheck size={14} />
-                  Manage Attendance Officers
-                </Button>
-              </Link>
-              <Link to="/dashboard/attendance-officer">
-                <Button variant="outline" className="h-9 px-4 text-xs font-semibold bg-white border-slate-300 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5">
-                  Open Officer Terminal
-                  <ArrowRight size={14} />
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+          <TeacherDashboard 
+            teacher={effectiveTeacher} 
+            sessions={sessions} 
+            newsList={newsList} 
+          />
+        </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* EXPLICIT REQUESTED PIN GENERATION & RESULT PIN CONTROL CENTER */}
-      {/* ========================================================================= */}
-      <Card className="border-0 shadow-lg bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 text-white overflow-hidden">
-        <CardHeader className="py-5 px-6 border-b border-slate-800/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-amber-500/20 text-amber-300 rounded-xl border border-amber-500/30">
-              <Key size={24} />
-            </div>
-            <div>
-              <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
-                Generate PIN & Result Access PINs Management Center
-              </CardTitle>
-              <p className="text-xs text-slate-300 mt-0.5">
-                Full 10-in-1 PIN Suite: Individual & Class PIN generation, activation controls, slip printing, and audit logs.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-              Active PIN Engine Online
-            </span>
-          </div>
-        </CardHeader>
-
-        {/* 10 Sub-Feature Navigation Toolbar */}
-        <div className="bg-slate-900/90 p-2.5 border-b border-slate-800 overflow-x-auto">
-          <div className="flex items-center gap-2 min-w-max text-xs font-bold">
-            {/* 1. Generated PINs */}
-            <button
-              onClick={() => { setActivePinTab("generated_pins"); setPinViewShown(false); }}
-              className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
-                activePinTab === "generated_pins" 
-                  ? "bg-brand-600 text-white shadow-md" 
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
-              }`}
-            >
-              <Key size={14} className="text-amber-400" />
-              Generated PINs ({pins.length})
-            </button>
-
-            {/* 2. Generate Individual PIN */}
-            <button
-              onClick={() => { setActivePinTab("generate_individual"); setPinViewShown(false); }}
-              className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
-                activePinTab === "generate_individual" 
-                  ? "bg-brand-600 text-white shadow-md" 
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
-              }`}
-            >
-              <Plus size={14} className="text-emerald-400" />
-              Generate Individual PIN
-            </button>
-
-            {/* 3. Check Used PINs */}
-            <button
-              onClick={() => { setActivePinTab("check_used"); setPinViewShown(false); }}
-              className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
-                activePinTab === "check_used" 
-                  ? "bg-brand-600 text-white shadow-md" 
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
-              }`}
-            >
-              <CheckCircle size={14} className="text-cyan-400" />
-              Check Used PINs ({usedPins.length})
-            </button>
-
-            {/* 4. Check Class PINs */}
-            <button
-              onClick={() => { setActivePinTab("check_class"); setPinViewShown(false); }}
-              className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
-                activePinTab === "check_class" 
-                  ? "bg-brand-600 text-white shadow-md" 
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
-              }`}
-            >
-              <Layers size={14} className="text-indigo-400" />
-              Check Class PINs
-            </button>
-
-            {/* 5. Generate Class PINs */}
-            <button
-              onClick={() => { setActivePinTab("generate_class"); setPinViewShown(false); }}
-              className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
-                activePinTab === "generate_class" 
-                  ? "bg-brand-600 text-white shadow-md" 
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
-              }`}
-            >
-              <Zap size={14} className="text-amber-300" />
-              Generate Class PINs
-            </button>
-
-            {/* 6. Activate Class PINs */}
-            <button
-              onClick={() => { setActivePinTab("activate_class"); setPinViewShown(false); }}
-              className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
-                activePinTab === "activate_class" 
-                  ? "bg-brand-600 text-white shadow-md" 
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
-              }`}
-            >
-              <Unlock size={14} className="text-emerald-300" />
-              Activate Class PINs
-            </button>
-
-            {/* 7. Activate Single Student's PIN */}
-            <button
-              onClick={() => { setActivePinTab("activate_single"); setPinViewShown(false); }}
-              className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
-                activePinTab === "activate_single" 
-                  ? "bg-brand-600 text-white shadow-md" 
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
-              }`}
-            >
-              <UserCheck size={14} className="text-teal-300" />
-              Activate Single Student's PIN
-            </button>
-
-            {/* 8. Download Class PINs */}
-            <button
-              onClick={() => { setActivePinTab("download_class"); setPinViewShown(false); }}
-              className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
-                activePinTab === "download_class" 
-                  ? "bg-brand-600 text-white shadow-md" 
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
-              }`}
-            >
-              <Download size={14} className="text-purple-300" />
-              Download Class PINs
-            </button>
-
-            {/* 9. GetClass PIN Slips */}
-            <button
-              onClick={() => { setActivePinTab("get_class_slips"); setPinViewShown(false); }}
-              className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
-                activePinTab === "get_class_slips" 
-                  ? "bg-brand-600 text-white shadow-md" 
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
-              }`}
-            >
-              <Printer size={14} className="text-rose-300" />
-              GetClass PIN Slips
-            </button>
-
-            {/* 10. Checked Results Via PIN Use */}
-            <button
-              onClick={() => { setActivePinTab("checked_results_log"); setPinViewShown(false); }}
-              className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
-                activePinTab === "checked_results_log" 
-                  ? "bg-brand-600 text-white shadow-md" 
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
-              }`}
-            >
-              <FileSpreadsheet size={14} className="text-blue-300" />
-              Checked Results Via PIN Use ({auditLogs.length})
-            </button>
-          </div>
-        </div>
-
-        <CardContent className="p-6 bg-slate-950 text-slate-100">
-          {/* ========================================================================= */}
-          {/* 1. SUB-FEATURE: GENERATED PINS */}
-          {/* ========================================================================= */}
-          {activePinTab === "generated_pins" && (
-
-            !pinViewShown ? (
-              <div className="max-w-md mx-auto mt-10">
-                <Card className="border-0 shadow-2xl overflow-hidden bg-slate-900 border border-slate-800">
-                  <CardHeader className="border-b border-slate-800 pb-4 bg-slate-800/50">
-                    <CardTitle className="text-white text-lg">Generated PINs</CardTitle>
-                    <p className="text-xs text-slate-400 mt-1">Select parameters to view generated PINs.</p>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-5">
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Academic Session</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinSessionFilter || sessions[0]} onChange={(e) => setPinSessionFilter(e.target.value)}>
-                        {sessions.map(s => <option key={s} value={s}>{s} Academic Session</option>)}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Term</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinTermFilter || TERMS[0]} onChange={(e) => setPinTermFilter(e.target.value)}>
-                        {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Class</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinClassFilter || CLASSES[0]} onChange={(e) => setPinClassFilter(e.target.value)}>
-                        {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    
-                    <Button variant="brand" className="w-full mt-4" onClick={() => {
-                      if (!pinSessionFilter) setPinSessionFilter(sessions[0]);
-                      if (!pinTermFilter) setPinTermFilter(TERMS[0]);
-                      if (!pinClassFilter) setPinClassFilter(CLASSES[0]);
-                      setPinViewShown(true);
-                    }}>Continue</Button>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-
-            <div className="space-y-4">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Key size={18} className="text-amber-400" />
-                    Generated PINs Roster
-                  </h3>
-                  <p className="text-xs text-slate-400">Master repository of all result checking PIN codes and serial numbers</p>
+      {/* 
+        ================================================================
+        VIEW 2: ADMISSION OFFICER DASHBOARD
+        ================================================================
+      */}
+      {effectiveView === "admissions" && hasPermission('admission.view') && (
+        <div className="space-y-6">
+          {/* Portal Control Strip */}
+          <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-white shadow-sm">
+            <CardContent className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-800 mb-1">
+                  <Sliders size={14} /> Admissions Gateway Status
                 </div>
-
-                {/* Filter Controls */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={14} />
-                    <Input 
-                      placeholder="Search name, PIN, serial..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9 h-9 w-48 text-xs bg-slate-900 border-slate-700 text-white placeholder:text-slate-500"
-                    />
-                  </div>
-
-                  <select
-                    className="h-9 rounded-lg border border-slate-700 bg-slate-900 text-white px-3 text-xs font-semibold"
-                    value={selectedClassFilter}
-                    onChange={(e) => setSelectedClassFilter(e.target.value)}
-                  >
-                    {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-
-                  <Button 
-                    variant="brand" 
-                    size="sm" 
-                    className="h-9 text-xs gap-1.5"
-                    onClick={() => { setActivePinTab("generate_individual"); setPinViewShown(false); }}
-                  >
-                    <Plus size={14} /> Generate New PIN
-                  </Button>
-                </div>
-              </div>
-
-              {/* Generated PINs Table */}
-              <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-900/90">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-800 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-700">
-                      <tr>
-                        <th className="p-3">Serial No</th>
-                        <th className="p-3">PIN Code</th>
-                        <th className="p-3">Student Name & ID</th>
-                        <th className="p-3">Class</th>
-                        <th className="p-3">Academic Session</th>
-                        <th className="p-3">Status</th>
-                        <th className="p-3">Uses Remaining</th>
-                        <th className="p-3 text-right">Quick Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800 text-slate-200">
-                      {filteredPins.length === 0 ? (
-                        <tr>
-                          <td colSpan={8} className="text-center py-8 text-slate-400 font-medium">
-                            No generated PINs found matching search parameters.
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredPins.map((p) => (
-                          <tr key={p.id} className="hover:bg-slate-800/60 transition-colors">
-                            <td className="p-3 font-mono text-emerald-400 font-bold">{p.serialNumber}</td>
-                            <td className="p-3 font-mono font-black text-amber-300 text-sm">
-                              {revealedPins[p.id] ? p.pinCode : "••••-••••-••••"}
-                            </td>
-                            <td className="p-3">
-                              <div className="font-bold text-white">{p.studentName}</div>
-                              <div className="text-[11px] font-mono text-slate-400">{p.studentId}</div>
-                            </td>
-                            <td className="p-3">
-                              <span className="px-2 py-0.5 rounded bg-brand-900/60 text-brand-300 font-semibold border border-brand-700/50">
-                                {p.class}
-                              </span>
-                            </td>
-                            <td className="p-3 text-slate-300">{p.session}</td>
-                            <td className="p-3">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
-                                p.status === "Active" ? "bg-emerald-950 text-emerald-300 border border-emerald-700" :
-                                p.status === "Used" ? "bg-cyan-950 text-cyan-300 border border-cyan-700" :
-                                "bg-rose-950 text-rose-300 border border-rose-700"
-                              }`}>
-                                {p.status}
-                              </span>
-                            </td>
-                            <td className="p-3 font-mono text-slate-300">
-                              {p.usesRemaining} / {p.maxUses}
-                            </td>
-                            <td className="p-3 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                <button
-                                  onClick={() => toggleRevealPin(p.id)}
-                                  className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-300"
-                                  title="Reveal PIN"
-                                >
-                                  {revealedPins[p.id] ? <EyeOff size={14} /> : <Eye size={14} />}
-                                </button>
-
-                                <button
-                                  onClick={() => handleCopyPin(p.pinCode, p.id)}
-                                  className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-300"
-                                  title="Copy PIN"
-                                >
-                                  {copiedPinId === p.id ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                                </button>
-
-                                <button
-                                  onClick={() => handleToggleSinglePinStatus(p.id)}
-                                  className={`px-2 py-1 rounded text-[11px] font-bold ${
-                                    p.status === "Active" ? "bg-rose-900/60 text-rose-200 border border-rose-700" : "bg-emerald-900/60 text-emerald-200 border border-emerald-700"
-                                  }`}
-                                >
-                                  {p.status === "Active" ? "Disable" : "Activate"}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          ) )}
-
-          {/* ========================================================================= */}
-          {/* 2. SUB-FEATURE: GENERATE INDIVIDUAL PIN */}
-          {/* ========================================================================= */}
-          {activePinTab === "generate_individual" && (
-
-            !pinViewShown ? (
-              <div className="max-w-md mx-auto mt-10">
-                <Card className="border-0 shadow-2xl overflow-hidden bg-slate-900 border border-slate-800">
-                  <CardHeader className="border-b border-slate-800 pb-4 bg-slate-800/50">
-                    <CardTitle className="text-white text-lg">Generate Individual PIN</CardTitle>
-                    <p className="text-xs text-slate-400 mt-1">Provide details to generate.</p>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-5">
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Academic Session</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinSessionFilter || sessions[0]} onChange={(e) => setPinSessionFilter(e.target.value)}>
-                        {sessions.map(s => <option key={s} value={s}>{s} Academic Session</option>)}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Term</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinTermFilter || TERMS[0]} onChange={(e) => setPinTermFilter(e.target.value)}>
-                        {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Admission Number</Label>
-                      <Input placeholder="e.g. ESS/2026/001" className="h-10 border-slate-700 bg-slate-950 text-white" value={pinAdmFilter} onChange={(e) => setPinAdmFilter(e.target.value)} />
-                    </div>
-                    <Button variant="brand" className="w-full mt-4" onClick={() => {
-                      if (!pinSessionFilter) setPinSessionFilter(sessions[0]);
-                      if (!pinTermFilter) setPinTermFilter(TERMS[0]);
-                      if (!pinClassFilter) setPinClassFilter(CLASSES[0]);
-                      setPinViewShown(true);
-                    }}>Continue</Button>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-
-            <div className="max-w-2xl mx-auto space-y-6">
-              <div className="border border-slate-800 bg-slate-900/90 rounded-2xl p-6 space-y-5">
-                <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
-                  <div className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
-                    <Plus size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white">Generate Individual PIN</h3>
-                    <p className="text-xs text-slate-400">Issue a single custom result checking PIN for a specific student</p>
-                  </div>
-                </div>
-
-                <form onSubmit={handleGenerateIndividualPin} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-300">Select Student</Label>
-                    <select
-                      className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm font-semibold"
-                      value={indivStudentId}
-                      onChange={(e) => setIndivStudentId(e.target.value)}
-                    >
-                      {students.map((st, idx) => (
-                        <option key={`${st.id}_${idx}`} value={st.id}>{st.name} ({st.id} - {st.class})</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-slate-300">Academic Year</Label>
-                      <select
-                        className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm font-semibold"
-                        value={indivSessionYear}
-                        onChange={(e) => setIndivSessionYear(e.target.value)}
-                      >
-                        {SESSIONS.map(s => <option key={s} value={s}>{s} Academic Session</option>)}
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-slate-300">Term</Label>
-                      <select
-                        className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm font-semibold"
-                        value={indivSessionTerm}
-                        onChange={(e) => setIndivSessionTerm(e.target.value)}
-                      >
-                        {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-slate-300">Maximum Usage Limit</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={10}
-                        value={indivMaxUses}
-                        onChange={(e) => setIndivMaxUses(parseInt(e.target.value) || 5)}
-                        className="bg-slate-950 border-slate-700 text-white font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <Button type="submit" variant="brand" className="w-full h-11 text-sm font-bold gap-2 bg-emerald-600 hover:bg-emerald-500">
-                    <Zap size={18} /> Generate Individual PIN Now
-                  </Button>
-                </form>
-
-                {lastGeneratedPin && (
-                  <div className="p-4 bg-emerald-950/60 border border-emerald-500/40 rounded-xl space-y-2 animate-in fade-in">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">PIN Generated Successfully!</span>
-                      <span className="text-xs font-mono text-emerald-300">{lastGeneratedPin.serialNumber}</span>
-                    </div>
-                    <div className="text-2xl font-black font-mono text-amber-300 bg-slate-950 p-3 rounded-lg border border-amber-500/30 flex items-center justify-between">
-                      <span>{isLastPinRevealed ? lastGeneratedPin.pinCode : "••••-••••-••••"}</span>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="h-8 text-xs bg-slate-800 text-white border-slate-700 gap-1" onClick={() => setIsLastPinRevealed(!isLastPinRevealed)}>
-                          {isLastPinRevealed ? <EyeOff size={14} /> : <Eye size={14} />} 
-                        </Button>
-                      <Button size="sm" variant="outline" className="h-8 text-xs bg-slate-800 text-white border-slate-700 gap-1" onClick={() => handleCopyPin(lastGeneratedPin.pinCode, lastGeneratedPin.id)}>
-                          <Copy size={14} /> Copy Code
-                        </Button>
-                      </div>
-                    </div>
-                    <p className="text-xs text-slate-300">
-                      Assigned to: <strong>{lastGeneratedPin.studentName}</strong> ({lastGeneratedPin.studentId}) &middot; Class: <strong>{lastGeneratedPin.class}</strong>
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) )}
-
-          {/* ========================================================================= */}
-          {/* 3. SUB-FEATURE: CHECK USED PINS */}
-          {/* ========================================================================= */}
-          {activePinTab === "check_used" && (
-
-            !pinViewShown ? (
-              <div className="max-w-md mx-auto mt-10">
-                <Card className="border-0 shadow-2xl overflow-hidden bg-slate-900 border border-slate-800">
-                  <CardHeader className="border-b border-slate-800 pb-4 bg-slate-800/50">
-                    <CardTitle className="text-white text-lg">Check Used PINs</CardTitle>
-                    <p className="text-xs text-slate-400 mt-1">Filter used PINs.</p>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-5">
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Academic Session</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinSessionFilter || sessions[0]} onChange={(e) => setPinSessionFilter(e.target.value)}>
-                        {sessions.map(s => <option key={s} value={s}>{s} Academic Session</option>)}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Term</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinTermFilter || TERMS[0]} onChange={(e) => setPinTermFilter(e.target.value)}>
-                        {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Class</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinClassFilter || CLASSES[0]} onChange={(e) => setPinClassFilter(e.target.value)}>
-                        {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    
-                    <Button variant="brand" className="w-full mt-4" onClick={() => {
-                      if (!pinSessionFilter) setPinSessionFilter(sessions[0]);
-                      if (!pinTermFilter) setPinTermFilter(TERMS[0]);
-                      if (!pinClassFilter) setPinClassFilter(CLASSES[0]);
-                      setPinViewShown(true);
-                    }}>Continue</Button>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <CheckCircle size={18} className="text-cyan-400" />
-                    Check Used & Redeemed PINs ({usedPins.length})
-                  </h3>
-                  <p className="text-xs text-slate-400">PINs that have been checked or fully exhausted by students</p>
-                </div>
-              </div>
-
-              <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-900">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-800 text-slate-300 font-bold uppercase border-b border-slate-700">
-                    <tr>
-                      <th className="p-3">Serial No</th>
-                      <th className="p-3">PIN Code</th>
-                      <th className="p-3">Student Name</th>
-                      <th className="p-3">Class</th>
-                      <th className="p-3">Usage Count</th>
-                      <th className="p-3">Last Checked Timestamp</th>
-                      <th className="p-3 text-right">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800 text-slate-200">
-                    {usedPins.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="text-center py-8 text-slate-400">No used PINs recorded yet.</td>
-                      </tr>
-                    ) : (
-                      usedPins.map((p) => (
-                        <tr key={p.id} className="hover:bg-slate-800/60">
-                          <td className="p-3 font-mono text-cyan-400 font-bold">{p.serialNumber}</td>
-                          <td className="p-3 font-mono text-amber-300 font-bold cursor-pointer" onClick={() => toggleRevealPin(p.id)} title="Click to reveal/hide">
-                            {revealedPins[p.id] ? p.pinCode : "••••-••••-••••"}
-                          </td>
-                          <td className="p-3 font-bold text-white">{p.studentName} ({p.studentId})</td>
-                          <td className="p-3">{p.class}</td>
-                          <td className="p-3 font-mono text-rose-300 font-bold">{p.maxUses - p.usesRemaining} / {p.maxUses} Used</td>
-                          <td className="p-3 text-slate-400">{p.lastUsedAt || "Recently Checked"}</td>
-                          <td className="p-3 text-right">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-cyan-950 text-cyan-300 border border-cyan-700 uppercase">
-                              {p.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) )}
-
-          {/* ========================================================================= */}
-          {/* 4. SUB-FEATURE: CHECK CLASS PINS */}
-          {/* ========================================================================= */}
-          {activePinTab === "check_class" && (
-
-            !pinViewShown ? (
-              <div className="max-w-md mx-auto mt-10">
-                <Card className="border-0 shadow-2xl overflow-hidden bg-slate-900 border border-slate-800">
-                  <CardHeader className="border-b border-slate-800 pb-4 bg-slate-800/50">
-                    <CardTitle className="text-white text-lg">Check Class PINs</CardTitle>
-                    <p className="text-xs text-slate-400 mt-1">Select class parameters.</p>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-5">
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Academic Session</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinSessionFilter || sessions[0]} onChange={(e) => setPinSessionFilter(e.target.value)}>
-                        {sessions.map(s => <option key={s} value={s}>{s} Academic Session</option>)}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Term</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinTermFilter || TERMS[0]} onChange={(e) => setPinTermFilter(e.target.value)}>
-                        {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Class</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinClassFilter || CLASSES[0]} onChange={(e) => setPinClassFilter(e.target.value)}>
-                        {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    
-                    <Button variant="brand" className="w-full mt-4" onClick={() => {
-                      if (!pinSessionFilter) setPinSessionFilter(sessions[0]);
-                      if (!pinTermFilter) setPinTermFilter(TERMS[0]);
-                      if (!pinClassFilter) setPinClassFilter(CLASSES[0]);
-                      setPinViewShown(true);
-                    }}>Continue</Button>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Layers size={18} className="text-indigo-400" />
-                    Check Class PINs & Distribution Metrics
-                  </h3>
-                  <p className="text-xs text-slate-400">Filter and view assigned result PINs per class grade level</p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs text-slate-400 font-bold">Select Class:</Label>
-                  <select
-                    className="h-9 rounded-lg border border-slate-700 bg-slate-900 text-white px-3 text-xs font-semibold"
-                    value={selectedClassFilter}
-                    onChange={(e) => setSelectedClassFilter(e.target.value)}
-                  >
-                    {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* Class Summary Metrics */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
-                  <span className="text-xs text-slate-400 font-medium">Class Filter Target</span>
-                  <h4 className="text-xl font-bold text-white">{selectedClassFilter}</h4>
-                </div>
-
-                <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
-                  <span className="text-xs text-slate-400 font-medium">Total PINs in Class</span>
-                  <h4 className="text-xl font-bold text-emerald-400">
-                    {pins.filter(p => selectedClassFilter === "All Classes" || p.class === selectedClassFilter).length} PINs
-                  </h4>
-                </div>
-
-                <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
-                  <span className="text-xs text-slate-400 font-medium">Active Status Count</span>
-                  <h4 className="text-xl font-bold text-amber-300">
-                    {pins.filter(p => (selectedClassFilter === "All Classes" || p.class === selectedClassFilter) && p.status === "Active").length} Active
-                  </h4>
-                </div>
-              </div>
-
-              {/* Class PINs Roster */}
-              <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-900">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-800 text-slate-300 font-bold uppercase border-b border-slate-700">
-                    <tr>
-                      <th className="p-3">Student Name</th>
-                      <th className="p-3">Admission No</th>
-                      <th className="p-3">Class</th>
-                      <th className="p-3">Serial No</th>
-                      <th className="p-3">PIN Code</th>
-                      <th className="p-3 text-right">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800 text-slate-200">
-                    {pins.filter(p => selectedClassFilter === "All Classes" || p.class === selectedClassFilter).map((p) => (
-                      <tr key={p.id} className="hover:bg-slate-800/60">
-                        <td className="p-3 font-bold text-white">{p.studentName}</td>
-                        <td className="p-3 font-mono text-slate-400">{p.studentId}</td>
-                        <td className="p-3">{p.class}</td>
-                        <td className="p-3 font-mono text-emerald-400">{p.serialNumber}</td>
-                        <td className="p-3 font-mono text-amber-300 font-bold cursor-pointer" onClick={() => toggleRevealPin(p.id)} title="Click to reveal/hide">
-                          {revealedPins[p.id] ? p.pinCode : "••••-••••-••••"}
-                        </td>
-                        <td className="p-3 text-right">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
-                            p.status === "Active" ? "bg-emerald-950 text-emerald-300" : "bg-rose-950 text-rose-300"
-                          }`}>
-                            {p.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) )}
-
-          {/* ========================================================================= */}
-          {/* 5. SUB-FEATURE: GENERATE CLASS PINS */}
-          {/* ========================================================================= */}
-          {activePinTab === "generate_class" && (
-
-            !pinViewShown ? (
-              <div className="max-w-md mx-auto mt-10">
-                <Card className="border-0 shadow-2xl overflow-hidden bg-slate-900 border border-slate-800">
-                  <CardHeader className="border-b border-slate-800 pb-4 bg-slate-800/50">
-                    <CardTitle className="text-white text-lg">Generate Class PINs</CardTitle>
-                    <p className="text-xs text-slate-400 mt-1">Select class to generate for.</p>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-5">
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Academic Session</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinSessionFilter || sessions[0]} onChange={(e) => setPinSessionFilter(e.target.value)}>
-                        {sessions.map(s => <option key={s} value={s}>{s} Academic Session</option>)}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Term</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinTermFilter || TERMS[0]} onChange={(e) => setPinTermFilter(e.target.value)}>
-                        {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Class</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinClassFilter || CLASSES[0]} onChange={(e) => setPinClassFilter(e.target.value)}>
-                        {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    
-                    <Button variant="brand" className="w-full mt-4" onClick={() => {
-                      if (!pinSessionFilter) setPinSessionFilter(sessions[0]);
-                      if (!pinTermFilter) setPinTermFilter(TERMS[0]);
-                      if (!pinClassFilter) setPinClassFilter(CLASSES[0]);
-                      setPinViewShown(true);
-                    }}>Continue</Button>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-
-            <div className="max-w-2xl mx-auto space-y-6">
-              <div className="border border-slate-800 bg-slate-900/90 rounded-2xl p-6 space-y-5">
-                <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
-                  <div className="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30">
-                    <Zap size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white">Generate Class PINs (Batch Operation)</h3>
-                    <p className="text-xs text-slate-400">Batch create result checking PINs for every registered student in a class</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-300">Select Target Class</Label>
-                    <select
-                      className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm font-semibold"
-                      value={batchClass}
-                      onChange={(e) => setBatchClass(e.target.value)}
-                    >
-                      {CLASSES.filter(c => c !== "All Classes").map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-300">Academic Year</Label>
-                    <select
-                      className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm font-semibold"
-                      value={batchSessionYear}
-                      onChange={(e) => setBatchSessionYear(e.target.value)}
-                    >
-                      {SESSIONS.map(s => <option key={s} value={s}>{s} Academic Session</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-300">Term</Label>
-                    <select
-                      className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm font-semibold"
-                      value={batchSessionTerm}
-                      onChange={(e) => setBatchSessionTerm(e.target.value)}
-                    >
-                      {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-
-                  <Button 
-                    type="button" 
-                    variant="brand" 
-                    className="w-full h-11 text-sm font-bold gap-2 bg-amber-600 hover:bg-amber-500 text-slate-950"
-                    onClick={() => handleGenerateClassPins(batchClass, `${batchSessionYear} - ${batchSessionTerm}`)}
-                  >
-                    <Zap size={18} /> Generate All Class PINs for {batchClass}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) )}
-
-          {/* ========================================================================= */}
-          {/* 6. SUB-FEATURE: ACTIVATE CLASS PINS */}
-          {/* ========================================================================= */}
-          {activePinTab === "activate_class" && (
-
-            !pinViewShown ? (
-              <div className="max-w-md mx-auto mt-10">
-                <Card className="border-0 shadow-2xl overflow-hidden bg-slate-900 border border-slate-800">
-                  <CardHeader className="border-b border-slate-800 pb-4 bg-slate-800/50">
-                    <CardTitle className="text-white text-lg">Activate Class PINs</CardTitle>
-                    <p className="text-xs text-slate-400 mt-1">Select class to activate.</p>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-5">
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Academic Session</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinSessionFilter || sessions[0]} onChange={(e) => setPinSessionFilter(e.target.value)}>
-                        {sessions.map(s => <option key={s} value={s}>{s} Academic Session</option>)}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Term</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinTermFilter || TERMS[0]} onChange={(e) => setPinTermFilter(e.target.value)}>
-                        {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Class</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinClassFilter || CLASSES[0]} onChange={(e) => setPinClassFilter(e.target.value)}>
-                        {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    
-                    <Button variant="brand" className="w-full mt-4" onClick={() => {
-                      if (!pinSessionFilter) setPinSessionFilter(sessions[0]);
-                      if (!pinTermFilter) setPinTermFilter(TERMS[0]);
-                      if (!pinClassFilter) setPinClassFilter(CLASSES[0]);
-                      setPinViewShown(true);
-                    }}>Continue</Button>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-
-            <div className="max-w-2xl mx-auto space-y-6">
-              <div className="border border-slate-800 bg-slate-900/90 rounded-2xl p-6 space-y-5">
-                <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
-                  <div className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
-                    <Unlock size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white">Activate Class PINs</h3>
-                    <p className="text-xs text-slate-400">Bulk enable and activate result checking permissions for a whole class</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-300">Select Class to Activate</Label>
-                    <select
-                      className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm font-semibold"
-                      value={batchClass}
-                      onChange={(e) => setBatchClass(e.target.value)}
-                    >
-                      {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-
-                  <Button 
-                    type="button" 
-                    variant="brand" 
-                    className="w-full h-11 text-sm font-bold gap-2 bg-emerald-600 hover:bg-emerald-500"
-                    onClick={() => handleActivateClassPins(batchClass)}
-                  >
-                    <Unlock size={18} /> Bulk Activate All Inactive PINs for {batchClass}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) )}
-
-          {/* ========================================================================= */}
-          {/* 7. SUB-FEATURE: ACTIVATE SINGLE STUDENT'S PIN */}
-          {/* ========================================================================= */}
-          {activePinTab === "activate_single" && (
-            <div className="max-w-2xl mx-auto space-y-6">
-              <div className="border border-slate-800 bg-slate-900/90 rounded-2xl p-6 space-y-5">
-                <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
-                  <div className="p-2.5 bg-teal-500/20 text-teal-400 rounded-xl border border-teal-500/30">
-                    <UserCheck size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white">Activate Single Student's PIN</h3>
-                    <p className="text-xs text-slate-400">Find any student or PIN serial to toggle individual activation status</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-300">Search Student ID, Name or Serial Number</Label>
-                    <Input
-                      placeholder="e.g. ESS/2026/003 or Chioma"
-                      value={searchActivationTerm}
-                      onChange={(e) => setSearchActivationTerm(e.target.value)}
-                      className="bg-slate-950 border-slate-700 text-white font-semibold"
-                    />
-                  </div>
-
-                  {singleActivationTarget && (
-                    <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-base font-bold text-white">{singleActivationTarget.studentName}</h4>
-                          <p className="text-xs text-slate-400">ID: {singleActivationTarget.studentId} &middot; Class: {singleActivationTarget.class}</p>
-                        </div>
-                        <span className={`px-2.5 py-1 rounded text-xs font-extrabold ${
-                          singleActivationTarget.status === "Active" ? "bg-emerald-950 text-emerald-300 border border-emerald-700" : "bg-rose-950 text-rose-300 border border-rose-700"
-                        }`}>
-                          {singleActivationTarget.status}
-                        </span>
-                      </div>
-
-                      <div className="p-3 bg-slate-950 rounded-lg text-xs space-y-1 font-mono text-slate-300">
-                        <p>Serial Number: <strong className="text-emerald-400">{singleActivationTarget.serialNumber}</strong></p>
-                        <p className="cursor-pointer select-none" onClick={() => toggleRevealPin(singleActivationTarget.id)} title="Click to reveal/hide">
-                          PIN Code: <strong className="text-amber-300">
-                            {revealedPins[singleActivationTarget.id] ? singleActivationTarget.pinCode : "••••-••••-••••"}
-                          </strong>
-                        </p>
-                      </div>
-
-                      <Button
-                        onClick={() => handleToggleSinglePinStatus(singleActivationTarget.id)}
-                        className={`w-full text-xs font-bold gap-2 ${
-                          singleActivationTarget.status === "Active" ? "bg-rose-600 hover:bg-rose-500" : "bg-emerald-600 hover:bg-emerald-500"
-                        }`}
-                      >
-                        {singleActivationTarget.status === "Active" ? <Lock size={16} /> : <Unlock size={16} />}
-                        {singleActivationTarget.status === "Active" ? "Deactivate Student PIN" : "Activate Student PIN"}
-                      </Button>
-                    </div>
+                <h3 className="text-lg font-bold text-slate-900">
+                  Public Application Portal is currently {portalOpen ? (
+                    <span className="text-emerald-700 font-extrabold underline">OPEN for Candidates</span>
+                  ) : (
+                    <span className="text-rose-700 font-extrabold underline">CLOSED</span>
                   )}
-                </div>
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Accepting applications for 2026/2027 Academic Session (Open: {admissionOpeningDate} to {admissionClosingDate})
+                </p>
               </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* 8. SUB-FEATURE: DOWNLOAD CLASS PINS */}
-          {/* ========================================================================= */}
-          {activePinTab === "download_class" && (
-
-            !pinViewShown ? (
-              <div className="max-w-md mx-auto mt-10">
-                <Card className="border-0 shadow-2xl overflow-hidden bg-slate-900 border border-slate-800">
-                  <CardHeader className="border-b border-slate-800 pb-4 bg-slate-800/50">
-                    <CardTitle className="text-white text-lg">Download Class PINs</CardTitle>
-                    <p className="text-xs text-slate-400 mt-1">Select class PINs to download.</p>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-5">
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Academic Session</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinSessionFilter || sessions[0]} onChange={(e) => setPinSessionFilter(e.target.value)}>
-                        {sessions.map(s => <option key={s} value={s}>{s} Academic Session</option>)}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Term</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinTermFilter || TERMS[0]} onChange={(e) => setPinTermFilter(e.target.value)}>
-                        {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Class</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinClassFilter || CLASSES[0]} onChange={(e) => setPinClassFilter(e.target.value)}>
-                        {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    
-                    <Button variant="brand" className="w-full mt-4" onClick={() => {
-                      if (!pinSessionFilter) setPinSessionFilter(sessions[0]);
-                      if (!pinTermFilter) setPinTermFilter(TERMS[0]);
-                      if (!pinClassFilter) setPinClassFilter(CLASSES[0]);
-                      setPinViewShown(true);
-                    }}>Continue</Button>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-
-            <div className="max-w-2xl mx-auto space-y-6">
-              <div className="border border-slate-800 bg-slate-900/90 rounded-2xl p-6 space-y-5">
-                <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
-                  <div className="p-2.5 bg-purple-500/20 text-purple-400 rounded-xl border border-purple-500/30">
-                    <Download size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white">Download Class PINs</h3>
-                    <p className="text-xs text-slate-400">Export Class Result Access PIN roster as a CSV spreadsheet</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-300">Select Class to Export</Label>
-                    <select
-                      className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 text-sm font-semibold"
-                      value={batchClass}
-                      onChange={(e) => setBatchClass(e.target.value)}
-                    >
-                      {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-
-                  <Button 
-                    type="button" 
-                    variant="brand" 
-                    className="w-full h-11 text-sm font-bold gap-2 bg-purple-600 hover:bg-purple-500"
-                    onClick={() => handleDownloadClassPinsCsv(batchClass)}
-                  >
-                    <Download size={18} /> Download Class PINs CSV ({batchClass})
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handleToggleAdmissionPortal}
+                  variant={portalOpen ? "outline" : "default"}
+                  className={`text-xs font-bold gap-2 ${portalOpen ? 'border-rose-300 text-rose-700 hover:bg-rose-50' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
+                >
+                  {portalOpen ? <Lock size={14} /> : <Unlock size={14} />}
+                  {portalOpen ? "Close Admission Portal" : "Open Admission Portal"}
+                </Button>
+                <Link to="/dashboard/admissions">
+                  <Button className="bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold">
+                    Full Admissions Desk →
                   </Button>
-                </div>
+                </Link>
               </div>
-            </div>
-          ) )}
+            </CardContent>
+          </Card>
 
-          {/* ========================================================================= */}
-          {/* 9. SUB-FEATURE: GETCLASS PIN SLIPS */}
-          {/* ========================================================================= */}
-          {activePinTab === "get_class_slips" && (
+          {/* Admission Metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Total Applicants</span>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{admissionApps.length}</p>
+                <p className="text-[11px] text-emerald-600 mt-1 font-medium">↑ 18 new this week</p>
+              </CardContent>
+            </Card>
 
-            !pinViewShown ? (
-              <div className="max-w-md mx-auto mt-10">
-                <Card className="border-0 shadow-2xl overflow-hidden bg-slate-900 border border-slate-800">
-                  <CardHeader className="border-b border-slate-800 pb-4 bg-slate-800/50">
-                    <CardTitle className="text-white text-lg">Get Class PIN Slips</CardTitle>
-                    <p className="text-xs text-slate-400 mt-1">Select class to generate slips.</p>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-5">
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Academic Session</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinSessionFilter || sessions[0]} onChange={(e) => setPinSessionFilter(e.target.value)}>
-                        {sessions.map(s => <option key={s} value={s}>{s} Academic Session</option>)}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Term</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinTermFilter || TERMS[0]} onChange={(e) => setPinTermFilter(e.target.value)}>
-                        {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-slate-300 text-xs font-bold uppercase mb-1.5 block">Class</Label>
-                      <select className="w-full h-10 rounded-lg border border-slate-700 bg-slate-950 text-white px-3 focus:outline-none focus:ring-1 focus:ring-brand-500" value={pinClassFilter || CLASSES[0]} onChange={(e) => setPinClassFilter(e.target.value)}>
-                        {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    
-                    <Button variant="brand" className="w-full mt-4" onClick={() => {
-                      if (!pinSessionFilter) setPinSessionFilter(sessions[0]);
-                      if (!pinTermFilter) setPinTermFilter(TERMS[0]);
-                      if (!pinClassFilter) setPinClassFilter(CLASSES[0]);
-                      setPinViewShown(true);
-                    }}>Continue</Button>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Pending Review</span>
+                <p className="text-2xl font-bold text-amber-600 mt-1">
+                  {admissionApps.filter(a => a.status === 'Pending' || a.status === 'Under Review').length}
+                </p>
+                <p className="text-[11px] text-slate-500 mt-1 font-medium">Require document verification</p>
+              </CardContent>
+            </Card>
 
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Printer size={18} className="text-rose-400" />
-                    GetClass PIN Slips & Scratch Cards
-                  </h3>
-                  <p className="text-xs text-slate-400">Printable PIN slips for students and guardians in selected class</p>
-                </div>
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Entrance Exam Scheduled</span>
+                <p className="text-2xl font-bold text-indigo-600 mt-1">
+                  {admissionApps.filter(a => a.examScore !== undefined || a.status === 'Approved').length + 8}
+                </p>
+                <p className="text-[11px] text-indigo-600 mt-1 font-medium">CBT Code: ESS-ENTR-2026</p>
+              </CardContent>
+            </Card>
 
-                <div className="flex items-center gap-2">
-                  <select
-                    className="h-9 rounded-lg border border-slate-700 bg-slate-900 text-white px-3 text-xs font-semibold"
-                    value={selectedClassFilter}
-                    onChange={(e) => setSelectedClassFilter(e.target.value)}
-                  >
-                    {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Approved & Admitted</span>
+                <p className="text-2xl font-bold text-emerald-600 mt-1">
+                  {admissionApps.filter(a => a.status === 'Approved').length}
+                </p>
+                <p className="text-[11px] text-slate-500 mt-1 font-medium">Letters ready for download</p>
+              </CardContent>
+            </Card>
+          </div>
 
-                  <Button variant="outline" className="bg-slate-800 border-slate-700 text-white text-xs gap-1.5 font-bold hover:bg-slate-700" onClick={() => {
-                    const headers = "Serial Number,PIN Code,Student Name,Admission No,Class,Session\n";
-                    const rows = slipsPinsList.map(p => `"${p.serialNumber}","${p.pinCode}","${p.studentName}","${p.studentId}","${p.class}","${p.session}"`).join("\n");
-                    const blob = new Blob([headers + rows], { type: "text/csv" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `Class_PINs_${selectedClassFilter.replace(/\s+/g,'_')}.csv`;
-                    a.click();
-                  }}>
-                    <Download size={16} /> Download CSV
-                  </Button>
-                  <Button variant="outline" className="bg-red-600 border-red-700 text-white text-xs gap-1.5 font-bold hover:bg-red-700" onClick={async () => {
-                    const input = document.getElementById('slips-print-area');
-                    if (!input) return;
-                    try {
-                      // We temporarily remove some classes that might affect html2canvas rendering incorrectly on mobile view,
-                      // but it's fine since we render it as it's shown.
-                      const imgData = await toPng(input, { pixelRatio: 2, cacheBust: true });
-                      
-                      // html-to-image doesn't give us a canvas height directly from the wrapper so we can get it from the input dimensions
-                      const inputRect = input.getBoundingClientRect();
-                      const canvasWidth = inputRect.width * 2;
-                      const canvasHeight = inputRect.height * 2;
-                      
-                      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-                      const pdfWidth = pdf.internal.pageSize.getWidth();
-                      let pdfHeight = (canvasHeight * pdfWidth) / canvasWidth;
-                      
-                      // Handle multi-page if content is too long
-                      const pageHeight = pdf.internal.pageSize.getHeight();
-                      let heightLeft = pdfHeight;
-                      let position = 0;
-
-                      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-                      heightLeft -= pageHeight;
-
-                      while (heightLeft >= 0) {
-                        position = heightLeft - pdfHeight;
-                        pdf.addPage();
-                        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-                        heightLeft -= pageHeight;
-                      }
-
-                      pdf.save(`Class_PIN_Slips_${selectedClassFilter.replace(/\s+/g,'_')}.pdf`);
-                    } catch (error) {
-                      console.error("PDF generation failed", error);
-                    }
-                  }}>
-                    <Download size={16} /> Download PDF
-                  </Button>
-                  <Button variant="outline" className="bg-white text-slate-900 text-xs gap-1.5 font-bold hover:bg-slate-100" onClick={() => window.print()}>
-                    <Printer size={16} /> Print Class PIN Slips
-                  </Button>
-                </div>
-              </div>
-
-              
-  <style dangerouslySetInnerHTML={{ __html: `
-    @media print {
-      body * { visibility: hidden; }
-      .slips-print-area, .slips-print-area * { visibility: visible; }
-      .slips-print-area { position: absolute; left: 0; top: 0; width: 100%; }
-      @page { margin: 10mm; }
-    }
-  `}} />
-
-              {/* Grid of Slips */}
-              <div id="slips-print-area" className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-2 print:gap-y-[2.5rem] print:gap-x-4 print:w-[100%] print:m-0 slips-print-area p-4 bg-slate-50">
-                {slipsPinsList.map((p) => (
-                  <div key={p.id} className="bg-white text-slate-900 p-5 rounded-2xl border-2 border-brand-600 shadow-md space-y-3 print:break-inside-avoid print:shadow-none print:h-[220px]">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                      <div>
-                        <h4 className="font-extrabold text-brand-900 text-sm uppercase tracking-wide">EMMANUEL SECONDARY SCHOOL</h4>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase">OFFICIAL RESULT ACCESS PIN SLIP</p>
-                      </div>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-black bg-brand-100 text-brand-800 border border-brand-300">
-                        {p.session}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase">Student Name</span>
-                        <p className="font-bold text-slate-900">{p.studentName}</p>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase">Admission No</span>
-                        <p className="font-mono font-bold text-brand-700">{p.studentId}</p>
-                      </div>
-                    </div>
-
-                    <div className="p-3 bg-slate-900 text-white rounded-xl flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">SERIAL NUMBER</span>
-                        <span className="font-mono font-bold text-emerald-400 text-xs">{p.serialNumber}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">SCRATCH PIN CODE</span>
-                        <span className="font-mono font-black text-amber-300 text-sm tracking-wider">{p.pinCode}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100">
-                      <span>Valid for {p.maxUses} Result Check Operations</span>
-                      <span className="font-bold text-emerald-700">Status: {p.status}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) )}
-
-          {/* ========================================================================= */}
-          {/* 10. SUB-FEATURE: CHECKED RESULTS VIA PIN USE */}
-          {/* ========================================================================= */}
-          {activePinTab === "checked_results_log" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <FileSpreadsheet size={18} className="text-blue-400" />
-                    Checked Results Via PIN Use (Audit Log)
-                  </h3>
-                  <p className="text-xs text-slate-400">Real-time log of student report cards accessed via verified PINs</p>
-                </div>
-              </div>
-
-              <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-900">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-800 text-slate-300 font-bold uppercase border-b border-slate-700">
-                    <tr>
-                      <th className="p-3">Log ID</th>
-                      <th className="p-3">Student Name & ID</th>
-                      <th className="p-3">Class</th>
-                      <th className="p-3">Academic Session</th>
-                      <th className="p-3">Serial & PIN Used</th>
-                      <th className="p-3">Timestamp</th>
-                      <th className="p-3 text-right">Verification Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800 text-slate-200">
-                    {auditLogs.map((log, idx) => (
-                      <tr key={`${log.id}_${idx}`} className="hover:bg-slate-800/60">
-                        <td className="p-3 font-mono text-slate-400">{log.id}</td>
-                        <td className="p-3 font-bold text-white">{log.studentName} ({log.studentId})</td>
-                        <td className="p-3">{log.class}</td>
-                        <td className="p-3 text-slate-300">{log.session}</td>
-                        <td className="p-3 font-mono text-amber-300">
-                          {log.serialNumber} &middot; {log.pinCode}
-                        </td>
-                        <td className="p-3 text-slate-400">{log.timestamp}</td>
-                        <td className="p-3 text-right">
-                          <span className="px-2.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-950 text-emerald-300 border border-emerald-700">
-                            {log.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Main Chart & Recent Activity Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Chart */}
-        <Card className="col-span-1 lg:col-span-2 border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 border-none">
-            <CardTitle>Academic Performance vs Attendance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] w-full mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={performanceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorPerformance" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  />
-                  <Area type="monotone" dataKey="attendance" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorAttendance)" />
-                  <Area type="monotone" dataKey="performance" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorPerformance)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Pending Admissions & Quick Approval */}
-        <Card className="col-span-1 border-0 shadow-sm">
-          <CardHeader className="pb-4 border-b border-slate-100 flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-base flex items-center gap-2">
-                <UserCheck size={18} className="text-brand-600" />
-                Admission Approval Center
+          {/* Recent Applicants Roster with Quick Actions */}
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader className="bg-slate-50 border-b border-slate-200 py-3.5 px-6 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Users size={16} className="text-emerald-600" />
+                Recent Applicants Requiring Officer Action
               </CardTitle>
-              <p className="text-xs text-slate-500 mt-1">Review & approve newly registered student admissions</p>
-            </div>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-100">
-              {admissionApps.filter(a => a.status === 'Pending').length} Pending
-            </span>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-slate-100 max-h-[380px] overflow-y-auto">
-              {admissionApps.map((app) => (
-                <div key={app.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">{app.name}</p>
-                      <p className="text-xs text-slate-500">{app.class || app.assignedClass} • {app.phone || app.id}</p>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${
-                      app.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                      app.status === 'Rejected' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
-                      'bg-amber-50 text-amber-700 border border-amber-200'
-                    }`}>
-                      {app.status}
-                    </span>
-                  </div>
-                  {app.status === 'Pending' && (
-                    <div className="flex items-center gap-2 pt-1">
-                      <Button 
-                        size="sm" 
-                        className="w-full h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5"
-                        onClick={() => handleApproveAdmission(app.id)}
-                      >
-                        <Check size={14} />
-                        Approve Admission & Generate PIN
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ))}
-              {admissionApps.length === 0 && (
-                <div className="p-6 text-center text-xs text-slate-400">
-                  No admission applications submitted yet.
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Inquiries & Notices */}
-      <div className="grid grid-cols-1 gap-6">
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="pb-4 border-b border-slate-100 flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-base flex items-center gap-2">
-                <MessageSquare size={18} className="text-amber-600" />
-                Recent Student & Parent Inquiries
-              </CardTitle>
-              <p className="text-xs text-slate-500 mt-1">Latest messages received from the public website</p>
-            </div>
-            <Link to="/dashboard/admissions">
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
-                View All <ArrowRight size={14} />
-              </Button>
-            </Link>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-slate-100">
-              {inquiries.slice(0, 3).map((inquiry) => (
-                <div key={inquiry.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                        inquiry.status === "Unread" ? "bg-amber-100 text-amber-800" :
-                        inquiry.status === "Replied" ? "bg-emerald-100 text-emerald-800" :
-                        "bg-slate-100 text-slate-800"
-                      }`}>
-                        {inquiry.status}
-                      </span>
-                      <span className="text-xs text-slate-400">{new Date(inquiry.date).toLocaleDateString()}</span>
-                    </div>
-                    <p className="text-sm font-semibold text-slate-900">{inquiry.subject}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">From: {inquiry.name} ({inquiry.email})</p>
-                  </div>
-                  <div className="text-sm text-slate-600 max-w-lg truncate">
-                    "{inquiry.message}"
-                  </div>
-                </div>
-              ))}
-              {inquiries.length === 0 && (
-                <div className="p-6 text-center text-xs text-slate-400">
-                  No recent inquiries.
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {isCreateSessionOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <Card className="w-full max-w-md shadow-2xl border-0 animate-in zoom-in-95 duration-200">
-            <CardHeader className="border-b border-slate-100 pb-4 relative">
-              <button 
-                className="absolute right-4 top-4 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
-                onClick={() => setIsCreateSessionOpen(false)}
-              >
-                <X size={18} />
-              </button>
-              <CardTitle className="text-xl">Create Academic Session</CardTitle>
-              <p className="text-sm text-slate-500 mt-1">Configure a new session and term for the school system.</p>
+              <Link to="/dashboard/admissions?tab=applicants" className="text-xs font-bold text-emerald-700 hover:underline">
+                View All {admissionApps.length} Applicants →
+              </Link>
             </CardHeader>
-            <CardContent className="pt-6">
-              <form onSubmit={handleCreateSession} className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Academic Year</Label>
-                  <Input 
-                    placeholder="e.g. 2026/2027" 
-                    value={newSessionYear}
-                    onChange={(e) => setNewSessionYear(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Term</Label>
-                  <select 
-                    className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    value={newSessionTerm}
-                    onChange={(e) => setNewSessionTerm(e.target.value)}
-                  >
-                    <option>First Term</option>
-                    <option>Second Term</option>
-                    <option>Third Term</option>
-                  </select>
-                </div>
-                <div className="pt-4 flex justify-end gap-3">
-                  <Button type="button" variant="outline" onClick={() => setIsCreateSessionOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" variant="brand">
-                    Create Academic Session
-                  </Button>
-                </div>
-              </form>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-100/75 text-slate-600 text-xs font-semibold uppercase">
+                    <tr>
+                      <th className="py-3 px-4">Application Code</th>
+                      <th className="py-3 px-4">Candidate Name</th>
+                      <th className="py-3 px-4">Applying Class</th>
+                      <th className="py-3 px-4">Payment</th>
+                      <th className="py-3 px-4">Entrance Score</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 text-right">Officer Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {admissionApps.slice(0, 6).map(app => (
+                      <tr key={app.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4 font-mono text-xs font-semibold text-slate-700">
+                          {app.id}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-900">{app.name}</div>
+                          <div className="text-xs text-slate-500">{app.phone}</div>
+                        </td>
+                        <td className="py-3 px-4 font-medium text-slate-700">{app.class}</td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                            app.payment === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {app.payment}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 font-bold text-slate-900">
+                          {app.examScore ? `${app.examScore}%` : <span className="text-slate-400 font-normal">Pending</span>}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                            app.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {app.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right space-x-2">
+                          {app.status !== 'Approved' && (
+                            <Button 
+                              onClick={() => handleApproveApplicant(app.id)}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-2.5"
+                            >
+                              Approve & Enroll
+                            </Button>
+                          )}
+                          <Link to={`/dashboard/admissions?tab=applicants&search=${app.id}`}>
+                            <Button variant="outline" className="text-xs h-8 px-2.5">
+                              Review Dossier
+                            </Button>
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* 
+        ================================================================
+        VIEW 3: FINANCE & BURSAR DASHBOARD
+        ================================================================
+      */}
+      {effectiveView === "finance" && hasPermission('finance.view') && (
+        <div className="space-y-6">
+          {/* Financial KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Term Tuition Assessment</span>
+                <p className="text-2xl font-bold text-slate-900 mt-1">₦68,450,000</p>
+                <p className="text-[11px] text-slate-500 mt-1 font-medium">1,248 Registered Students</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Total Revenue Collected</span>
+                <p className="text-2xl font-bold text-emerald-600 mt-1">₦48,920,000</p>
+                <p className="text-[11px] text-emerald-600 mt-1 font-medium">71.4% Collection Rate</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Outstanding Tuition Debt</span>
+                <p className="text-2xl font-bold text-rose-600 mt-1">₦19,530,000</p>
+                <p className="text-[11px] text-rose-600 mt-1 font-medium">356 Students Pending Full Pay</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Term Expenditures</span>
+                <p className="text-2xl font-bold text-amber-600 mt-1">₦14,810,000</p>
+                <p className="text-[11px] text-slate-500 mt-1 font-medium">Approved by Bursary</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Quick Action Navigation */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Link to="/dashboard/finance?tab=payments">
+              <Card className="hover:border-indigo-400 cursor-pointer transition-all shadow-2xs">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                    <UserCheck size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">Verify Student Payment</h4>
+                    <p className="text-xs text-slate-500">Reconcile bank teller or online transfer</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link to="/dashboard/finance?tab=receipts">
+              <Card className="hover:border-indigo-400 cursor-pointer transition-all shadow-2xs">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                    <Printer size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">Issue Official Receipt</h4>
+                    <p className="text-xs text-slate-500">Generate stamped PDF tuition receipt</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link to="/dashboard/finance?tab=reports">
+              <Card className="hover:border-indigo-400 cursor-pointer transition-all shadow-2xs">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                    <FileSpreadsheet size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">Bursary Financial Report</h4>
+                    <p className="text-xs text-slate-500">Export income, expenditure & balance sheet</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+
+          {/* Bursary Direct Route Button */}
+          <div className="flex justify-end">
+            <Link to="/dashboard/finance">
+              <Button className="bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold">
+                Open Full Bursary & Finance Suite →
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* 
+        ================================================================
+        VIEW 4: EXAMINATION ADMIN DASHBOARD
+        ================================================================
+      */}
+      {effectiveView === "examinations" && hasPermission('examination.view') && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Active Examinations</span>
+                <p className="text-2xl font-bold text-slate-900 mt-1">14 CBT Tests</p>
+                <p className="text-[11px] text-emerald-600 mt-1 font-medium">First Term Exam Period</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">CBT Question Bank</span>
+                <p className="text-2xl font-bold text-indigo-600 mt-1">1,840 Questions</p>
+                <p className="text-[11px] text-indigo-600 mt-1 font-medium">Across 18 Subjects</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Pending Result Approvals</span>
+                <p className="text-2xl font-bold text-amber-600 mt-1">6 Subject Drafts</p>
+                <p className="text-[11px] text-slate-500 mt-1 font-medium">Submitted by Teachers</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Published Broad-Sheets</span>
+                <p className="text-2xl font-bold text-purple-600 mt-1">18 Classes</p>
+                <p className="text-[11px] text-slate-500 mt-1 font-medium">Live on Result Checker</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="bg-slate-900 text-white p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-1">
+                <Sparkles size={14} /> AI-Powered CBT Engine
+              </div>
+              <h3 className="text-lg font-bold">Launch Examination Controller & AI Question Suite</h3>
+              <p className="text-xs text-slate-300 mt-0.5 max-w-xl">
+                Generate WAEC/NECO aligned CBT test questions, schedule computer examinations with full-screen lockdown, proctor active submissions, and publish verified terminal result sheets.
+              </p>
+            </div>
+            <Link to="/dashboard/examinations">
+              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold whitespace-nowrap">
+                Open Examination Center →
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* 
+        ================================================================
+        VIEW 5: ACADEMIC ADMIN DASHBOARD
+        ================================================================
+      */}
+      {effectiveView === "academics" && hasPermission('academic.view') && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Active Academic Session</span>
+                <p className="text-xl font-bold text-slate-900 mt-1">{sessions[0] || "2025/2026"}</p>
+                <p className="text-[11px] text-indigo-600 mt-1 font-medium">First Term in Session</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Registered Classes & Arms</span>
+                <p className="text-2xl font-bold text-slate-900 mt-1">24 Arms</p>
+                <p className="text-[11px] text-slate-500 mt-1 font-medium">JSS 1 to SSS 3</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Curriculum Subjects</span>
+                <p className="text-2xl font-bold text-indigo-600 mt-1">32 Subjects</p>
+                <p className="text-[11px] text-slate-500 mt-1 font-medium">Approved by Ministry of Ed.</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Teacher Allocations</span>
+                <p className="text-2xl font-bold text-emerald-600 mt-1">100% Allocated</p>
+                <p className="text-[11px] text-emerald-600 mt-1 font-medium">All subjects staffed</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex justify-end">
+            <Link to="/dashboard/academics">
+              <Button className="bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold">
+                Open Academic Affairs Suite →
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* 
+        ================================================================
+        VIEW 6: ATTENDANCE & GATE COMMAND (Attendance Officer)
+        ================================================================
+      */}
+      {effectiveView === "attendance" && hasPermission('attendance.view') && (
+        <AttendanceOfficerDashboard />
+      )}
+
+      {/* 
+        ================================================================
+        VIEW 7: PORTAL & WEBSITE CMS (Portal Admin)
+        ================================================================
+      */}
+      {effectiveView === "portal" && hasPermission('portal.view') && (
+        <div className="space-y-6">
+          <div className="bg-slate-900 text-white p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 text-cyan-400 text-xs font-bold uppercase tracking-wider mb-1">
+                <Globe size={14} /> Portal & Public Website Management
+              </div>
+              <h3 className="text-lg font-bold">Official Website & Content Management Suite</h3>
+              <p className="text-xs text-slate-300 mt-0.5 max-w-xl">
+                Update homepage banners, publish school news, maintain photo gallery, edit contact details, and customize school social media channels.
+              </p>
+            </div>
+            <Link to="/dashboard/portal-manager">
+              <Button className="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold whitespace-nowrap">
+                Open Website CMS →
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* 
+        ================================================================
+        VIEW 8: EXECUTIVE SYSTEM OVERSIGHT (General Admin & Super Admin)
+        ================================================================
+      */}
+      {effectiveView === "executive_oversight" && (isGeneralAdmin || isSuperAdmin) && (
+        <div className="space-y-6">
+          {/* Institutional Health Indicators */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-slate-200">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-slate-500 uppercase">Total Student Body</span>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">{students.length}</p>
+                  <p className="text-[11px] text-indigo-600 mt-0.5">Active Academic Roster</p>
+                </div>
+                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                  <Users size={22} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-slate-500 uppercase">Academic & Non-Teaching Staff</span>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">{teachers.length}</p>
+                  <p className="text-[11px] text-emerald-600 mt-0.5">Active Officers & Teachers</p>
+                </div>
+                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                  <Briefcase size={22} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-slate-500 uppercase">Departmental Operations</span>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">9 Officers</p>
+                  <p className="text-[11px] text-purple-600 mt-0.5">Role-Based Segregation</p>
+                </div>
+                <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
+                  <ShieldCheck size={22} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-slate-500 uppercase">Security Audit Events</span>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">{auditLogs.length}</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Immutable Activity Log</p>
+                </div>
+                <div className="p-3 bg-slate-100 text-slate-600 rounded-xl">
+                  <Clock size={22} />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Staff & Role Promotion Hub (Requirement 15: Never duplicate accounts) */}
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader className="bg-slate-50 border-b border-slate-200 py-3.5 px-6 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <UserCog size={16} className="text-indigo-600" />
+                  Staff Role Assignment & Promotion Center
+                </CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Promote existing staff to specialized administrative roles without creating duplicate accounts or wiping out teaching classes.
+                </p>
+              </div>
+              <Link to="/dashboard/teachers" className="text-xs font-bold text-indigo-600 hover:underline">
+                Full Staff Directory →
+              </Link>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-100/75 text-slate-600 text-xs font-semibold uppercase">
+                    <tr>
+                      <th className="py-3 px-4">Staff ID</th>
+                      <th className="py-3 px-4">Staff Name & Title</th>
+                      <th className="py-3 px-4">Department</th>
+                      <th className="py-3 px-4">Assigned Roles</th>
+                      <th className="py-3 px-4">Teaching Allocation</th>
+                      <th className="py-3 px-4 text-right">Role Management</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {teachers.slice(0, 7).map(t => (
+                      <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4 font-mono text-xs font-bold text-slate-700">{t.id}</td>
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-900">{t.name}</div>
+                          <div className="text-xs text-slate-500">{t.role}</div>
+                        </td>
+                        <td className="py-3 px-4 text-xs font-medium text-slate-600">{t.department}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex flex-wrap gap-1">
+                            {(t.systemRoles || ['Staff/Teacher']).map(r => (
+                              <span key={r} className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                {r}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-xs text-slate-600">
+                          {t.assignedClasses?.length ? (
+                            <span>{t.assignedClasses.slice(0, 2).join(", ")} ({t.subjects?.slice(0, 1).join("")})</span>
+                          ) : (
+                            <span className="text-slate-400 italic">Administrative</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <Button
+                            onClick={() => setSelectedStaffForRoles(t)}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-8 px-3 gap-1.5"
+                          >
+                            <Shield size={13} />
+                            Assign / Promote Role
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Shortcuts to Departmental Desks */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Link to="/dashboard/admissions">
+              <Button variant="outline" className="w-full text-xs font-semibold py-3 h-auto flex-col gap-1.5 hover:border-emerald-300">
+                <FileText size={18} className="text-emerald-600" />
+                <span>Admissions Desk</span>
+              </Button>
+            </Link>
+            <Link to="/dashboard/finance">
+              <Button variant="outline" className="w-full text-xs font-semibold py-3 h-auto flex-col gap-1.5 hover:border-amber-300">
+                <DollarSign size={18} className="text-amber-600" />
+                <span>Finance & Bursary</span>
+              </Button>
+            </Link>
+            <Link to="/dashboard/examinations">
+              <Button variant="outline" className="w-full text-xs font-semibold py-3 h-auto flex-col gap-1.5 hover:border-rose-300">
+                <GraduationCap size={18} className="text-rose-600" />
+                <span>Examinations Center</span>
+              </Button>
+            </Link>
+            <Link to="/dashboard/academics">
+              <Button variant="outline" className="w-full text-xs font-semibold py-3 h-auto flex-col gap-1.5 hover:border-indigo-300">
+                <BookOpen size={18} className="text-indigo-600" />
+                <span>Academic Affairs</span>
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Staff Role Modal (Super Admin / General Admin) */}
+      {selectedStaffForRoles && (
+        <StaffRoleModal
+          teacher={selectedStaffForRoles}
+          isOpen={!!selectedStaffForRoles}
+          onClose={() => setSelectedStaffForRoles(null)}
+          onSave={handleSaveStaffRoles}
+        />
       )}
     </div>
   );
