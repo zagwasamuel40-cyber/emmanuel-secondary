@@ -1,14 +1,24 @@
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Textarea } from "@/src/components/ui";
-import { Building, GraduationCap, Shield, Save, Bell, Plus, Trash2, Users } from "lucide-react";
+import { Building, GraduationCap, Shield, Save, Bell, Plus, Trash2, Users, Database, CheckCircle2, AlertTriangle, Download, ArrowRight, Server, Target, Compass, Eye, Sparkles, RotateCcw, ExternalLink } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useSessions, TERMS } from "../data/sessionsData";
 import { usePortalSettings } from "../data/portalSettingsData";
+import { useDatabaseSync, exportFullDatabaseJson } from "../lib/databaseSync";
+import { testSupabaseConnection } from "../lib/supabase";
 
 export default function Settings() {
   const [sessions, setSessions] = useSessions();
   const [newSession, setNewSession] = useState("");
   const [portalSettings, setPortalSettings] = usePortalSettings();
   const [activeTab, setActiveTab] = useState("general");
+  const [saveFeedback, setSaveFeedback] = useState("");
+
+  const { config, isConnected, saveCredentials, disconnectDatabase } = useDatabaseSync();
+  const [dbUrl, setDbUrl] = useState(config.url || "");
+  const [dbKey, setDbKey] = useState(config.anonKey || "");
+  const [dbTesting, setDbTesting] = useState(false);
+  const [dbTestResult, setDbTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const handleAddSession = () => {
     if (newSession.trim() && !sessions.includes(newSession.trim())) {
@@ -20,6 +30,29 @@ export default function Settings() {
   const handleRemoveSession = (sess: string) => {
     setSessions(sessions.filter(s => s !== sess));
   };
+
+  const handleSaveChanges = () => {
+    setSaveFeedback("Settings saved successfully!");
+    setTimeout(() => setSaveFeedback(""), 4000);
+  };
+
+  const handleTestDb = async () => {
+    setDbTesting(true);
+    setDbTestResult(null);
+    try {
+      const res = await testSupabaseConnection(dbUrl, dbKey);
+      setDbTestResult(res);
+    } finally {
+      setDbTesting(false);
+    }
+  };
+
+  const handleSaveDb = () => {
+    saveCredentials(dbUrl, dbKey);
+    setSaveFeedback("Database credentials updated!");
+    setTimeout(() => setSaveFeedback(""), 4000);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -27,11 +60,18 @@ export default function Settings() {
           <h2 className="text-2xl font-bold font-heading text-slate-900">System Settings</h2>
           <p className="text-slate-500 text-sm mt-1">Configure school details, academic session, and preferences.</p>
         </div>
-        <Button variant="brand" className="gap-2">
+        <Button variant="brand" className="gap-2" onClick={handleSaveChanges}>
           <Save size={16} />
           Save Changes
         </Button>
       </div>
+
+      {saveFeedback && (
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center gap-2">
+          <CheckCircle2 size={16} className="text-emerald-600" />
+          {saveFeedback}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-1 space-y-2">
@@ -40,6 +80,14 @@ export default function Settings() {
             <div>
               <p className={`font-medium text-sm ${activeTab === "general" ? "text-slate-900" : "text-slate-700"}`}>General Information</p>
               <p className="text-xs text-slate-500">School name, logo, contact</p>
+            </div>
+          </button>
+
+          <button onClick={() => setActiveTab("vision_mission")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === "vision_mission" ? "bg-white border border-slate-200" : "border border-transparent hover:bg-slate-50"}`}>
+            <Target size={18} className={activeTab === "vision_mission" ? "text-brand-600" : "text-slate-500"} />
+            <div>
+              <p className={`font-medium text-sm ${activeTab === "vision_mission" ? "text-slate-900" : "text-slate-700"}`}>Vision &amp; Mission</p>
+              <p className="text-xs text-slate-500">School philosophy &amp; purpose</p>
             </div>
           </button>
           
@@ -58,18 +106,26 @@ export default function Settings() {
               <p className="text-xs text-slate-500">Manage school administration team</p>
             </div>
           </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-transparent text-left hover:bg-slate-50 transition-colors">
-            <Shield size={18} className="text-slate-500" />
+          <button onClick={() => setActiveTab("database")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === "database" ? "bg-white border border-slate-200" : "border border-transparent hover:bg-slate-50"}`}>
+            <Database size={18} className={activeTab === "database" ? "text-brand-600" : "text-slate-500"} />
             <div>
-              <p className="font-medium text-slate-700 text-sm">Security & Access</p>
+              <p className={`font-medium text-sm ${activeTab === "database" ? "text-slate-900" : "text-slate-700"}`}>Database & Cloud</p>
+              <p className="text-xs text-slate-500">Postgres / Supabase connection</p>
+            </div>
+          </button>
+
+          <button onClick={() => setActiveTab("security")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === "security" ? "bg-white border border-slate-200" : "border border-transparent hover:bg-slate-50"}`}>
+            <Shield size={18} className={activeTab === "security" ? "text-brand-600" : "text-slate-500"} />
+            <div>
+              <p className={`font-medium text-sm ${activeTab === "security" ? "text-slate-900" : "text-slate-700"}`}>Security & Access</p>
               <p className="text-xs text-slate-500">Roles, passwords, backups</p>
             </div>
           </button>
 
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-transparent text-left hover:bg-slate-50 transition-colors">
-            <Bell size={18} className="text-slate-500" />
+          <button onClick={() => setActiveTab("notifications")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === "notifications" ? "bg-white border border-slate-200" : "border border-transparent hover:bg-slate-50"}`}>
+            <Bell size={18} className={activeTab === "notifications" ? "text-brand-600" : "text-slate-500"} />
             <div>
-              <p className="font-medium text-slate-700 text-sm">Notifications</p>
+              <p className={`font-medium text-sm ${activeTab === "notifications" ? "text-slate-900" : "text-slate-700"}`}>Notifications</p>
               <p className="text-xs text-slate-500">Email, SMS, circulars</p>
             </div>
           </button>
@@ -180,9 +236,238 @@ export default function Settings() {
                     <Label htmlFor="address">School Address</Label>
                     <Input id="address" value={portalSettings.address} onChange={(e) => setPortalSettings({address: e.target.value})} />
                   </div>
+
+                  {/* School Vision & Mission Statements */}
+                  <div className="sm:col-span-2 pt-4 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h4 className="font-heading font-bold text-slate-900 text-base flex items-center gap-2">
+                          <Target size={18} className="text-brand-600" />
+                          School Vision &amp; Mission Statements
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Displayed publicly on the About Us page, homepage, and official school portal.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("vision_mission")}
+                        className="text-xs text-brand-600 hover:text-brand-700 font-semibold flex items-center gap-1 hover:underline"
+                      >
+                        Advanced Editor &amp; Preview <ArrowRight size={13} />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="generalMission" className="flex items-center gap-1.5 font-semibold text-slate-900">
+                          <Target size={15} className="text-brand-600" /> Our Mission
+                        </Label>
+                        <Textarea 
+                          id="generalMission" 
+                          rows={4}
+                          value={portalSettings.mission || ""} 
+                          onChange={(e) => setPortalSettings({mission: e.target.value})} 
+                          placeholder="To provide comprehensive education that empowers students with knowledge, skills, and values..."
+                        />
+                        <p className="text-[11px] text-slate-500">The core purpose and actionable commitment of the school.</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="generalVision" className="flex items-center gap-1.5 font-semibold text-slate-900">
+                          <Compass size={15} className="text-amber-600" /> Our Vision
+                        </Label>
+                        <Textarea 
+                          id="generalVision" 
+                          rows={4}
+                          value={portalSettings.vision || ""} 
+                          onChange={(e) => setPortalSettings({vision: e.target.value})} 
+                          placeholder="To be the premier secondary educational institution in Nigeria, recognized globally..."
+                        />
+                        <p className="text-[11px] text-slate-500">The long-term institutional aspiration and future benchmark.</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {activeTab === "vision_mission" && (
+            <div className="space-y-6">
+              <Card className="border-0 shadow-sm">
+                <CardHeader className="border-b border-slate-100 pb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-slate-900">
+                        <Target size={20} className="text-brand-600" />
+                        School Vision &amp; Mission Statements
+                      </CardTitle>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Define and customize the core educational philosophy, mission statement, and long-term vision for {portalSettings.schoolName}.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Link 
+                        to="/about" 
+                        target="_blank" 
+                        className="inline-flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-medium transition-colors"
+                      >
+                        <ExternalLink size={14} /> View Public Page
+                      </Link>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  {/* Inspirational Template Chips */}
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+                    <p className="text-xs font-bold text-slate-700 mb-2.5 flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-amber-500" /> Quick Preset Inspiration (Click to load):
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPortalSettings({
+                            mission: "To provide holistic, high-standard secondary education that empowers young minds with intellectual vigor, moral discipline, and technological literacy.",
+                            vision: "To be recognized as a premier center of academic excellence and character building, nurturing transformative leaders for Nigeria and the world."
+                          });
+                        }}
+                        className="text-xs px-3 py-1.5 bg-white hover:bg-brand-50 hover:text-brand-700 text-slate-700 font-medium rounded-lg border border-slate-200 transition-colors shadow-2xs"
+                      >
+                        Academic &amp; Character Leadership
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPortalSettings({
+                            mission: "To cultivate a rigorous learning environment prioritizing STEM, creative critical thinking, and character molding for 21st-century problem solvers.",
+                            vision: "To be a leading science, innovation, and digital excellence hub among secondary institutions in West Africa."
+                          });
+                        }}
+                        className="text-xs px-3 py-1.5 bg-white hover:bg-brand-50 hover:text-brand-700 text-slate-700 font-medium rounded-lg border border-slate-200 transition-colors shadow-2xs"
+                      >
+                        STEM &amp; Innovation Focus
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPortalSettings({
+                            mission: "To provide comprehensive education that empowers students with the knowledge, skills, and values needed to excel in a rapidly changing world.",
+                            vision: "To be the premier secondary educational institution in Nigeria, recognized globally for academic excellence and character development."
+                          });
+                        }}
+                        className="text-xs px-3 py-1.5 bg-white hover:bg-amber-50 hover:text-amber-800 text-slate-700 font-medium rounded-lg border border-slate-200 transition-colors shadow-2xs flex items-center gap-1"
+                      >
+                        <RotateCcw size={12} /> Reset to Default
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mission Editor */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="schoolMission" className="font-semibold text-slate-900 flex items-center gap-2 text-sm">
+                        <div className="w-6 h-6 rounded-md bg-brand-50 text-brand-700 flex items-center justify-center">
+                          <Target size={14} />
+                        </div>
+                        Our Mission Statement
+                      </Label>
+                      <span className="text-[11px] text-slate-400 font-mono">
+                        {(portalSettings.mission || "").length} characters
+                      </span>
+                    </div>
+                    <Textarea 
+                      id="schoolMission" 
+                      rows={4}
+                      value={portalSettings.mission || ""} 
+                      onChange={(e) => setPortalSettings({mission: e.target.value})} 
+                      placeholder="Enter your school's official mission statement here..."
+                      className="text-sm leading-relaxed"
+                    />
+                    <p className="text-xs text-slate-500">
+                      States what your school does today, whom it serves, and how it delivers educational excellence.
+                    </p>
+                  </div>
+
+                  {/* Vision Editor */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="schoolVision" className="font-semibold text-slate-900 flex items-center gap-2 text-sm">
+                        <div className="w-6 h-6 rounded-md bg-amber-50 text-amber-700 flex items-center justify-center">
+                          <Compass size={14} />
+                        </div>
+                        Our Vision Statement
+                      </Label>
+                      <span className="text-[11px] text-slate-400 font-mono">
+                        {(portalSettings.vision || "").length} characters
+                      </span>
+                    </div>
+                    <Textarea 
+                      id="schoolVision" 
+                      rows={4}
+                      value={portalSettings.vision || ""} 
+                      onChange={(e) => setPortalSettings({vision: e.target.value})} 
+                      placeholder="Enter your school's long-term vision statement here..."
+                      className="text-sm leading-relaxed"
+                    />
+                    <p className="text-xs text-slate-500">
+                      States where your school aspires to be in the future and the legacy it aims to build.
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-2">
+                    <Button variant="brand" className="gap-2" onClick={handleSaveChanges}>
+                      <Save size={16} /> Save Vision &amp; Mission
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Live Public Display Preview */}
+              <Card className="border-0 shadow-sm overflow-hidden">
+                <CardHeader className="bg-slate-900 text-white pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm flex items-center gap-2 text-white">
+                      <Eye size={16} className="text-amber-400" />
+                      Live Public Display Preview (As seen on About Us &amp; Homepage)
+                    </CardTitle>
+                    <span className="text-[11px] px-2 py-0.5 rounded bg-white/10 text-slate-300 font-medium">
+                      Real-time sync
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 bg-slate-50">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Mission Preview Box */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center">
+                          <Target size={18} />
+                        </div>
+                        <h4 className="font-heading text-lg font-bold text-slate-900">Our Mission</h4>
+                      </div>
+                      <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">
+                        {portalSettings.mission || <span className="text-slate-400 italic">No mission statement provided. Enter one above.</span>}
+                      </p>
+                    </div>
+
+                    {/* Vision Preview Box */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+                          <Compass size={18} />
+                        </div>
+                        <h4 className="font-heading text-lg font-bold text-slate-900">Our Vision</h4>
+                      </div>
+                      <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">
+                        {portalSettings.vision || <span className="text-slate-400 italic">No vision statement provided. Enter one above.</span>}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {activeTab === "academic" && (
@@ -375,6 +660,183 @@ export default function Settings() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === "database" && (
+            <Card className="border-0 shadow-sm space-y-6">
+              <CardHeader className="border-b border-slate-100 pb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Database className="text-indigo-600" size={20} />
+                      Cloud Database & Supabase Configuration
+                    </CardTitle>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Configure your PostgreSQL or Supabase backend to sync all 18 institutional collections.
+                    </p>
+                  </div>
+                  <Link to="/dashboard/database">
+                    <Button variant="outline" size="sm" className="gap-1.5 text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50">
+                      Open Database Center <ArrowRight size={14} />
+                    </Button>
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
+                <div className={`p-4 rounded-xl border flex items-center justify-between ${
+                  isConnected 
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-900" 
+                    : "bg-slate-50 border-slate-200 text-slate-800"
+                }`}>
+                  <div className="flex items-center gap-3">
+                    {isConnected ? (
+                      <CheckCircle2 size={20} className="text-emerald-600" />
+                    ) : (
+                      <AlertTriangle size={20} className="text-amber-600" />
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {isConnected ? "Connected to Cloud Database" : "Local Storage Fallback Mode"}
+                      </p>
+                      <p className="text-xs opacity-80">
+                        {isConnected ? `Active URL: ${config.url}` : "Currently operating offline with local persistence."}
+                      </p>
+                    </div>
+                  </div>
+                  {isConnected && (
+                    <Button variant="outline" size="sm" onClick={disconnectDatabase} className="text-xs text-rose-600 border-rose-200 hover:bg-rose-50">
+                      Disconnect
+                    </Button>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="settingsDbUrl">Supabase / Postgres URL</Label>
+                    <Input 
+                      id="settingsDbUrl" 
+                      placeholder="https://xyzcompany.supabase.co" 
+                      value={dbUrl} 
+                      onChange={(e) => setDbUrl(e.target.value)} 
+                      className="font-mono text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="settingsDbKey">Anon Public API Key</Label>
+                    <Input 
+                      id="settingsDbKey" 
+                      type="password" 
+                      placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." 
+                      value={dbKey} 
+                      onChange={(e) => setDbKey(e.target.value)} 
+                      className="font-mono text-xs"
+                    />
+                  </div>
+
+                  {dbTestResult && (
+                    <div className={`p-3 rounded-lg text-xs flex items-center gap-2 border ${
+                      dbTestResult.success ? "bg-emerald-50 text-emerald-800 border-emerald-200" : "bg-rose-50 text-rose-800 border-rose-200"
+                    }`}>
+                      {dbTestResult.success ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+                      <span>{dbTestResult.message}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <Button variant="outline" size="sm" onClick={handleTestDb} disabled={dbTesting || !dbUrl} className="gap-2 text-xs">
+                      <Server size={14} />
+                      {dbTesting ? "Testing..." : "Test Connection"}
+                    </Button>
+                    <Button variant="brand" size="sm" onClick={handleSaveDb} disabled={!dbUrl || !dbKey} className="gap-2 text-xs">
+                      <Save size={14} />
+                      Update Database Connection
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === "security" && (
+            <Card className="border-0 shadow-sm space-y-6">
+              <CardHeader className="border-b border-slate-100 pb-4">
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="text-indigo-600" size={20} />
+                  Security & Authentication Controls
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <h4 className="text-sm font-semibold text-slate-800">Role-Based Access Control (RBAC)</h4>
+                    <p className="text-xs text-slate-500">
+                      System roles strictly compartmentalize features while granting every administrator normal Staff/Teacher workspace features.
+                    </p>
+                    <div className="pt-2">
+                      <Link to="/dashboard/teachers">
+                        <Button variant="outline" size="sm" className="text-xs gap-1.5">
+                          Manage Staff Roles & Permissions <ArrowRight size={14} />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <h4 className="text-sm font-semibold text-slate-800">Database Disaster Recovery</h4>
+                    <p className="text-xs text-slate-500">
+                      Export an instantaneous, full snapshot of all 18 school tables to your local device.
+                    </p>
+                    <div className="pt-2">
+                      <Button variant="brand" size="sm" onClick={() => {
+                        const json = exportFullDatabaseJson();
+                        const blob = new Blob([json], { type: "application/json" });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `ESS_Backup_${new Date().toISOString().split('T')[0]}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }} className="text-xs gap-1.5">
+                        <Download size={14} /> Download Full System Backup
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === "notifications" && (
+            <Card className="border-0 shadow-sm space-y-6">
+              <CardHeader className="border-b border-slate-100 pb-4">
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="text-indigo-600" size={20} />
+                  Portal & Communications Notification Channels
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="portalNotice">Public Portal Marquee Notice</Label>
+                  <Textarea 
+                    id="portalNotice" 
+                    value={portalSettings.portalNotice} 
+                    onChange={(e) => setPortalSettings({ portalNotice: e.target.value })} 
+                    rows={3}
+                  />
+                  <p className="text-xs text-slate-400">
+                    This notice appears at the top of the public homepage and student admission landing portal.
+                  </p>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <Button variant="brand" size="sm" onClick={handleSaveChanges} className="gap-2 text-xs">
+                    <Save size={14} />
+                    Save Notification Settings
+                  </Button>
                 </div>
               </CardContent>
             </Card>

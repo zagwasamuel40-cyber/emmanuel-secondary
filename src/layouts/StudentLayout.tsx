@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { useStudents } from "../data/studentsData";
+import { useStudents, findStudentByIdentifier, Student } from "../data/studentsData";
 import { usePortalSettings } from "../data/portalSettingsData";
 import { 
   Home, 
@@ -11,13 +11,15 @@ import {
   Menu,
   LogOut,
   Calendar,
-  QrCode
+  QrCode,
+  Award
 } from "lucide-react";
 
 const navigation = [
   { name: 'My Dashboard', href: '/student', icon: Home },
   { name: 'Digital ID Card', href: '/student/id-card', icon: QrCode },
   { name: 'My Subjects & CBT', href: '/student/subjects', icon: BookOpen },
+  { name: 'My Results', href: '/student/subjects?tab=results', icon: Award },
   { name: 'Fees & Payments', href: '/student/fees', icon: CreditCard },
   { name: 'Timetable', href: '/student/timetable', icon: Calendar },
   { name: 'Profile', href: '/student/profile', icon: User },
@@ -28,24 +30,31 @@ export default function StudentLayout() {
   const navigate = useNavigate();
   const [portalSettings] = usePortalSettings();
   const [students] = useStudents();
-  const [student, setStudent] = useState<any>(null);
+  const [student, setStudent] = useState<Student | null>(null);
 
   useEffect(() => {
     const loggedInId = localStorage.getItem('loggedInStudentId');
     if (loggedInId) {
-      const found = students.find(s => s.id === loggedInId || s.name.toLowerCase().includes(loggedInId.toLowerCase()));
-      if (found) setStudent(found);
-      else setStudent(students[0]);
+      const found = findStudentByIdentifier(loggedInId, students);
+      setStudent(found);
     } else {
-      setStudent(students[0]);
+      setStudent(null);
     }
   }, [students]);
 
   const handleLogout = () => {
     localStorage.removeItem('loggedInUserId');
     localStorage.removeItem('loggedInStudentId');
+    localStorage.removeItem('loggedInStudentAppNo');
     localStorage.removeItem('userRole');
-    navigate('/');
+    localStorage.removeItem('userRoles');
+    localStorage.removeItem('impersonatingName');
+    localStorage.removeItem('impersonatingType');
+    localStorage.removeItem('originalAdminUserId');
+    localStorage.removeItem('originalAdminRoles');
+    localStorage.removeItem('originalAdminRole');
+    window.dispatchEvent(new Event('ess_roles_change'));
+    navigate('/login');
   };
 
   const impersonatingName = localStorage.getItem('impersonatingName');
@@ -80,14 +89,17 @@ export default function StudentLayout() {
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
           {navigation.map((item) => {
-            const isActive = location.pathname === item.href || (item.href !== '/student' && location.pathname.startsWith(item.href));
+            const currentFull = location.pathname + location.search;
+            const isActive = item.href.includes('?')
+              ? currentFull === item.href
+              : location.pathname === item.href && (!location.search || !location.search.includes('tab=results'));
             return (
               <Link
                 key={item.name}
                 to={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive 
-                    ? 'bg-brand-600 text-white' 
+                    ? 'bg-brand-600 text-white shadow-sm' 
                     : 'hover:bg-brand-800 hover:text-white'
                 }`}
               >

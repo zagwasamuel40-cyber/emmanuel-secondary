@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
@@ -17,6 +18,11 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+
+  // Health check endpoint
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok" });
+  });
 
   // Security & Authorization Guard: Admission Officer Only
   const requireAdmissionOfficerAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -387,6 +393,40 @@ async function startServer() {
     } catch (err: any) {
       console.error("Error in /api/cbt/reset-attempt:", err);
       res.status(500).json({ error: err.message || "Failed to reset attempt." });
+    }
+  });
+
+  // 7. Database Status & Information
+  app.get("/api/database/status", (req, res) => {
+    try {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
+      const hasKey = Boolean(process.env.VITE_SUPABASE_ANON_KEY);
+      const isUrlValid = supabaseUrl.startsWith("http://") || supabaseUrl.startsWith("https://");
+
+      res.json({
+        status: isUrlValid && hasKey ? "configured" : "local_fallback",
+        supabaseConfigured: isUrlValid && hasKey,
+        tableCount: 18,
+        schemaVersion: "2.0.0",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to retrieve database status." });
+    }
+  });
+
+  // 8. Database DDL SQL Schema Endpoint
+  app.get("/api/database/schema", (req, res) => {
+    try {
+      const schemaPath = path.join(process.cwd(), "supabase_schema.sql");
+      if (fs.existsSync(schemaPath)) {
+        res.setHeader("Content-Type", "text/plain");
+        fs.createReadStream(schemaPath).pipe(res);
+      } else {
+        res.status(404).json({ error: "supabase_schema.sql file not found on server." });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to read database schema." });
     }
   });
 

@@ -2,7 +2,8 @@ import { usePortalSettings } from "../../data/portalSettingsData";
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, Button } from "@/src/components/ui";
 import { useAnnouncements, Announcement } from "@/src/data/announcementsData";
-import { Bell, Calendar, Sparkles, X, Image as ImageIcon, FileText, Download } from "lucide-react";
+import { Bell, Calendar, Sparkles, X, Image as ImageIcon, FileText, Download, Video, Play } from "lucide-react";
+import { VideoPlayer } from "@/src/components/ui/VideoPlayer";
 
 const staticNewsItems = [
   {
@@ -54,6 +55,8 @@ export default function News() {
       category: a.category || "Announcement",
       summary: a.content || a.title,
       image: a.image,
+      videoUrl: a.videoUrl,
+      mediaType: a.mediaType,
       isAnnouncement: true
     }));
 
@@ -101,7 +104,35 @@ export default function News() {
             className="border-0 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col group cursor-pointer"
             onClick={() => setSelectedItem(item)}
           >
-            {item.image ? (
+            {item.videoUrl ? (
+              <div className="h-48 w-full overflow-hidden relative bg-slate-950 flex items-center justify-center">
+                {item.image ? (
+                  <img 
+                    src={item.image} 
+                    alt={item.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-70" 
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950" />
+                )}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <Play size={22} className="ml-1 fill-white" />
+                  </div>
+                </div>
+                <span className="absolute top-3 left-3 bg-rose-600 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-full shadow flex items-center gap-1">
+                  <Video size={11} /> Video
+                </span>
+                {item.isAnnouncement && (
+                  <span className="absolute top-3 right-3 bg-brand-600/90 backdrop-blur-md text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-full shadow">
+                    Official Notice
+                  </span>
+                )}
+              </div>
+            ) : item.image ? (
               <div className="h-48 w-full overflow-hidden relative bg-slate-100">
                 <img 
                   src={item.image} 
@@ -165,7 +196,17 @@ export default function News() {
               </button>
             </CardHeader>
             <div className="overflow-y-auto p-6 space-y-4">
-              {selectedItem.image && (
+              {selectedItem.videoUrl ? (
+                <div className="rounded-2xl overflow-hidden shadow-lg border border-slate-200">
+                  <VideoPlayer 
+                    src={selectedItem.videoUrl} 
+                    poster={selectedItem.image}
+                    title={selectedItem.title} 
+                    controls 
+                    className="w-full aspect-video"
+                  />
+                </div>
+              ) : selectedItem.image && (
                 <div className="rounded-xl overflow-hidden max-h-80 w-full bg-slate-100">
                   <img src={selectedItem.image} alt={selectedItem.title} className="w-full h-full object-cover" />
                 </div>

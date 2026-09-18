@@ -1,4 +1,4 @@
-import { useStudents, useAdmissionApps } from "../data/studentsData";
+import { useStudents, useAdmissionApps, Student } from "../data/studentsData";
 import { usePins } from "../data/pinsData";
 import React, { useState } from "react";
 import { useSessions, TERMS } from "../data/sessionsData";
@@ -116,7 +116,15 @@ export default function Enrollment() {
       alert("Please provide Student Name and ID.");
       return;
     }
-    const newStudent = { id: singleId, name: singleName, class: singleClass, session: singleSession, term: singleTerm };
+    const newStudent: Student = { 
+      id: singleId, 
+      name: singleName, 
+      class: singleClass, 
+      session: singleSession, 
+      term: singleTerm,
+      gender: "Not Specified",
+      status: "Active"
+    };
     setEnrollments(prev => [...prev.filter(s => !(s.id === singleId && s.session === singleSession && s.term === singleTerm)), newStudent]);
     showSuccess(`Successfully enrolled ${singleName} into ${singleClass} for ${singleSession} (${singleTerm})!`);
     setSingleName("");

@@ -1,29 +1,47 @@
 import React, { useEffect, useState } from "react";
-import { useStudents } from "../../data/studentsData";
+import { Link } from "react-router-dom";
+import { useStudents, findStudentByIdentifier, Student } from "../../data/studentsData";
 import { useAnnouncements, Announcement } from "../../data/announcementsData";
 import { Card, CardContent, CardHeader, CardTitle, Button } from "@/src/components/ui";
-import { BookOpen, Calendar, Clock, CreditCard, Award, ArrowRight, Bell, FileText, X } from "lucide-react";
+import { BookOpen, Calendar, Clock, CreditCard, Award, ArrowRight, Bell, FileText, X, AlertCircle } from "lucide-react";
 
 export default function StudentDashboard() {
   const [students] = useStudents();
   const [announcements] = useAnnouncements();
-  const [student, setStudent] = useState<any>(null);
+  const [student, setStudent] = useState<Student | null>(null);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [showAllAnnouncements, setShowAllAnnouncements] = useState(false);
 
   useEffect(() => {
     const loggedInId = localStorage.getItem('loggedInStudentId');
     if (loggedInId) {
-      // Find exact match or just assume first if demo
-      const found = students.find(s => s.id === loggedInId || s.name.toLowerCase().includes(loggedInId.toLowerCase()));
-      if (found) setStudent(found);
-      else setStudent(students[0]); // default to first if arbitrary ID entered
+      const found = findStudentByIdentifier(loggedInId, students);
+      setStudent(found);
     } else {
-      setStudent(students[0]);
+      setStudent(null);
     }
   }, [students]);
 
   const activeAnnouncements = announcements.filter(a => a.active);
+
+  if (!student) {
+    return (
+      <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center max-w-lg mx-auto my-12 shadow-sm space-y-4">
+        <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+          <AlertCircle size={24} />
+        </div>
+        <h3 className="text-xl font-bold text-slate-800">Student Authentication Required</h3>
+        <p className="text-slate-600 text-sm">
+          You are currently not signed in to a verified student session. Please log in with your Student ID or Application Number to access your portal.
+        </p>
+        <Link to="/login">
+          <Button className="bg-brand-900 text-white hover:bg-brand-800 mt-2">
+            Proceed to Student Login
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -82,7 +100,12 @@ export default function StudentDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-amber-600 mb-1">Fee Balance</p>
-                <h4 className="text-2xl font-bold font-heading text-amber-900">₦0</h4>
+                <h4 className="text-2xl font-bold font-heading text-amber-900">
+                  {student.fees === "Paid" ? "₦0" : student.fees === "Partial" ? "₦45,000" : "₦125,000"}
+                </h4>
+                <span className="text-[11px] font-semibold uppercase text-amber-700">
+                  Status: {student.fees || "Unpaid"}
+                </span>
               </div>
               <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-amber-100 text-amber-700">
                 <CreditCard size={24} />

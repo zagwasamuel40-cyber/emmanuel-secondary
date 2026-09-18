@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useStudents } from "../../data/studentsData";
+import { Link } from "react-router-dom";
+import { useStudents, findStudentByIdentifier, Student } from "../../data/studentsData";
 import { 
   useIdCards, 
   useAttendance, 
@@ -16,7 +17,8 @@ import {
   Calendar, 
   CheckCircle2, 
   Smartphone,
-  Info
+  Info,
+  AlertCircle
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, Button } from "@/src/components/ui";
 
@@ -25,23 +27,33 @@ export default function StudentDigitalIDCard() {
   const [idCards] = useIdCards();
   const [attendanceRecords] = useAttendance();
   const [designSettings] = useIDCardDesignSettings();
-  const [currentStudent, setCurrentStudent] = useState<any>(null);
+  const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
 
   useEffect(() => {
     const loggedInId = localStorage.getItem('loggedInStudentId');
     if (loggedInId) {
-      const found = students.find(s => s.id === loggedInId || s.name.toLowerCase().includes(loggedInId.toLowerCase()));
-      if (found) setCurrentStudent(found);
-      else setCurrentStudent(students[0]);
+      const found = findStudentByIdentifier(loggedInId, students);
+      setCurrentStudent(found);
     } else {
-      setCurrentStudent(students[0]);
+      setCurrentStudent(null);
     }
   }, [students]);
 
   if (!currentStudent) {
     return (
-      <div className="p-8 text-center text-slate-500">
-        Loading student digital credential...
+      <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center max-w-lg mx-auto my-12 shadow-sm space-y-4">
+        <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+          <AlertCircle size={24} />
+        </div>
+        <h3 className="text-xl font-bold text-slate-800">Student ID Not Found</h3>
+        <p className="text-slate-600 text-sm">
+          Please sign in to your student account to access your official digital identity credential and attendance QR pass.
+        </p>
+        <Link to="/login">
+          <Button className="bg-brand-900 text-white hover:bg-brand-800 mt-2">
+            Sign In to Student Portal
+          </Button>
+        </Link>
       </div>
     );
   }

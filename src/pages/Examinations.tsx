@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useStudents } from "../data/studentsData";
 import { useSessions, TERMS } from "../data/sessionsData";
 import { usePortalSettings } from "../data/portalSettingsData";
@@ -10,17 +11,21 @@ import { useAssignments } from "../data/assignmentsData";
 import { useResultsRelease, isResultReleased } from "../data/resultsReleaseData";
 import { useSkillsDb } from "../data/skillsData";
 
-import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@/src/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, Button, Input, Label } from "@/src/components/ui";
 import { 
   Edit3, Search, Plus, Upload, Download, Save, CheckCircle, AlertCircle, 
   FileSpreadsheet, Sparkles, Filter, Eye, Edit, Trash2, X, Check, 
   ArrowUpDown, BookOpen, GraduationCap, Award, Lock, Unlock, Printer,
   Layers, RefreshCw, AlertTriangle, ShieldCheck, FileText, BarChart3,
   ListOrdered, Calculator, UserCheck, Table, FileCheck, Video,
-  Paperclip, ExternalLink, FileUp, CheckCircle2, Clock, ShieldAlert, Sliders
+  Paperclip, ExternalLink, FileUp, CheckCircle2, Clock, ShieldAlert, Sliders,
+  ChevronLeft, ChevronRight, Key
 } from "lucide-react";
 import { ExamSecurityLogsModal } from "../components/exam/ExamSecurityLogsModal";
 import { AssessmentWeightingConfigModal } from "../components/AssessmentWeightingConfigModal";
+import { StudentReportCard } from "../components/StudentReportCard";
+import { ViewClassResults } from "../components/examinations/ViewClassResults";
+import { ResultPinManagement } from "../components/pins/ResultPinManagement";
 
 
 
@@ -204,8 +209,44 @@ export default function Examinations() {
   const [batchScoreField, setBatchScoreField] = useState<"ca1" | "ca2" | "ca3" | "ca4" | "exam" | "all">("ca1");
   const [studentLookupId, setStudentLookupId] = useState("ESS/2026/001");
   const [selectedStudentResult, setSelectedStudentResult] = useState<any | null>(null);
-  const [isNewFormat, setIsNewFormat] = useState(false);
+  const [isNewFormat, setIsNewFormat] = useState(true);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  // Main Tab Navigation: Gradebook / Student Results / Master Broadsheets / Result PINs
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
+  const [activeMainTab, setActiveMainTab] = useState<"class_results" | "student_results" | "gradebook" | "broadsheets" | "result_pins">(() => {
+    if (tabFromUrl === "pins" || tabFromUrl === "result_pins" || tabFromUrl === "result-pins" || tabFromUrl === "pin-management") return "result_pins";
+    if (tabFromUrl === "class-results" || tabFromUrl === "class_results" || tabFromUrl === "results" || tabFromUrl === "view-results") return "class_results";
+    if (tabFromUrl === "reports" || tabFromUrl === "student-results") return "student_results";
+    if (tabFromUrl === "broadsheet") return "broadsheets";
+    if (tabFromUrl === "gradebook" || tabFromUrl === "scores") return "gradebook";
+    return "class_results";
+  });
+
+  useEffect(() => {
+    if (tabFromUrl === "pins" || tabFromUrl === "result_pins" || tabFromUrl === "result-pins" || tabFromUrl === "pin-management") {
+      setActiveMainTab("result_pins");
+    } else if (tabFromUrl === "class-results" || tabFromUrl === "class_results" || tabFromUrl === "results" || tabFromUrl === "view-results") {
+      setActiveMainTab("class_results");
+    } else if (tabFromUrl === "reports" || tabFromUrl === "student-results") {
+      setActiveMainTab("student_results");
+    } else if (tabFromUrl === "broadsheet") {
+      setActiveMainTab("broadsheets");
+    } else if (tabFromUrl === "gradebook" || tabFromUrl === "scores") {
+      setActiveMainTab("gradebook");
+    }
+  }, [tabFromUrl]);
+
+  // Parameters for Student Results View: Class -> Student -> Session -> Term
+  const [resultSelectedClass, setResultSelectedClass] = useState<string>("SSS 3A");
+  const [resultSelectedStudentId, setResultSelectedStudentId] = useState<string>("ESS/2026/001");
+  const [resultSelectedSession, setResultSelectedSession] = useState<string>("2025/2026");
+  const [resultSelectedTerm, setResultSelectedTerm] = useState<string>("First Term");
+  const [resultStudentSearch, setResultStudentSearch] = useState<string>("");
+  const [isQuickEditOpen, setIsQuickEditOpen] = useState(false);
+  const [quickEditSubject, setQuickEditSubject] = useState("");
+  const [quickEditScores, setQuickEditScores] = useState<ScoreRecord[]>([]);
 
   // Deletion Target States
   const [deleteTargetClass, setDeleteTargetClass] = useState("SSS 3A");
@@ -381,228 +422,130 @@ export default function Examinations() {
 
 
   const renderStudentReportCard = (student: any) => {
-    let studentScores = scores.filter((s: any) => 
-      (s.studentId === student.studentId || (s.studentName && s.studentName.toLowerCase() === student.studentName?.toLowerCase())) && 
-      s.session === selectedSession
+    const studentObj = {
+      id: student.studentId || student.id,
+      name: student.studentName || student.name,
+      class: student.class,
+      gender: student.gender || "Male",
+      position: student.position
+    };
+    return (
+      <StudentReportCard
+        student={studentObj}
+        session={selectedSessionYear}
+        term={selectedTerm}
+        onEditScores={() => {
+          setBatchScoreField("all");
+          setActiveModal("live_score_entry");
+        }}
+      />
     );
+  };
 
-    if (studentScores.length === 0) {
-      studentScores = scores.filter((s: any) => 
-        s.studentId === student.studentId || (s.studentName && s.studentName.toLowerCase() === student.studentName?.toLowerCase())
+  // Current Student & Metrics for the Dedicated Student Results Section
+  const studentsInResultClass = students.filter(s => s.class === resultSelectedClass);
+  const currentSelectedStudent = studentsInResultClass.find(s => s.id === resultSelectedStudentId) || 
+    students.find(s => s.id === resultSelectedStudentId) || 
+    studentsInResultClass[0];
+
+  const currentResultSessionKey = `${resultSelectedSession} - ${resultSelectedTerm}`;
+
+  // Live Scores for selected student in selected session & term
+  const liveStudentScores = scores.filter(s => 
+    (s.studentId === (currentSelectedStudent?.id || resultSelectedStudentId) || 
+     (s.studentName && s.studentName.toLowerCase() === currentSelectedStudent?.name?.toLowerCase())) && 
+    (s.session === currentResultSessionKey || s.session === resultSelectedSession)
+  );
+
+  const resultSubjectsCount = liveStudentScores.length;
+  const resultTotalScore = liveStudentScores.reduce((acc, s) => acc + (s.total || 0), 0);
+  const resultAverageScore = resultSubjectsCount > 0 ? (resultTotalScore / resultSubjectsCount).toFixed(1) : "0.0";
+
+  // Compute rank in class
+  const classStudentTotals = studentsInResultClass.map(st => {
+    const stScores = scores.filter(s => 
+      (s.studentId === st.id || (s.studentName && s.studentName.toLowerCase() === st.name.toLowerCase())) &&
+      (s.session === currentResultSessionKey || s.session === resultSelectedSession)
+    );
+    const tot = stScores.reduce((acc, s) => acc + (s.total || 0), 0);
+    return { id: st.id, total: tot };
+  }).sort((a, b) => b.total - a.total);
+
+  const studentRankIdx = classStudentTotals.findIndex(item => item.id === currentSelectedStudent?.id);
+  const resultStudentPosition = studentRankIdx >= 0 
+    ? (studentRankIdx === 0 ? "1st" : studentRankIdx === 1 ? "2nd" : studentRankIdx === 2 ? "3rd" : `${studentRankIdx + 1}th`)
+    : "—";
+
+  const handlePrevStudent = () => {
+    if (studentsInResultClass.length === 0) return;
+    const currIdx = studentsInResultClass.findIndex(s => s.id === (currentSelectedStudent?.id || resultSelectedStudentId));
+    const nextIdx = (currIdx - 1 + studentsInResultClass.length) % studentsInResultClass.length;
+    setResultSelectedStudentId(studentsInResultClass[nextIdx].id);
+  };
+
+  const handleNextStudent = () => {
+    if (studentsInResultClass.length === 0) return;
+    const currIdx = studentsInResultClass.findIndex(s => s.id === (currentSelectedStudent?.id || resultSelectedStudentId));
+    const nextIdx = (currIdx + 1) % studentsInResultClass.length;
+    setResultSelectedStudentId(studentsInResultClass[nextIdx].id);
+  };
+
+  const handleQuickEditChange = (index: number, field: "ca1" | "ca2" | "ca3" | "ca4" | "exam", val: number) => {
+    setQuickEditScores(prev => {
+      const updated = [...prev];
+      const item = { ...updated[index], [field]: val };
+      const caTotal = (Number(item.ca1) || 0) + (Number(item.ca2) || 0) + (Number(item.ca3) || 0) + (Number(item.ca4) || 0);
+      const exam = Number(item.exam) || 0;
+      const total = caTotal + exam;
+      const { grade, remark } = calculateGrade(total);
+      item.total = total;
+      item.grade = grade;
+      item.remark = remark;
+      updated[index] = item;
+      return updated;
+    });
+  };
+
+  const handleQuickEditRemove = (index: number) => {
+    setQuickEditScores(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddSubjectToQuickEdit = () => {
+    if (!quickEditSubject || !currentSelectedStudent) return;
+    const newRecord: ScoreRecord = {
+      id: `SCR-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+      studentId: currentSelectedStudent.id,
+      studentName: currentSelectedStudent.name,
+      class: currentSelectedStudent.class,
+      subject: quickEditSubject,
+      session: currentResultSessionKey,
+      ca1: 0,
+      ca2: 0,
+      ca3: 0,
+      ca4: 0,
+      exam: 0,
+      total: 0,
+      grade: "F",
+      remark: "Fail"
+    };
+    setQuickEditScores(prev => [...prev, newRecord]);
+    setQuickEditSubject("");
+  };
+
+  const handleSaveQuickEditScores = () => {
+    if (!currentSelectedStudent) return;
+    setScores(prev => {
+      const filtered = prev.filter(s => 
+        !(
+          (s.studentId === currentSelectedStudent.id || (s.studentName && s.studentName.toLowerCase() === currentSelectedStudent.name.toLowerCase())) &&
+          (s.session === currentResultSessionKey || s.session === resultSelectedSession)
+        )
       );
-    }
-
-    if (studentScores.length === 0) {
-      const defaultSubjects = ["Mathematics", "English Language", "Basic Science", "Civic Education", "Social Studies", "Agricultural Science"];
-      studentScores = defaultSubjects.map((sub, i) => ({
-        id: `TMP-${student.studentId}-${i}`,
-        studentId: student.studentId,
-        studentName: student.studentName,
-        class: student.class,
-        subject: sub,
-        session: selectedSession,
-        ca1: 8,
-        ca2: 8,
-        ca3: 7,
-        ca4: 8,
-        exam: 49,
-        total: 80,
-        grade: "A",
-        remark: "Excellent",
-        position: "1st"
-      })) as any;
-    }
-
-    const overallTotal = studentScores.reduce((acc: any, s: any) => acc + s.total, 0);
-    const average = studentScores.length > 0 ? (overallTotal / studentScores.length).toFixed(1) : 0;
-    
-    const currentAffective = skillsDb[student.studentId] || affectiveRecords.find((a: any) => a.studentId === student.studentId) || {};
-
-    const traits = [
-      { key: 'Attentiveness', label: 'Attentiveness' }, { key: 'Attendance', label: 'Attendance' }, { key: 'Punctuality', label: 'Punctuality' }, { key: 'Neatness', label: 'Neatness' }, { key: 'Politeness', label: 'Politeness' }, { key: 'Rel. With Others', label: 'Rel. With Others' }, { key: 'Curiosity', label: 'Curiosity' }, { key: 'Honesty', label: 'Honesty' }, { key: 'Humility', label: 'Humility' }, { key: 'Tolerance', label: 'Tolerance' }, { key: 'Leadership', label: 'Leadership' }, { key: 'Courage', label: 'Courage' }, { key: 'Handwriting', label: 'Handwriting' }, { key: 'Fluency', label: 'Fluency' }, { key: 'Games/Sports', label: 'Games/Sports' }, { key: 'Music Skills', label: 'Music Skills' }, { key: 'Construction', label: 'Construction' },
-    ];
-
-    return isNewFormat ? (
-      <div className="bg-white border-4 border-gray-300 p-2 sm:p-6 w-full mx-auto" style={{ minWidth: '800px' }}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="w-24 h-24 rounded-full flex items-center justify-center overflow-hidden">
-            <img src={portalSettings.logoUrl} alt="School Badge" className="w-full h-full object-cover" />
-          </div>
-          <div className="text-center flex-1 px-4">
-            <h1 className="text-2xl font-black text-yellow-600 uppercase tracking-wide">{portalSettings.schoolName}</h1>
-            <p className="text-yellow-500 font-bold mt-1 text-sm">{portalSettings.address}</p>
-            <p className="text-yellow-500 font-bold text-sm">Site: emmanuelsecondaryschool.com</p>
-            <p className="text-yellow-500 font-bold text-sm">Phone: {portalSettings.contactPhone}</p>
-          </div>
-          <div className="w-24 h-24 rounded-md border flex items-center justify-center overflow-hidden bg-slate-100">
-            {students.find(s => s.id === student.studentId)?.passportUrl ? (
-              <img src={students.find(s => s.id === student.studentId)?.passportUrl} alt="Student" className="w-full h-full object-cover" />
-            ) : (
-              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${student.studentId || student.studentName}`} alt="Student" className="w-full h-full object-cover" />
-            )}
-          </div>
-        </div>
-
-        <div className="bg-cyan-300 w-64 text-center text-[11px] py-1 border border-black mb-3 font-bold uppercase">
-          {selectedSession.split(' - ')[1]?.toUpperCase() || "FIRST TERM"} RESULT<br/>{selectedSession.split(' - ')[0] || "2025/2026 SESSION"}
-        </div>
-
-        <table className="w-full border-collapse border border-black text-[11px] font-bold uppercase mb-2">
-          <tbody>
-            <tr>
-              <td colSpan={2} className="border border-black p-1 text-center">NAME: {student.studentName} &nbsp;&bull;&nbsp; ADM NO: {student.studentId} &nbsp;&bull;&nbsp; CLASS: {student.class}</td>
-            </tr>
-            <tr>
-              <td colSpan={2} className="border border-black p-1 text-center">GENDER: {student.gender || "MALE"} &nbsp;&bull;&nbsp; SUBJECTS TAKEN: {studentScores.length} &nbsp;&bull;&nbsp; ATTENDANCE: 122 DAYS OUT OF 125</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div className="flex items-start gap-1">
-          <div className="flex-1">
-            <table className="w-full border-collapse border border-black text-[10px] text-center uppercase">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-black p-1 text-left w-32">SUBJECT</th>
-                  <th className="border border-black p-1">CA1</th>
-                  <th className="border border-black p-1">CA2</th>
-                  <th className="border border-black p-1">CA3</th>
-                  <th className="border border-black p-1">CA4</th>
-                  <th className="border border-black p-1">CATOTAL</th>
-                  <th className="border border-black p-1">EXAM</th>
-                  <th className="border border-black p-1">TOTAL</th>
-                  <th className="border border-black p-1">LOWEST</th>
-                  <th className="border border-black p-1">HIGHEST</th>
-                  <th className="border border-black p-1">AVERAGE</th>
-                  <th className="border border-black p-1">POSITION</th>
-                  <th className="border border-black p-1">GRADE</th>
-                  <th className="border border-black p-1">REMARK</th>
-                </tr>
-              </thead>
-              <tbody>
-                {studentScores.map((sub: any) => {
-                  const caTotal = sub.ca1 + sub.ca2 + sub.ca3 + sub.ca4;
-                  return (
-                    <tr key={sub.id}>
-                      <td className="border border-black p-1 text-left font-semibold">{sub.subject}</td>
-                      <td className="border border-black p-1">{sub.ca1}</td>
-                      <td className="border border-black p-1">{sub.ca2}</td>
-                      <td className="border border-black p-1">{sub.ca3}</td>
-                      <td className="border border-black p-1">{sub.ca4}</td>
-                      <td className="border border-black p-1 bg-gray-50">{caTotal}</td>
-                      <td className="border border-black p-1">{sub.exam}</td>
-                      <td className="border border-black p-1 font-bold">{sub.total}</td>
-                      <td className="border border-black p-1 text-gray-600">28</td>
-                      <td className="border border-black p-1 text-gray-600">99</td>
-                      <td className="border border-black p-1 text-gray-600">65.7</td>
-                      <td className="border border-black p-1">{sub.position || "—"}</td>
-                      <td className="border border-black p-1 font-bold">{sub.grade}</td>
-                      <td className="border border-black p-1">{sub.remark}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            <table className="w-full border-collapse border border-black text-[11px] font-bold uppercase mt-1">
-              <tbody>
-                <tr>
-                  <td colSpan={4} className="border border-black p-1 text-left bg-gray-50">OVERALL TOTAL: {overallTotal}</td>
-                </tr>
-                <tr>
-                  <td colSpan={4} className="border border-black p-1 text-left bg-gray-50">AVERAGE SCORE: {average}%</td>
-                </tr>
-                <tr className="bg-gray-50">
-                  <td className="border border-black p-1 text-left w-1/4">POSITION: {student.position || "1st"}</td>
-                  <td className="border border-black p-1 text-left w-1/4">OUT OF: {student.totalClassCount || 25}</td>
-                  <td className="border border-black p-1 text-left w-1/4">TERM BEGAN: 04/05/2026</td>
-                  <td className="border border-black p-1 text-left w-1/4">ENDED: 24/07/2026</td>
-                </tr>
-                <tr>
-                  <td colSpan={4} className="border border-black p-1 text-left bg-gray-50">NEXT TERM BEGINS: 14/09/2026</td>
-                </tr>
-                <tr>
-                  <td colSpan={4} className="border border-black p-1 text-left bg-gray-50">CLASS TEACHER'S REMARK: AN EXCELLENT PERFORMANCE, KEEP IT UP</td>
-                </tr>
-                <tr>
-                  <td colSpan={4} className="border border-black p-1 text-left bg-gray-50">HEAD TEACHER'S REMARK: A VERY GOOD RESULT, KEEP IT UP</td>
-                </tr>
-                <tr>
-                  <td colSpan={4} className="border border-black p-2 h-16 align-top">
-                    <div className="flex justify-between items-end h-full w-full">
-                      <span>PRINCIPAL'S NAME: {portalSettings.principalName?.toUpperCase() || "MR. ZAGWA SAMUEL"}</span>
-                      {portalSettings.principalSignatureUrl ? (
-                        <img src={portalSettings.principalSignatureUrl} alt="Signature" className="w-24 h-12 object-contain" />
-                      ) : (
-                        <img src="/signature.jpg" alt="Signature" className="w-24 h-12 object-contain opacity-0" />
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-            
-          <div className="w-32 shrink-0">
-            <table className="w-full border-collapse border border-black text-[10px] text-center bg-gray-50 uppercase">
-              <tbody>
-                <tr><td colSpan={2} className="border border-black p-1 text-center font-bold bg-gray-200">LOCOMOTIVE / PSYCHOMOTOR</td></tr>
-                {traits.map((t: any) => (
-                  <tr key={t.key}>
-                    <td className="border border-black p-1 text-left w-3/4">{t.label}</td>
-                    <td className="border border-black p-1 w-1/4 font-bold bg-white">{(currentAffective as any)[t.key] !== undefined ? (currentAffective as any)[t.key] : 'A'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    ) : (
-      <div className="space-y-5 text-slate-900 bg-white p-4">
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-          <div>
-            <p className="text-lg font-bold text-slate-900">{student.studentName}</p>
-            <p className="text-xs text-slate-500">ID: {student.studentId} &bull; Class: {student.class}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-slate-400">Class Position</p>
-            <p className="text-base font-black text-brand-700">{student.position || "1st"}</p>
-          </div>
-        </div>
-
-        <div className="border border-slate-200 rounded-lg overflow-hidden text-xs">
-          <table className="w-full text-left">
-            <thead className="bg-slate-100 font-semibold text-slate-700">
-              <tr>
-                <th className="p-2.5">Subject</th>
-                <th className="p-2.5 text-center">CA1</th>
-                <th className="p-2.5 text-center">CA2</th>
-                <th className="p-2.5 text-center">CA3</th>
-                <th className="p-2.5 text-center">CA4</th>
-                <th className="p-2.5 text-center">Exam</th>
-                <th className="p-2.5 text-center font-bold">Total</th>
-                <th className="p-2.5 text-center font-bold">Grade</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {studentScores.map((sub: any) => (
-                <tr key={sub.id}>
-                  <td className="p-2.5 font-medium">{sub.subject}</td>
-                  <td className="p-2.5 text-center">{sub.ca1}</td>
-                  <td className="p-2.5 text-center">{sub.ca2}</td>
-                  <td className="p-2.5 text-center">{sub.ca3}</td>
-                  <td className="p-2.5 text-center">{sub.ca4}</td>
-                  <td className="p-2.5 text-center font-semibold">{sub.exam}</td>
-                  <td className="p-2.5 text-center font-bold text-slate-900">{sub.total}</td>
-                  <td className="p-2.5 text-center font-bold text-brand-700">{sub.grade}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
+      return [...filtered, ...quickEditScores];
+    });
+    setIsQuickEditOpen(false);
+    setNotificationMsg(`Academic scores updated in database for ${currentSelectedStudent.name}. Result recalculated!`);
+    setTimeout(() => setNotificationMsg(""), 4000);
   };
 
   return (
@@ -687,8 +630,314 @@ export default function Examinations() {
         </div>
       )}
 
+      {/* PRIMARY NAVIGATION TABS */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3 print:hidden">
+        <button
+          onClick={() => setActiveMainTab("class_results")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${
+            activeMainTab === "class_results"
+              ? "bg-brand-900 text-white shadow-brand-900/20"
+              : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+          }`}
+        >
+          <FileCheck size={18} className={activeMainTab === "class_results" ? "text-amber-400" : "text-brand-700"} />
+          <span>View Class Results</span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] uppercase font-black bg-emerald-400 text-slate-950">
+            Complete Results
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveMainTab("student_results")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${
+            activeMainTab === "student_results"
+              ? "bg-brand-900 text-white shadow-brand-900/20"
+              : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+          }`}
+        >
+          <GraduationCap size={18} className={activeMainTab === "student_results" ? "text-amber-400" : "text-brand-700"} />
+          <span>Individual Student Report Card</span>
+        </button>
+
+        <button
+          onClick={() => setActiveMainTab("gradebook")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${
+            activeMainTab === "gradebook"
+              ? "bg-brand-900 text-white shadow-brand-900/20"
+              : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+          }`}
+        >
+          <Edit3 size={18} className={activeMainTab === "gradebook" ? "text-amber-400" : "text-slate-500"} />
+          <span>Continuous Assessment & Score Entry</span>
+        </button>
+
+        <button
+          onClick={() => setActiveMainTab("broadsheets")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${
+            activeMainTab === "broadsheets"
+              ? "bg-brand-900 text-white shadow-brand-900/20"
+              : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+          }`}
+        >
+          <Table size={18} className={activeMainTab === "broadsheets" ? "text-amber-400" : "text-slate-500"} />
+          <span>Class Broadsheets & Reports</span>
+        </button>
+
+        <button
+          onClick={() => setActiveMainTab("result_pins")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${
+            activeMainTab === "result_pins"
+              ? "bg-brand-900 text-white shadow-brand-900/20"
+              : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+          }`}
+        >
+          <Key size={18} className={activeMainTab === "result_pins" ? "text-amber-400" : "text-amber-600"} />
+          <span>Result PIN Management</span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] uppercase font-black bg-amber-400 text-slate-950">
+            Security
+          </span>
+        </button>
+      </div>
+
+      {/* DEDICATED RESULT PIN MANAGEMENT TAB VIEW */}
+      {activeMainTab === "result_pins" && (
+        <ResultPinManagement />
+      )}
+
+      {/* DEDICATED VIEW CLASS RESULTS TAB VIEW */}
+      {activeMainTab === "class_results" && (
+        <ViewClassResults
+          onOpenScoreEntry={(targetClass, targetSubject) => {
+            if (targetClass) setSelectedClass(targetClass);
+            if (targetSubject) setSelectedSubject(targetSubject);
+            setActiveMainTab("gradebook");
+            setActiveModal("live_score_entry");
+          }}
+        />
+      )}
+
+      {/* DEDICATED STUDENT RESULTS TAB VIEW */}
+      {activeMainTab === "student_results" && (
+        <div className="space-y-6">
+          {/* 4-PARAMETER SELECTION BAR: Class -> Student -> Session -> Term */}
+          <Card className="border border-slate-200 shadow-sm bg-white overflow-hidden print:hidden">
+            <CardHeader className="bg-slate-900 text-white py-4 px-6 border-b border-slate-800">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded border border-amber-400/30">
+                    Live Database Record Generator
+                  </span>
+                  <CardTitle className="text-white text-lg font-bold mt-1 flex items-center gap-2">
+                    <FileCheck size={20} className="text-amber-400" />
+                    Student Result Generator (Class → Student → Session → Term)
+                  </CardTitle>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Select criteria to retrieve live academic records from the database. The result template displays the exact scores recorded for that student.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-bold gap-1.5"
+                    onClick={() => window.print()}
+                  >
+                    <Printer size={15} /> Print Official Result Slip
+                  </Button>
+                  <Button
+                    variant="brand"
+                    className="text-xs font-bold gap-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950"
+                    onClick={() => {
+                      const currentStudentRecs = scores.filter(s => 
+                        (s.studentId === resultSelectedStudentId || (s.studentName && s.studentName.toLowerCase() === currentSelectedStudent?.name?.toLowerCase())) &&
+                        (s.session === currentResultSessionKey || s.session === resultSelectedSession)
+                      );
+                      setQuickEditScores(currentStudentRecs);
+                      setIsQuickEditOpen(true);
+                    }}
+                  >
+                    <Edit3 size={15} /> Record / Edit Scores
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-6 space-y-5 bg-slate-50/50">
+              {/* 4 CONTROLS */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 1. SELECT CLASS */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <BookOpen size={14} className="text-brand-600" /> 1. Select Class
+                  </Label>
+                  <select
+                    className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-500"
+                    value={resultSelectedClass}
+                    onChange={(e) => {
+                      const newCls = e.target.value;
+                      setResultSelectedClass(newCls);
+                      const inNewCls = students.filter(s => s.class === newCls);
+                      if (inNewCls.length > 0) {
+                        setResultSelectedStudentId(inNewCls[0].id);
+                      }
+                    }}
+                  >
+                    {CLASSES.filter(c => c !== "All Classes").map((cls) => (
+                      <option key={cls} value={cls}>{cls}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 2. SELECT STUDENT */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <UserCheck size={14} className="text-brand-600" /> 2. Select Student
+                  </Label>
+                  <select
+                    className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-500"
+                    value={resultSelectedStudentId}
+                    onChange={(e) => setResultSelectedStudentId(e.target.value)}
+                  >
+                    {studentsInResultClass.length > 0 ? (
+                      studentsInResultClass.map((st, idx) => (
+                        <option key={`${st.id}_${idx}`} value={st.id}>
+                          {st.name} ({st.id})
+                        </option>
+                      ))
+                    ) : (
+                      <option value="">No students found in {resultSelectedClass}</option>
+                    )}
+                  </select>
+                </div>
+
+                {/* 3. SELECT ACADEMIC SESSION */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <Layers size={14} className="text-brand-600" /> 3. Academic Session
+                  </Label>
+                  <select
+                    className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-500"
+                    value={resultSelectedSession}
+                    onChange={(e) => setResultSelectedSession(e.target.value)}
+                  >
+                    {sessions.map((sess) => (
+                      <option key={sess} value={sess}>{sess} Academic Session</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 4. SELECT TERM */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckCircle2 size={14} className="text-brand-600" /> 4. Term
+                  </Label>
+                  <select
+                    className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-500"
+                    value={resultSelectedTerm}
+                    onChange={(e) => setResultSelectedTerm(e.target.value)}
+                  >
+                    {TERMS.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* STUDENT QUICK SEARCH & LIVE STATS BAR */}
+              <div className="p-4 bg-white border border-slate-200 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-brand-100 border border-brand-200 text-brand-900 flex items-center justify-center font-bold text-base overflow-hidden shrink-0">
+                    {currentSelectedStudent?.passportUrl ? (
+                      <img src={currentSelectedStudent.passportUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Award size={22} className="text-brand-700" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      {currentSelectedStudent?.name || "Student"}
+                      <span className="text-xs px-2 py-0.5 rounded font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                        {currentSelectedStudent?.id}
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Class: <span className="font-semibold text-slate-800">{currentSelectedStudent?.class}</span> &bull; 
+                      Session: <span className="font-semibold text-slate-800">{resultSelectedSession}</span> &bull; 
+                      Term: <span className="font-semibold text-slate-800">{resultSelectedTerm}</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* METRICS PILLS */}
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className={`px-3 py-1.5 rounded-lg font-bold border ${
+                    resultSubjectsCount > 0 
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-800" 
+                      : "bg-amber-50 border-amber-200 text-amber-800"
+                  }`}>
+                    {resultSubjectsCount > 0 ? `${resultSubjectsCount} Subjects in Database` : "No Scores Recorded Yet"}
+                  </span>
+                  <span className="px-3 py-1.5 rounded-lg font-bold bg-slate-100 border border-slate-200 text-slate-800">
+                    Live Total: <span className="font-black text-slate-900">{resultTotalScore}</span>
+                  </span>
+                  <span className="px-3 py-1.5 rounded-lg font-bold bg-brand-50 border border-brand-200 text-brand-900">
+                    Average: <span className="font-black">{resultAverageScore}%</span>
+                  </span>
+                  <span className="px-3 py-1.5 rounded-lg font-bold bg-purple-50 border border-purple-200 text-purple-900">
+                    Class Rank: <span className="font-black">{resultStudentPosition}</span> of {studentsInResultClass.length}
+                  </span>
+                </div>
+
+                {/* PREV / NEXT NAVIGATION */}
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-2.5 bg-white border-slate-200 text-xs font-semibold"
+                    onClick={handlePrevStudent}
+                    disabled={studentsInResultClass.length <= 1}
+                  >
+                    <ChevronLeft size={16} /> Prev
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-2.5 bg-white border-slate-200 text-xs font-semibold"
+                    onClick={handleNextStudent}
+                    disabled={studentsInResultClass.length <= 1}
+                  >
+                    Next <ChevronRight size={16} />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* OFFICIAL REPORT CARD DISPLAY */}
+          <div className="overflow-x-auto flex justify-center py-2">
+            <StudentReportCard
+              student={currentSelectedStudent || {
+                id: resultSelectedStudentId,
+                name: "Student",
+                class: resultSelectedClass
+              }}
+              session={resultSelectedSession}
+              term={resultSelectedTerm}
+              onEditScores={() => {
+                const currentStudentRecs = scores.filter(s => 
+                  (s.studentId === resultSelectedStudentId || (s.studentName && s.studentName.toLowerCase() === currentSelectedStudent?.name?.toLowerCase())) &&
+                  (s.session === currentResultSessionKey || s.session === resultSelectedSession)
+                );
+                setQuickEditScores(currentStudentRecs);
+                setIsQuickEditOpen(true);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* EXAMINATIONS ACTION COMMANDS PANEL */}
-      <Card className="border-0 shadow-md bg-slate-900 text-white overflow-hidden">
+      <Card className={`border-0 shadow-md bg-slate-900 text-white overflow-hidden ${activeMainTab === "student_results" || activeMainTab === "class_results" ? "hidden" : ""}`}>
         <CardHeader className="bg-slate-950/80 border-b border-slate-800 py-3.5 px-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-brand-500/20 text-brand-300 flex items-center justify-center border border-brand-500/30">
@@ -862,10 +1111,10 @@ export default function Examinations() {
                   <Button
                     variant="outline"
                     className="bg-slate-800 border-slate-700 text-slate-100 hover:bg-indigo-900 hover:text-white justify-start gap-2 h-9 text-[11px]"
-                    onClick={() => setActiveModal("class_result_pre_select")}
+                    onClick={() => setActiveMainTab("class_results")}
                   >
                     <Printer size={14} className="text-indigo-400 shrink-0" />
-                    <span className="truncate">Pre-Select Class Result</span>
+                    <span className="truncate">View / Print Class Results</span>
                   </Button>
                   <Button
                     variant="outline"
@@ -2768,8 +3017,8 @@ export default function Examinations() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <Card className="w-full max-w-lg border-0 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
             <CardHeader className="bg-slate-900 text-white flex flex-row items-center justify-between pb-4">
-              <CardTitle className="text-white">
-                Check Student Result
+              <CardTitle className="text-white flex items-center gap-2">
+                <UserCheck size={20} className="text-emerald-400" /> Check Student Result (Live Database)
               </CardTitle>
               <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-white">
                 <X size={20} />
@@ -2778,28 +3027,63 @@ export default function Examinations() {
 
             <CardContent className="p-6 space-y-4 text-sm">
               <div className="space-y-1.5">
-                <Label>Enter Student Admission No.</Label>
+                <Label>Enter Student Admission No. or Name</Label>
                 <Input 
                   className="w-full h-10"
-                  placeholder="e.g. ESS/2026/001"
+                  placeholder="e.g. ESS/2026/001 or Chukwuemeka"
                   value={studentLookupId}
                   onChange={(e) => setStudentLookupId(e.target.value)}
                 />
               </div>
 
-              <Button 
-                variant="brand" 
-                className="w-full"
-                onClick={() => {
-                  const target = scores.find(s => s.studentId === studentLookupId);
-                  if (target) {
-                    setSelectedStudentResult(target);
-                    setActiveModal("single_student_report");
-                  }
-                }}
-              >
-                Generate Result Sheet
-              </Button>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-500">Or Select from Registered Students</Label>
+                <select 
+                  className="w-full h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold"
+                  value={studentLookupId}
+                  onChange={(e) => setStudentLookupId(e.target.value)}
+                >
+                  <option value="">-- Choose a student --</option>
+                  {students.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.id}) &bull; {s.class}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => setActiveModal(null)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="brand" 
+                  className="flex-1 bg-brand-600 hover:bg-brand-700"
+                  onClick={() => {
+                    const cleaned = (studentLookupId || "").trim().toLowerCase();
+                    const targetStudent = students.find(s => s.id.toLowerCase() === cleaned || s.name.toLowerCase().includes(cleaned));
+                    const targetScore = scores.find(s => s.studentId.toLowerCase() === cleaned || (s.studentName && s.studentName.toLowerCase().includes(cleaned)));
+                    
+                    if (targetStudent) {
+                      setResultSelectedClass(targetStudent.class);
+                      setResultSelectedStudentId(targetStudent.id);
+                      setActiveMainTab("student_results");
+                      setActiveModal(null);
+                    } else if (targetScore) {
+                      setResultSelectedClass(targetScore.class);
+                      setResultSelectedStudentId(targetScore.studentId);
+                      setActiveMainTab("student_results");
+                      setActiveModal(null);
+                    } else {
+                      alert(`No student found matching "${studentLookupId}". Please verify the Admission Number or select from the dropdown.`);
+                    }
+                  }}
+                >
+                  Generate Result Sheet
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -3827,6 +4111,196 @@ export default function Examinations() {
                 <Button variant="brand" onClick={() => setActiveModal(null)}>Done</Button>
               </div>
             </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* QUICK RECORD / EDIT SCORES MODAL */}
+      {isQuickEditOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+          <Card className="w-full max-w-4xl border-0 shadow-2xl overflow-hidden bg-white text-slate-900 max-h-[90vh] flex flex-col">
+            <CardHeader className="bg-slate-900 text-white flex flex-row items-center justify-between py-4 px-6 shrink-0">
+              <div>
+                <CardTitle className="text-white text-base font-bold flex items-center gap-2">
+                  <Edit3 size={18} className="text-amber-400" />
+                  Record & Edit Student Academic Scores (Live Database)
+                </CardTitle>
+                <p className="text-xs text-slate-400 mt-1">
+                  Student: <strong className="text-white">{currentSelectedStudent?.name}</strong> ({currentSelectedStudent?.id}) &bull; 
+                  Class: <strong className="text-white">{resultSelectedClass}</strong> &bull; 
+                  Session: <strong className="text-white">{resultSelectedSession}</strong> &bull; 
+                  Term: <strong className="text-white">{resultSelectedTerm}</strong>
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsQuickEditOpen(false)} 
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
+              >
+                <X size={20} />
+              </button>
+            </CardHeader>
+
+            <CardContent className="p-6 space-y-4 overflow-y-auto">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center gap-2.5">
+                <CheckCircle2 size={18} className="text-amber-600 shrink-0" />
+                <span>
+                  Scores entered here are stored in the persistent database. The student report card will immediately compute and display these exact scores, grade, and remarks.
+                </span>
+              </div>
+
+              {/* SCORES TABLE */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-100 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
+                    <tr>
+                      <th className="p-3 min-w-[160px]">Subject Name</th>
+                      <th className="p-2 text-center w-20">CA 1 (10)</th>
+                      <th className="p-2 text-center w-20">CA 2 (10)</th>
+                      <th className="p-2 text-center w-20">CA 3 (10)</th>
+                      <th className="p-2 text-center w-20">CA 4 (10)</th>
+                      <th className="p-2 text-center w-24">Exam (60)</th>
+                      <th className="p-3 text-center w-20">Total (100)</th>
+                      <th className="p-3 text-center w-16">Grade</th>
+                      <th className="p-3 text-center w-16">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-800">
+                    {quickEditScores.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="text-center py-8 text-slate-400 font-medium">
+                          No subjects recorded yet for this student. Use the selector below to add subjects.
+                        </td>
+                      </tr>
+                    ) : (
+                      quickEditScores.map((record, idx) => (
+                        <tr key={record.id || idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3 font-bold text-slate-900">{record.subject}</td>
+                          <td className="p-2 text-center">
+                            <input
+                              type="number"
+                              min={0}
+                              max={10}
+                              value={record.ca1}
+                              onChange={(e) => handleQuickEditChange(idx, "ca1", Math.min(10, Math.max(0, parseInt(e.target.value) || 0)))}
+                              className="w-16 h-8 text-center rounded border border-slate-300 font-bold text-slate-900 focus:ring-1 focus:ring-brand-500"
+                            />
+                          </td>
+                          <td className="p-2 text-center">
+                            <input
+                              type="number"
+                              min={0}
+                              max={10}
+                              value={record.ca2}
+                              onChange={(e) => handleQuickEditChange(idx, "ca2", Math.min(10, Math.max(0, parseInt(e.target.value) || 0)))}
+                              className="w-16 h-8 text-center rounded border border-slate-300 font-bold text-slate-900 focus:ring-1 focus:ring-brand-500"
+                            />
+                          </td>
+                          <td className="p-2 text-center">
+                            <input
+                              type="number"
+                              min={0}
+                              max={10}
+                              value={record.ca3}
+                              onChange={(e) => handleQuickEditChange(idx, "ca3", Math.min(10, Math.max(0, parseInt(e.target.value) || 0)))}
+                              className="w-16 h-8 text-center rounded border border-slate-300 font-bold text-slate-900 focus:ring-1 focus:ring-brand-500"
+                            />
+                          </td>
+                          <td className="p-2 text-center">
+                            <input
+                              type="number"
+                              min={0}
+                              max={10}
+                              value={record.ca4}
+                              onChange={(e) => handleQuickEditChange(idx, "ca4", Math.min(10, Math.max(0, parseInt(e.target.value) || 0)))}
+                              className="w-16 h-8 text-center rounded border border-slate-300 font-bold text-slate-900 focus:ring-1 focus:ring-brand-500"
+                            />
+                          </td>
+                          <td className="p-2 text-center">
+                            <input
+                              type="number"
+                              min={0}
+                              max={60}
+                              value={record.exam}
+                              onChange={(e) => handleQuickEditChange(idx, "exam", Math.min(60, Math.max(0, parseInt(e.target.value) || 0)))}
+                              className="w-20 h-8 text-center rounded border border-slate-300 font-bold text-slate-900 focus:ring-1 focus:ring-brand-500"
+                            />
+                          </td>
+                          <td className="p-3 text-center font-black text-sm text-slate-900">
+                            {record.total}
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className={`px-2 py-0.5 rounded font-black text-xs ${
+                              record.grade === "A" ? "bg-emerald-100 text-emerald-800" :
+                              record.grade === "B" ? "bg-blue-100 text-blue-800" :
+                              record.grade === "C" ? "bg-amber-100 text-amber-800" :
+                              record.grade === "D" ? "bg-orange-100 text-orange-800" :
+                              record.grade === "E" ? "bg-purple-100 text-purple-800" :
+                              "bg-rose-100 text-rose-800"
+                            }`}>
+                              {record.grade}
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <button
+                              onClick={() => handleQuickEditRemove(idx)}
+                              className="text-slate-400 hover:text-rose-600 transition-colors p-1"
+                              title="Delete Subject"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ADD NEW SUBJECT ROW */}
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <select
+                  className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-800 min-w-[240px]"
+                  value={quickEditSubject}
+                  onChange={(e) => setQuickEditSubject(e.target.value)}
+                >
+                  <option value="">-- Add another subject --</option>
+                  {SUBJECTS.filter(s => s !== "All Subjects" && !quickEditScores.some(qs => qs.subject === s)).map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-10 gap-1.5 font-bold text-xs"
+                  onClick={handleAddSubjectToQuickEdit}
+                  disabled={!quickEditSubject}
+                >
+                  <Plus size={15} /> Add Subject to Score Sheet
+                </Button>
+              </div>
+            </CardContent>
+
+            <CardFooter className="bg-slate-50 border-t border-slate-200 py-3.5 px-6 flex justify-between items-center shrink-0">
+              <span className="text-xs font-semibold text-slate-500">
+                Total Recorded Subjects: <strong className="text-slate-900">{quickEditScores.length}</strong>
+              </span>
+              <div className="flex gap-2.5">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsQuickEditOpen(false)}
+                  className="bg-white border-slate-300 text-xs font-bold"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="brand" 
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-1.5"
+                  onClick={handleSaveQuickEditScores}
+                >
+                  <Save size={15} /> Save Scores to Database
+                </Button>
+              </div>
+            </CardFooter>
           </Card>
         </div>
       )}

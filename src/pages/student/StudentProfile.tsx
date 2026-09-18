@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@/src/components/ui";
-import { User, Mail, Phone, MapPin, Save, CheckCircle2, Upload, Camera } from "lucide-react";
-import { useStudents } from "../../data/studentsData";
+import { User, Mail, Phone, MapPin, Save, CheckCircle2, Upload, Camera, AlertCircle } from "lucide-react";
+import { useStudents, findStudentByIdentifier, Student } from "../../data/studentsData";
 
 export default function StudentProfile() {
   const [students, setStudentsState] = useStudents();
-  const [student, setStudent] = useState<any>(null);
+  const [student, setStudent] = useState<Student | null>(null);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     const loggedInId = localStorage.getItem('loggedInStudentId');
     if (loggedInId) {
-      const found = students.find(s => s.id === loggedInId || s.name.toLowerCase().includes(loggedInId.toLowerCase()));
-      if (found) setStudent(found);
-      else setStudent(students[0]);
+      const found = findStudentByIdentifier(loggedInId, students);
+      setStudent(found);
     } else {
-      setStudent(students[0]);
+      setStudent(null);
     }
   }, [students]);
 
@@ -31,7 +31,24 @@ export default function StudentProfile() {
     setTimeout(() => setSaved(false), 3000);
   };
 
-  if (!student) return <div>Loading...</div>;
+  if (!student) {
+    return (
+      <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center max-w-lg mx-auto my-12 shadow-sm space-y-4">
+        <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+          <AlertCircle size={24} />
+        </div>
+        <h3 className="text-xl font-bold text-slate-800">Student Profile Not Found</h3>
+        <p className="text-slate-600 text-sm">
+          Please log in with your valid student credentials to view and manage your profile details.
+        </p>
+        <Link to="/login">
+          <Button className="bg-brand-900 text-white hover:bg-brand-800 mt-2">
+            Go to Student Login
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl">

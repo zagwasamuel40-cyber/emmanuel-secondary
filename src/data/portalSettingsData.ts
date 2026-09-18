@@ -31,6 +31,8 @@ export interface PortalSettings {
   principalSignatureUrl: string;
   aboutUsImageUrl?: string;
   aboutUsText?: string;
+  mission?: string;
+  vision?: string;
   dedicatedTeam: TeamMember[];
 }
 
@@ -52,6 +54,8 @@ const defaultPortalSettings: PortalSettings = {
   principalSignatureUrl: "",
   aboutUsImageUrl: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
   aboutUsText: "Founded with a vision to provide world-class education in Makurdi, Benue State, we are dedicated to raising a generation of intellectually sound, morally upright, and socially responsible leaders.",
+  mission: "To provide comprehensive education that empowers students with the knowledge, skills, and values needed to excel in a rapidly changing world.",
+  vision: "To be the premier secondary educational institution in Nigeria, recognized globally for academic excellence and character development.",
   dedicatedTeam: [
     {
       id: "1",

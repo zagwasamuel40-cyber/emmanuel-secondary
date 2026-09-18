@@ -1,17 +1,24 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, Button } from "@/src/components/ui";
-import { CreditCard, Download, ShieldCheck, CheckCircle2, FileText } from "lucide-react";
-import { useStudents } from "../../data/studentsData";
+import { CreditCard, Download, ShieldCheck, CheckCircle2, FileText, AlertCircle, Printer } from "lucide-react";
+import { useStudents, findStudentByIdentifier } from "../../data/studentsData";
 
 export default function StudentFees() {
-  const [isPaid, setIsPaid] = useState(false);
+  const [students, setStudents] = useStudents();
+  const loggedInId = localStorage.getItem('loggedInStudentId');
+  const currentStudent = findStudentByIdentifier(loggedInId, students);
+  const studentClass = currentStudent?.class || "JSS 1";
+
+  const [isPaid, setIsPaid] = useState(() => currentStudent?.fees === "Paid");
   const [processing, setProcessing] = useState(false);
   const [feeBreakdowns, setFeeBreakdowns] = useState<any[]>([]);
-  
-  const [students] = useStudents();
-  const loggedInId = localStorage.getItem('loggedInStudentId');
-  const currentStudent = students.find(s => s.id === loggedInId || s.name.toLowerCase().includes((loggedInId || '').toLowerCase()));
-  const studentClass = currentStudent?.class || "JSS 1";
+
+  useEffect(() => {
+    if (currentStudent) {
+      setIsPaid(currentStudent.fees === "Paid");
+    }
+  }, [currentStudent?.fees]);
 
   useEffect(() => {
     const stored = localStorage.getItem("ess_fee_breakdowns");
@@ -37,8 +44,30 @@ export default function StudentFees() {
     setTimeout(() => {
       setIsPaid(true);
       setProcessing(false);
-    }, 2000);
+      if (currentStudent) {
+        setStudents(prev => prev.map(s => s.id === currentStudent.id ? { ...s, fees: "Paid" } : s));
+      }
+    }, 1500);
   };
+
+  if (!currentStudent) {
+    return (
+      <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center max-w-lg mx-auto my-12 shadow-sm space-y-4">
+        <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+          <AlertCircle size={24} />
+        </div>
+        <h3 className="text-xl font-bold text-slate-800">Student Verification Required</h3>
+        <p className="text-slate-600 text-sm">
+          Please log in to view your fee structure, outstanding balance, and fee receipts.
+        </p>
+        <Link to="/login">
+          <Button className="bg-brand-900 text-white hover:bg-brand-800 mt-2">
+            Sign In to Student Portal
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -160,8 +189,8 @@ export default function StudentFees() {
               <p className="text-slate-600 mt-2">Your school fees of ₦65,500.00 for the current term have been paid successfully. Receipt #ESS-PAY-908234.</p>
             </div>
             <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
-              <Button variant="outline" className="gap-2">
-                <Download size={16} /> Download Receipt
+              <Button variant="outline" className="gap-2" onClick={() => window.print()}>
+                <Printer size={16} /> Print / Save Receipt
               </Button>
               <Button variant="brand" onClick={() => setIsPaid(false)}>
                 Return to Fees

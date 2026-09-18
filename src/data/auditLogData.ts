@@ -10,6 +10,7 @@ export type AuditModule =
   | 'Staff & Roles'
   | 'Students & Records'
   | 'System Settings'
+  | 'System & Database'
   | 'Security & Auth';
 
 export interface AuditLogEntry {

@@ -29,6 +29,8 @@ export async function captureElementAsDataUrl(element: HTMLElement, scale = 3): 
       pixelRatio: scale,
       skipAutoScale: true,
       cacheBust: true,
+      skipFonts: true,
+      fontEmbedCSS: "",
     });
     if (dataUrl && dataUrl.length > 100) {
       return dataUrl;

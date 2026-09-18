@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { usePortalSettings } from "../data/portalSettingsData";
 import { useTeachers } from "../data/teachersData";
-import { useStudents } from "../data/studentsData";
+import { useStudents, findStudentByIdentifier } from "../data/studentsData";
 import { logAuditEvent } from "../data/auditLogData";
 import { Button, Card, CardContent, Input, Label } from "@/src/components/ui";
 
@@ -39,6 +39,7 @@ interface QuickAccount {
   defaultPassword: string;
   targetRoute: string;
   category: 'superadmin' | 'general' | 'portal' | 'admission' | 'finance' | 'exam' | 'attendance' | 'academic' | 'library' | 'teacher' | 'student';
+  accountType: 'admin' | 'teacher' | 'student';
   badgeBg: string;
   badgeText: string;
   badgeBorder: string;
@@ -60,6 +61,7 @@ const QUICK_ADMIN_ACCOUNTS: QuickAccount[] = [
     defaultPassword: "principal123",
     targetRoute: "/dashboard",
     category: "superadmin",
+    accountType: "admin",
     badgeBg: "bg-amber-100",
     badgeText: "text-amber-900",
     badgeBorder: "border-amber-300",
@@ -68,172 +70,21 @@ const QUICK_ADMIN_ACCOUNTS: QuickAccount[] = [
     isAdmin: true,
     systemRoles: ['Admin', 'Super Admin', 'General Admin', 'Academic Admin'],
   },
-  {
-    id: "generaladmin",
-    roleKey: "generaladmin",
-    roleLabel: "General Admin",
-    subLabel: "VP Admin & Discipline",
-    name: "Mr. Kenneth O. Agbo",
-    email: "vp.admin@ess.edu.ng",
-    staffId: "VPA/2026/003",
-    defaultPassword: "admin123",
-    targetRoute: "/dashboard",
-    category: "general",
-    badgeBg: "bg-slate-100",
-    badgeText: "text-slate-800",
-    badgeBorder: "border-slate-300",
-    iconBg: "bg-slate-700 text-white",
-    icon: Briefcase,
-    isAdmin: true,
-    systemRoles: ['Admin', 'General Admin', 'HR/Staff Admin'],
-  },
-  {
-    id: "portaladmin",
-    roleKey: "portaladmin",
-    roleLabel: "Portal Admin",
-    subLabel: "Head of ICT & Portal",
-    name: "Mr. Clement U. Oche",
-    email: "admin@ess.edu.ng",
-    staffId: "ADM/2026/001",
-    defaultPassword: "admin123",
-    targetRoute: "/dashboard/portal-manager",
-    category: "portal",
-    badgeBg: "bg-purple-100",
-    badgeText: "text-purple-900",
-    badgeBorder: "border-purple-300",
-    iconBg: "bg-purple-600 text-white",
-    icon: Laptop,
-    isAdmin: true,
-    systemRoles: ['Admin', 'Super Admin', 'General Admin', 'Portal Admin', 'HR/Staff Admin'],
-  },
-  {
-    id: "admission",
-    roleKey: "admission",
-    roleLabel: "Admission Officer",
-    subLabel: "Chief Registrar",
-    name: "Mrs. Abigail M. Iorliam",
-    email: "admission@ess.edu.ng",
-    staffId: "ADM/2026/010",
-    defaultPassword: "admission123",
-    targetRoute: "/dashboard/admissions",
-    category: "admission",
-    badgeBg: "bg-rose-100",
-    badgeText: "text-rose-900",
-    badgeBorder: "border-rose-300",
-    iconBg: "bg-rose-600 text-white",
-    icon: UserPlus,
-    isAdmin: true,
-    systemRoles: ['Admission Officer'],
-  },
-  {
-    id: "finance",
-    roleKey: "finance",
-    roleLabel: "Finance & Bursar",
-    subLabel: "Chief Accounts Officer",
-    name: "Mrs. Blessing K. Danladi",
-    email: "bursar@ess.edu.ng",
-    staffId: "BUR/2026/005",
-    defaultPassword: "bursar123",
-    targetRoute: "/dashboard/finance",
-    category: "finance",
-    badgeBg: "bg-emerald-100",
-    badgeText: "text-emerald-900",
-    badgeBorder: "border-emerald-300",
-    iconBg: "bg-emerald-600 text-white",
-    icon: CreditCard,
-    isAdmin: true,
-    systemRoles: ['Finance/Admin Officer', 'Admin'],
-  },
-  {
-    id: "examination",
-    roleKey: "examination",
-    roleLabel: "Examination Admin",
-    subLabel: "CBT & Exams Controller",
-    name: "Mr. Babatunde Lawal",
-    email: "b.lawal@staff.ess.edu.ng",
-    staffId: "TCH/2026/015",
-    defaultPassword: "teacher123",
-    targetRoute: "/dashboard/examinations",
-    category: "exam",
-    badgeBg: "bg-cyan-100",
-    badgeText: "text-cyan-900",
-    badgeBorder: "border-cyan-300",
-    iconBg: "bg-cyan-600 text-white",
-    icon: Award,
-    isAdmin: true,
-    systemRoles: ['Teacher', 'Examination Admin'],
-  },
-  {
-    id: "academic",
-    roleKey: "academic",
-    roleLabel: "Academic Admin",
-    subLabel: "VP Academics & Studies",
-    name: "Mrs. Victoria N. Alabi",
-    email: "vp.academics@ess.edu.ng",
-    staffId: "VPA/2026/002",
-    defaultPassword: "admin123",
-    targetRoute: "/dashboard/academics",
-    category: "academic",
-    badgeBg: "bg-blue-100",
-    badgeText: "text-blue-900",
-    badgeBorder: "border-blue-300",
-    iconBg: "bg-blue-600 text-white",
-    icon: BookOpen,
-    isAdmin: true,
-    systemRoles: ['Admin', 'Academic Admin', 'Examination Admin'],
-  },
-  {
-    id: "attendance",
-    roleKey: "attendance",
-    roleLabel: "Attendance Officer",
-    subLabel: "Gate & Security Head",
-    name: "Mr. Emmanuel Terhemba",
-    email: "attendance@ess.edu.ng",
-    staffId: "STF/2026/088",
-    defaultPassword: "officer123",
-    targetRoute: "/dashboard/attendance-officer",
-    category: "attendance",
-    badgeBg: "bg-orange-100",
-    badgeText: "text-orange-900",
-    badgeBorder: "border-orange-300",
-    iconBg: "bg-orange-600 text-white",
-    icon: QrCode,
-    isAdmin: true,
-    systemRoles: ['Attendance Officer'],
-  },
-  {
-    id: "library",
-    roleKey: "library",
-    roleLabel: "Library Admin",
-    subLabel: "Chief E-Librarian",
-    name: "Mr. John A. Tyovenda",
-    email: "library@ess.edu.ng",
-    staffId: "LIB/2026/007",
-    defaultPassword: "library123",
-    targetRoute: "/dashboard",
-    category: "library",
-    badgeBg: "bg-violet-100",
-    badgeText: "text-violet-900",
-    badgeBorder: "border-violet-300",
-    iconBg: "bg-violet-600 text-white",
-    icon: BookMarked,
-    isAdmin: true,
-    systemRoles: ['Library Admin', 'Teacher'],
-  },
 ];
 
-const QUICK_OTHER_ACCOUNTS: QuickAccount[] = [
+const QUICK_TEACHER_ACCOUNTS: QuickAccount[] = [
   {
-    id: "teacher",
+    id: "teacher_desk",
     roleKey: "teacher",
-    roleLabel: "Subject Teacher",
-    subLabel: "Senior English Tutor",
+    roleLabel: "Teacher / Staff",
+    subLabel: "Languages & Senior English Tutor",
     name: "Mrs. Grace Adeyemi",
-    email: "g.adeyemi@staff.ess.edu.ng",
+    email: "teacher@ess.edu.ng",
     staffId: "TCH/2026/042",
     defaultPassword: "teacher123",
     targetRoute: "/dashboard/students",
     category: "teacher",
+    accountType: "teacher",
     badgeBg: "bg-teal-100",
     badgeText: "text-teal-900",
     badgeBorder: "border-teal-300",
@@ -242,17 +93,21 @@ const QUICK_OTHER_ACCOUNTS: QuickAccount[] = [
     isAdmin: false,
     systemRoles: ['Teacher'],
   },
+];
+
+const QUICK_STUDENT_ACCOUNTS: QuickAccount[] = [
   {
-    id: "student",
+    id: "student_desk",
     roleKey: "student",
-    roleLabel: "Student Portal",
-    subLabel: "SSS 3A Senior Prefect",
-    name: "David Vershima",
-    email: "ESS/2026/001",
+    roleLabel: "Student (SSS 3A)",
+    subLabel: "Oluwaseun Adebayo (Senior Prefect - Paid)",
+    name: "Oluwaseun Adebayo",
+    email: "o.adebayo@student.ess.edu.ng",
     staffId: "ESS/2026/001",
     defaultPassword: "password123",
     targetRoute: "/student",
     category: "student",
+    accountType: "student",
     badgeBg: "bg-indigo-100",
     badgeText: "text-indigo-900",
     badgeBorder: "border-indigo-300",
@@ -261,6 +116,52 @@ const QUICK_OTHER_ACCOUNTS: QuickAccount[] = [
     isAdmin: false,
     systemRoles: ['Student'],
   },
+  {
+    id: "student_chioma",
+    roleKey: "student",
+    roleLabel: "Student (SSS 2B)",
+    subLabel: "Chioma Nwosu (Partial Fees - Commercial)",
+    name: "Chioma Nwosu",
+    email: "c.nwosu@student.ess.edu.ng",
+    staffId: "ESS/2026/002",
+    defaultPassword: "password123",
+    targetRoute: "/student",
+    category: "student",
+    accountType: "student",
+    badgeBg: "bg-purple-100",
+    badgeText: "text-purple-900",
+    badgeBorder: "border-purple-300",
+    iconBg: "bg-purple-600 text-white",
+    icon: GraduationCap,
+    isAdmin: false,
+    systemRoles: ['Student'],
+  },
+  {
+    id: "student_abubakar",
+    roleKey: "student",
+    roleLabel: "Student (JSS 1A)",
+    subLabel: "Abubakar Ibrahim (Junior School - Paid)",
+    name: "Abubakar Ibrahim",
+    email: "a.ibrahim@student.ess.edu.ng",
+    staffId: "ESS/2026/003",
+    defaultPassword: "password123",
+    targetRoute: "/student",
+    category: "student",
+    accountType: "student",
+    badgeBg: "bg-sky-100",
+    badgeText: "text-sky-900",
+    badgeBorder: "border-sky-300",
+    iconBg: "bg-sky-600 text-white",
+    icon: GraduationCap,
+    isAdmin: false,
+    systemRoles: ['Student'],
+  },
+];
+
+const ALL_QUICK_ACCOUNTS: QuickAccount[] = [
+  ...QUICK_STUDENT_ACCOUNTS,
+  ...QUICK_TEACHER_ACCOUNTS,
+  ...QUICK_ADMIN_ACCOUNTS,
 ];
 
 interface DetectedRoleResult {
@@ -291,7 +192,6 @@ export default function Login() {
 
   // Active quick card selection state for visual feedback
   const [activeQuickId, setActiveQuickId] = useState<string | null>(null);
-  const [quickRoleFilter, setQuickRoleFilter] = useState<'admins' | 'all'>('admins');
 
   // Forgot Password State
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
@@ -336,10 +236,11 @@ export default function Login() {
     if (val.length < 2) return null;
 
     // 1. Direct match with our registered quick accounts
-    const matchedQuick = [...QUICK_ADMIN_ACCOUNTS, ...QUICK_OTHER_ACCOUNTS].find(acc => 
+    const matchedQuick = ALL_QUICK_ACCOUNTS.find(acc => 
       acc.email.toLowerCase() === val || 
       acc.staffId.toLowerCase() === val ||
-      acc.roleKey === val
+      acc.roleKey === val ||
+      acc.id === val
     );
     if (matchedQuick) {
       return {
@@ -503,10 +404,7 @@ export default function Login() {
     }
 
     // 3. Check students store
-    const matchedStudent = students.find(s => 
-      s.id.toLowerCase() === val || 
-      (s.email && s.email.toLowerCase() === val)
-    );
+    const matchedStudent = findStudentByIdentifier(val, students);
     if (matchedStudent) {
       return {
         roleLabel: "Student Portal",
@@ -676,11 +574,13 @@ export default function Login() {
     setTimeout(() => {
       const searchId = userIdentifier.trim().toLowerCase();
       
-      // 1. Check students
-      const matchedStudent = students.find(s => 
-        s.id.toLowerCase() === searchId || 
-        (s.email && s.email.toLowerCase() === searchId)
-      );
+      // 1. Check students using strict non-colliding resolver
+      let matchedStudent = findStudentByIdentifier(userIdentifier, students);
+
+      // Support common student demo aliases
+      if (!matchedStudent && (searchId === 'student' || searchId === 'student@ess.edu.ng' || searchId === 'student@student.ess.edu.ng' || searchId === 'student1' || searchId === 'prefect')) {
+        matchedStudent = students.find(s => s.id === 'ESS/2026/001') || students[0];
+      }
 
       if (matchedStudent) {
         if (['Graduated', 'Withdrawn', 'Suspended', 'Inactive'].includes(matchedStudent.status)) {
@@ -689,10 +589,22 @@ export default function Login() {
           return;
         }
 
-        if (userPass === 'password123' || userPass === matchedStudent.id || userPass.length >= 4) {
+        const validStudentPasswords = [
+          matchedStudent.password || 'password123',
+          'password123',
+          'student123',
+          matchedStudent.id,
+          matchedStudent.id.toLowerCase(),
+          matchedStudent.applicationNumber,
+          matchedStudent.applicationNumber?.toLowerCase()
+        ].filter(Boolean);
+
+        if (validStudentPasswords.includes(userPass) || userPass === matchedStudent.id || userPass === matchedStudent.applicationNumber || userPass.length >= 4) {
           localStorage.setItem('loggedInStudentId', matchedStudent.id);
+          localStorage.setItem('loggedInStudentAppNo', matchedStudent.applicationNumber || '');
           localStorage.setItem('userRole', 'student');
           localStorage.setItem('userRoles', JSON.stringify(['Student']));
+          window.dispatchEvent(new Event('ess_roles_change'));
           setLoading(false);
           navigate(explicitRoute || '/student');
           return;
@@ -706,11 +618,14 @@ export default function Login() {
       // 2. Check teachers & staff (with alias resolution)
       let matchedTeacher = teachers.find(t => 
         t.id.toLowerCase() === searchId || 
-        t.email.toLowerCase() === searchId
+        t.email.toLowerCase() === searchId ||
+        (t.name && t.name.toLowerCase() === searchId)
       );
 
       if (!matchedTeacher) {
-        if (searchId === 'principal' || searchId === 'superadmin' || searchId === 'superadmin@ess.edu.ng') {
+        if (searchId === 'teacher' || searchId === 'staff' || searchId === 'teacher@ess.edu.ng' || searchId === 'teacher@staff.ess.edu.ng' || searchId === 'normal staff' || searchId === 'normal teacher') {
+          matchedTeacher = teachers.find(t => t.id === 'TCH/2026/042' || t.email === 'g.adeyemi@staff.ess.edu.ng');
+        } else if (searchId === 'principal' || searchId === 'superadmin' || searchId === 'superadmin@ess.edu.ng') {
           matchedTeacher = teachers.find(t => t.email === 'principal@ess.edu.ng' || t.id === 'PRN/2026/001');
         } else if (searchId === 'admin' || searchId === 'portal' || searchId === 'portaladmin' || searchId === 'portaladmin@ess.edu.ng' || searchId === 'ict@ess.edu.ng') {
           matchedTeacher = teachers.find(t => t.email === 'admin@ess.edu.ng' || t.id === 'ADM/2026/001');
@@ -844,10 +759,6 @@ export default function Login() {
     handleSelectQuickAccount(acc);
     executeLogin(acc.email, acc.defaultPassword, acc.targetRoute);
   };
-
-  const displayedAccounts = quickRoleFilter === 'admins' 
-    ? QUICK_ADMIN_ACCOUNTS 
-    : [...QUICK_ADMIN_ACCOUNTS, ...QUICK_OTHER_ACCOUNTS];
 
   return (
     <>
@@ -1056,120 +967,200 @@ export default function Login() {
               </Button>
             </form>
 
-            {/* Quick Demo Sign-In (Auto-Detects Role) with ALL ADMINS */}
+            {/* Quick Demo Sign-In Desk: Student, Teacher, and Super Admin */}
             <div className="mt-7 pt-6 border-t border-slate-100 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
                     <Zap size={15} className="text-amber-500 fill-amber-500" />
                     <span>Quick Sign-In Desk</span>
                     <span className="text-[11px] font-semibold text-brand-700 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200/60">
-                      Auto-Detects Role
+                      3 Demo Roles
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Click any administrator card to populate credentials and detect their exact role & permissions.
+                    Click to populate credentials or use 1-Click Instant sign in.
                   </p>
                 </div>
-
-                <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold self-start sm:self-auto shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setQuickRoleFilter('admins')}
-                    className={`px-3 py-1 rounded-md transition-all ${
-                      quickRoleFilter === 'admins'
-                        ? 'bg-white text-slate-900 shadow-sm font-bold'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    👑 All Admins ({QUICK_ADMIN_ACCOUNTS.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setQuickRoleFilter('all')}
-                    className={`px-3 py-1 rounded-md transition-all ${
-                      quickRoleFilter === 'all'
-                        ? 'bg-white text-slate-900 shadow-sm font-bold'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    👥 All Roles ({QUICK_ADMIN_ACCOUNTS.length + QUICK_OTHER_ACCOUNTS.length})
-                  </button>
+                <div className="text-[11px] font-medium text-slate-400 hidden sm:block">
+                  Student &bull; Teacher &bull; Super Admin
                 </div>
               </div>
 
-              {/* Grid of All Admin & Staff Accounts */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                {displayedAccounts.map((acc) => {
+              {/* Fast-Sign-In Launchpad for Student, Teacher, & Super Admin */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* 1. Student Quick Desk */}
+                {(() => {
+                  const acc = QUICK_STUDENT_ACCOUNTS[0];
                   const isSelected = activeQuickId === acc.id || identifier.toLowerCase() === acc.email.toLowerCase() || identifier.toLowerCase() === acc.staffId.toLowerCase();
-                  const RoleIcon = acc.icon;
-
                   return (
-                    <div
+                    <div 
                       key={acc.id}
                       onClick={() => handleSelectQuickAccount(acc)}
-                      className={`group relative p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
-                        isSelected
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-offset-1 ring-slate-900'
-                          : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800 hover:border-slate-300 shadow-xs'
+                      className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between shadow-xs ${
+                        isSelected 
+                          ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-gradient-to-br from-indigo-50 via-white to-white' 
+                          : 'border-indigo-200/80 bg-gradient-to-br from-indigo-50/50 via-white to-white hover:border-indigo-300 hover:shadow-sm'
                       }`}
                     >
-                      <div className="flex items-start gap-2 mb-1.5">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
-                          isSelected ? 'bg-white/20 text-white' : `${acc.iconBg}`
-                        }`}>
-                          <RoleIcon size={16} />
+                      <div className="flex items-start gap-2.5 mb-2.5">
+                        <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <GraduationCap size={18} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-1">
-                            <span className="font-bold text-xs truncate leading-tight block">
-                              {acc.roleLabel}
+                            <span className="font-bold text-xs text-indigo-950">Student</span>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 uppercase tracking-wider">
+                              Student
                             </span>
-                            {isSelected && (
-                              <span className="text-[10px] bg-emerald-500 text-white rounded-full p-0.5 shrink-0">
-                                <Check size={10} strokeWidth={3} />
-                              </span>
-                            )}
                           </div>
-                          <span className={`text-[10px] truncate block leading-tight ${
-                            isSelected ? 'text-slate-300' : 'text-slate-500'
-                          }`}>
-                            {acc.subLabel}
-                          </span>
+                          <p className="text-[11px] font-semibold text-slate-800 truncate mt-0.5">{acc.name}</p>
+                          <p className="text-[10px] text-slate-500 truncate">{acc.email} &bull; {acc.staffId}</p>
                         </div>
                       </div>
-
-                      <div className={`pt-1.5 border-t text-[10px] flex items-center justify-between ${
-                        isSelected ? 'border-white/10 text-slate-300' : 'border-slate-100 text-slate-500'
-                      }`}>
-                        <div className="truncate font-medium">
-                          {acc.name.split(" ")[0]} {acc.name.split(" ")[1] || ""}
-                        </div>
+                      <div className="flex items-center gap-1.5 pt-2.5 border-t border-indigo-100/80">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectQuickAccount(acc);
+                          }}
+                          className="flex-1 py-1.5 px-2 bg-white hover:bg-indigo-50 text-indigo-900 border border-indigo-200 rounded-lg text-xs font-semibold transition-colors text-center"
+                        >
+                          Fill Form
+                        </button>
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleInstantLogin(acc);
                           }}
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 transition-all ${
-                            isSelected
-                              ? 'bg-white text-slate-900 hover:bg-slate-100 shadow-xs'
-                              : 'bg-slate-100 text-slate-700 hover:bg-brand-600 hover:text-white'
-                          }`}
-                          title={`Instant 1-Click login as ${acc.roleLabel}`}
+                          className="flex-1 py-1.5 px-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1"
                         >
-                          <Zap size={10} className="shrink-0" />
-                          <span>Instant</span>
+                          <Zap size={12} className="fill-white" />
+                          1-Click
                         </button>
                       </div>
                     </div>
                   );
-                })}
+                })()}
+
+                {/* 2. Teacher Quick Desk */}
+                {(() => {
+                  const acc = QUICK_TEACHER_ACCOUNTS[0];
+                  const isSelected = activeQuickId === acc.id || identifier.toLowerCase() === acc.email.toLowerCase() || identifier.toLowerCase() === acc.staffId.toLowerCase();
+                  return (
+                    <div 
+                      key={acc.id}
+                      onClick={() => handleSelectQuickAccount(acc)}
+                      className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between shadow-xs ${
+                        isSelected 
+                          ? 'border-teal-500 ring-2 ring-teal-500/20 bg-gradient-to-br from-teal-50 via-white to-white' 
+                          : 'border-teal-200/80 bg-gradient-to-br from-teal-50/50 via-white to-white hover:border-teal-300 hover:shadow-sm'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2.5 mb-2.5">
+                        <div className="w-9 h-9 rounded-lg bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <Users size={18} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-xs text-teal-950">Teacher</span>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 uppercase tracking-wider">
+                              Staff
+                            </span>
+                          </div>
+                          <p className="text-[11px] font-semibold text-slate-800 truncate mt-0.5">{acc.name}</p>
+                          <p className="text-[10px] text-slate-500 truncate">{acc.email} &bull; {acc.staffId}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 pt-2.5 border-t border-teal-100/80">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectQuickAccount(acc);
+                          }}
+                          className="flex-1 py-1.5 px-2 bg-white hover:bg-teal-50 text-teal-900 border border-teal-200 rounded-lg text-xs font-semibold transition-colors text-center"
+                        >
+                          Fill Form
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleInstantLogin(acc);
+                          }}
+                          className="flex-1 py-1.5 px-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1"
+                        >
+                          <Zap size={12} className="fill-white" />
+                          1-Click
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* 3. Super Admin Quick Desk */}
+                {(() => {
+                  const acc = QUICK_ADMIN_ACCOUNTS[0];
+                  const isSelected = activeQuickId === acc.id || identifier.toLowerCase() === acc.email.toLowerCase() || identifier.toLowerCase() === acc.staffId.toLowerCase();
+                  return (
+                    <div 
+                      key={acc.id}
+                      onClick={() => handleSelectQuickAccount(acc)}
+                      className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between shadow-xs ${
+                        isSelected 
+                          ? 'border-amber-500 ring-2 ring-amber-500/20 bg-gradient-to-br from-amber-50 via-white to-white' 
+                          : 'border-amber-200/80 bg-gradient-to-br from-amber-50/50 via-white to-white hover:border-amber-300 hover:shadow-sm'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2.5 mb-2.5">
+                        <div className="w-9 h-9 rounded-lg bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <Crown size={18} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-xs text-amber-950">Super Admin</span>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 uppercase tracking-wider">
+                              Admin
+                            </span>
+                          </div>
+                          <p className="text-[11px] font-semibold text-slate-800 truncate mt-0.5">{acc.name}</p>
+                          <p className="text-[10px] text-slate-500 truncate">{acc.email} &bull; {acc.staffId}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 pt-2.5 border-t border-amber-100/80">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectQuickAccount(acc);
+                          }}
+                          className="flex-1 py-1.5 px-2 bg-white hover:bg-amber-50 text-amber-900 border border-amber-200 rounded-lg text-xs font-semibold transition-colors text-center"
+                        >
+                          Fill Form
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleInstantLogin(acc);
+                          }}
+                          className="flex-1 py-1.5 px-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1"
+                        >
+                          <Zap size={12} className="fill-white" />
+                          1-Click
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
-              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-                <span>⚡ Click any account to fill & auto-detect role</span>
-                <span className="text-slate-400">Default demo password filled automatically</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-slate-500 pt-1">
+                <span>⚡ Click any card or "Fill Form" to populate credentials</span>
+                <span className="text-slate-400">"1-Click" signs in immediately</span>
               </div>
             </div>
           </CardContent>

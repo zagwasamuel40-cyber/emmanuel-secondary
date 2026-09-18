@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@/src/components/ui";
-import { Layout, Eye, Settings, MessageSquare, Plus, Trash2, X, CheckCircle2, Bell, Sparkles, Palette, Shield, Building, Globe, Phone, Mail, Award, Edit3, Image as ImageIcon, Save } from "lucide-react";
+import { Layout, Eye, Settings, MessageSquare, Plus, Trash2, X, CheckCircle2, Bell, Sparkles, Palette, Shield, Building, Globe, Phone, Mail, Award, Edit3, Image as ImageIcon, Save, Target, Compass } from "lucide-react";
 import { useAnnouncements, Announcement } from "../data/announcementsData";
 import { useResultsRelease, isResultReleased } from "../data/resultsReleaseData";
 import { useSessions } from "../data/sessionsData";
 import { usePortalSettings, PortalSettings } from "../data/portalSettingsData";
 import { FileText, Upload, Calendar as CalendarIcon, Download, UploadCloud } from "lucide-react";
-import { useGallery } from "../data/galleryData";
-import { Camera } from "lucide-react";
+import { useGallery, GalleryItem } from "../data/galleryData";
+import { Camera, Video, Film, PlayCircle, Play, EyeOff, Filter, Check } from "lucide-react";
+import { VideoPlayer } from "../components/ui/VideoPlayer";
 import { useComments } from "../data/commentsData";
 import { Star, MessageCircle, ThumbsUp, ThumbsDown } from "lucide-react";
 
@@ -30,6 +31,8 @@ export default function StudentPortalManager() {
   const [contactPhone, setContactPhone] = useState(portalSettings.contactPhone);
   const [contactEmail, setContactEmail] = useState(portalSettings.contactEmail);
   const [address, setAddress] = useState(portalSettings.address);
+  const [mission, setMission] = useState(portalSettings.mission || "To provide comprehensive education that empowers students with the knowledge, skills, and values needed to excel in a rapidly changing world.");
+  const [vision, setVision] = useState(portalSettings.vision || "To be the premier secondary educational institution in Nigeria, recognized globally for academic excellence and character development.");
 
   const [comments, setComments] = useComments();
   const [gallery, setGallery] = useGallery();
@@ -82,6 +85,8 @@ export default function StudentPortalManager() {
     updatePortalSettings({
       schoolName,
       motto,
+      mission,
+      vision,
       primaryColor,
       accentColor,
       logoUrl,
@@ -91,7 +96,7 @@ export default function StudentPortalManager() {
       contactEmail,
       address,
     });
-    setSuccessMsg("School portal branding, motto, and theme saved successfully!");
+    setSuccessMsg("School portal branding, motto, vision & mission saved successfully!");
     setTimeout(() => setSuccessMsg(""), 3500);
   };
 
@@ -154,22 +159,93 @@ export default function StudentPortalManager() {
 
   const [newGalleryUrl, setNewGalleryUrl] = useState("");
   const [newGalleryCaption, setNewGalleryCaption] = useState("");
-  const [newGalleryCategory, setNewGalleryCategory] = useState<"Staff" | "Facilities" | "Events" | "Students" | "Other">("Staff");
+  const [newGalleryCategory, setNewGalleryCategory] = useState<"Staff" | "Facilities" | "Events" | "Students" | "Other">("Events");
+  const [galleryMediaType, setGalleryMediaType] = useState<"image" | "video">("video");
+  const [newGalleryDuration, setNewGalleryDuration] = useState("");
+  const [videoFileMeta, setVideoFileMeta] = useState<{ name: string; size: string } | null>(null);
+  const [galleryFilter, setGalleryFilter] = useState<"all" | "images" | "videos">("all");
+  const [activeVideoModal, setActiveVideoModal] = useState<GalleryItem | null>(null);
+  const galleryVideoInputRef = useRef<HTMLInputElement>(null);
+  const galleryImageInputRef = useRef<HTMLInputElement>(null);
+
+  // News Video State
+  const [newsMediaType, setNewsMediaType] = useState<"none" | "image" | "video">("none");
+  const [newsVideoUrl, setNewsVideoUrl] = useState("");
+  const [newsVideoFileMeta, setNewsVideoFileMeta] = useState<{ name: string; size: string } | null>(null);
+  const newsVideoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleVideoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const sizeStr = file.size < 1024 * 1024 
+      ? `${(file.size / 1024).toFixed(1)} KB` 
+      : `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+    setVideoFileMeta({ name: file.name, size: sizeStr });
+
+    const objUrl = URL.createObjectURL(file);
+    setNewGalleryUrl(objUrl);
+    setGalleryMediaType("video");
+
+    if (!newGalleryCaption) {
+      const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+      setNewGalleryCaption(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
+    }
+
+    if (file.size < 6 * 1024 * 1024) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setNewGalleryUrl(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleNewsVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const sizeStr = file.size < 1024 * 1024 
+      ? `${(file.size / 1024).toFixed(1)} KB` 
+      : `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+    setNewsVideoFileMeta({ name: file.name, size: sizeStr });
+
+    const objUrl = URL.createObjectURL(file);
+    setNewsVideoUrl(objUrl);
+    setNewsMediaType("video");
+
+    if (file.size < 6 * 1024 * 1024) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setNewsVideoUrl(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleAddGalleryItem = (e: React.FormEvent) => {
     e.preventDefault();
     if(!newGalleryUrl || !newGalleryCaption) return;
-    const newItem = {
-      id: `GAL-${Math.floor(1000 + Math.random() * 9000)}`,
+    const newItem: GalleryItem = {
+      id: `GAL-${galleryMediaType === 'video' ? 'VID-' : ''}${Math.floor(1000 + Math.random() * 9000)}`,
       url: newGalleryUrl,
       caption: newGalleryCaption,
-      category: newGalleryCategory as any
+      category: newGalleryCategory as any,
+      mediaType: galleryMediaType,
+      videoSource: videoFileMeta ? "upload" : "direct",
+      duration: newGalleryDuration || undefined,
+      fileSize: videoFileMeta?.size,
+      createdAt: new Date().toISOString().split("T")[0]
     };
     setGallery([newItem, ...gallery]);
     setNewGalleryUrl("");
     setNewGalleryCaption("");
-    setSuccessMsg("Image added to gallery!");
-    setTimeout(() => setSuccessMsg(""), 3000);
+    setNewGalleryDuration("");
+    setVideoFileMeta(null);
+    setSuccessMsg(galleryMediaType === "video" ? "Video uploaded and published to gallery!" : "Image added to gallery!");
+    setTimeout(() => setSuccessMsg(""), 3500);
   };
 
   const toggleFeature = (id: number) => {
@@ -219,7 +295,9 @@ export default function StudentPortalManager() {
       content: content.trim() || title.trim(),
       date: announcementDate || new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
       category: category || "General",
-      image: image.trim() || undefined,
+      image: newsMediaType === "image" ? image.trim() || undefined : undefined,
+      videoUrl: newsMediaType === "video" ? (newsVideoUrl.trim() || undefined) : undefined,
+      mediaType: newsMediaType === "none" ? undefined : newsMediaType,
       active: true
     };
 
@@ -228,9 +306,12 @@ export default function StudentPortalManager() {
     setContent("");
     setCategory("General");
     setImage("");
+    setNewsVideoUrl("");
+    setNewsVideoFileMeta(null);
+    setNewsMediaType("none");
     setIsModalOpen(false);
 
-    setSuccessMsg("News post / Announcement published live on school portal!");
+    setSuccessMsg(newsMediaType === "video" ? "News story with video published live on portal!" : "News post / Announcement published live on school portal!");
     setTimeout(() => setSuccessMsg(""), 3500);
   };
 
@@ -310,8 +391,8 @@ export default function StudentPortalManager() {
             activeTab === 'gallery' ? 'bg-purple-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          <Camera size={18} />
-          School Gallery
+          <Video size={18} />
+          Media & Video Gallery
         </button>
       </div>
 
@@ -466,6 +547,43 @@ export default function StudentPortalManager() {
                     </div>
                   </div>
 
+                  {/* School Mission & Vision */}
+                  <div className="space-y-4 pt-2 border-t border-slate-100">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="font-semibold text-slate-900 flex items-center gap-1.5">
+                          <Target size={15} className="text-purple-600" /> School Mission Statement
+                        </Label>
+                        <span className="text-[11px] text-slate-400 font-mono">{mission.length} chars</span>
+                      </div>
+                      <textarea 
+                        rows={3}
+                        className="w-full p-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        value={mission}
+                        onChange={(e) => setMission(e.target.value)}
+                        placeholder="Enter the official school mission statement..."
+                      ></textarea>
+                      <p className="text-[11px] text-slate-500">Displayed on the public About Us page and institutional documents.</p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="font-semibold text-slate-900 flex items-center gap-1.5">
+                          <Compass size={15} className="text-amber-500" /> School Vision Statement
+                        </Label>
+                        <span className="text-[11px] text-slate-400 font-mono">{vision.length} chars</span>
+                      </div>
+                      <textarea 
+                        rows={3}
+                        className="w-full p-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        value={vision}
+                        onChange={(e) => setVision(e.target.value)}
+                        placeholder="Enter the official school vision statement..."
+                      ></textarea>
+                      <p className="text-[11px] text-slate-500">Displayed on the public About Us page and institutional documents.</p>
+                    </div>
+                  </div>
+
                   {/* Student Welcome Banner */}
                   <div className="space-y-1.5">
                     <Label className="font-semibold text-slate-900">Student Portal Welcome Banner Text</Label>
@@ -542,6 +660,23 @@ export default function StudentPortalManager() {
                   <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1">
                     <p className="font-bold text-slate-900">Welcome Banner Preview:</p>
                     <p className="italic">"{welcomeBanner}"</p>
+                  </div>
+
+                  {/* Vision & Mission Preview */}
+                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                        <Target size={13} className="text-purple-600" /> Mission Preview:
+                      </div>
+                      <p className="text-slate-600 line-clamp-2 leading-relaxed">{mission}</p>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                        <Compass size={13} className="text-amber-500" /> Vision Preview:
+                      </div>
+                      <p className="text-slate-600 line-clamp-2 leading-relaxed">{vision}</p>
+                    </div>
                   </div>
                 </div>
 
@@ -887,81 +1022,181 @@ export default function StudentPortalManager() {
                   ></textarea>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-slate-900 font-semibold flex items-center justify-between">
-                    <span>Attach Cover Image</span>
-                    <span className="text-xs text-slate-400 font-normal">(Optional)</span>
-                  </Label>
-                  
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <label className="cursor-pointer px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold flex items-center gap-2 border border-slate-200 transition-colors shrink-0">
-                        <Plus size={14} /> Upload Image File
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden" 
-                          onChange={handleImageFileUpload}
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-slate-900 font-semibold">Attach Media (Photo or Video)</Label>
+                    <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => { setNewsMediaType("none"); setImage(""); setNewsVideoUrl(""); setNewsVideoFileMeta(null); }}
+                        className={`px-2.5 py-1 rounded-md transition-colors ${newsMediaType === "none" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"}`}
+                      >
+                        None
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setNewsMediaType("image"); setNewsVideoUrl(""); setNewsVideoFileMeta(null); }}
+                        className={`px-2.5 py-1 rounded-md flex items-center gap-1 transition-colors ${newsMediaType === "image" ? "bg-white text-purple-700 shadow-xs" : "text-slate-500 hover:text-slate-900"}`}
+                      >
+                        <Camera size={13} /> Photo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setNewsMediaType("video"); setImage(""); }}
+                        className={`px-2.5 py-1 rounded-md flex items-center gap-1 transition-colors ${newsMediaType === "video" ? "bg-purple-900 text-white shadow-xs" : "text-slate-500 hover:text-slate-900"}`}
+                      >
+                        <Video size={13} /> Video
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* IMAGE ATTACHMENT MODE */}
+                  {newsMediaType === "image" && (
+                    <div className="flex flex-col gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <label className="cursor-pointer px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold flex items-center gap-2 border border-slate-200 transition-colors shrink-0 shadow-xs">
+                          <Upload size={14} className="text-purple-600" /> Browse Image
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={handleImageFileUpload}
+                          />
+                        </label>
+                        <Input 
+                          placeholder="Or paste Image URL (https://...)" 
+                          value={image} 
+                          onChange={(e) => setImage(e.target.value)}
+                          className="text-xs flex-1 bg-white"
                         />
-                      </label>
-                      <Input 
-                        placeholder="Or paste Image URL (https://...)" 
-                        value={image} 
-                        onChange={(e) => setImage(e.target.value)}
-                        className="text-xs flex-1"
-                      />
-                      {image && (
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-xs text-rose-600 hover:text-rose-700 h-9 px-2"
-                          onClick={() => setImage("")}
+                        {image && (
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-xs text-rose-600 hover:text-rose-700 h-9 px-2"
+                            onClick={() => setImage("")}
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                        <span className="text-[11px] text-slate-400 font-medium">Presets:</span>
+                        <button
+                          type="button"
+                          onClick={() => setImage("https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80")}
+                          className="text-[10px] px-2 py-0.5 rounded bg-white hover:bg-purple-50 hover:text-purple-700 border border-slate-200 font-medium"
                         >
-                          Clear
-                        </Button>
+                          Building
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setImage("https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=800&q=80")}
+                          className="text-[10px] px-2 py-0.5 rounded bg-white hover:bg-purple-50 hover:text-purple-700 border border-slate-200 font-medium"
+                        >
+                          Science Fair
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setImage("https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=800&q=80")}
+                          className="text-[10px] px-2 py-0.5 rounded bg-white hover:bg-purple-50 hover:text-purple-700 border border-slate-200 font-medium"
+                        >
+                          Staff & Sports
+                        </button>
+                      </div>
+
+                      {image && (
+                        <div className="mt-2 relative rounded-xl overflow-hidden h-36 bg-slate-100 border border-slate-200">
+                          <img src={image} alt="Preview" className="w-full h-full object-cover" />
+                        </div>
                       )}
                     </div>
+                  )}
 
-                    {/* Quick Image Presets */}
-                    <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                      <span className="text-[11px] text-slate-400 font-medium">Image Presets:</span>
-                      <button
-                        type="button"
-                        onClick={() => setImage("https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80")}
-                        className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-purple-50 hover:text-purple-700 border border-slate-200 font-medium"
-                      >
-                        School Building
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setImage("https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=800&q=80")}
-                        className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-purple-50 hover:text-purple-700 border border-slate-200 font-medium"
-                      >
-                        Library
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setImage("https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=800&q=80")}
-                        className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-purple-50 hover:text-purple-700 border border-slate-200 font-medium"
-                      >
-                        Science Fair
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setImage("https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=800&q=80")}
-                        className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-purple-50 hover:text-purple-700 border border-slate-200 font-medium"
-                      >
-                        Sports
-                      </button>
-                    </div>
-
-                    {image && (
-                      <div className="mt-2 relative rounded-xl overflow-hidden h-36 bg-slate-100 border border-slate-200">
-                        <img src={image} alt="Preview" className="w-full h-full object-cover" />
+                  {/* VIDEO ATTACHMENT MODE */}
+                  {newsMediaType === "video" && (
+                    <div className="space-y-3 p-3 bg-purple-50/50 rounded-xl border border-purple-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                          <Video size={14} className="text-purple-600" /> Video File or Online Stream
+                        </span>
+                        {newsVideoFileMeta && (
+                          <span className="text-[11px] font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                            {newsVideoFileMeta.name} ({newsVideoFileMeta.size})
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </div>
+
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <label className="cursor-pointer px-3 py-2 bg-purple-900 hover:bg-purple-950 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors shrink-0 shadow-xs">
+                          <Upload size={14} /> Upload Video File
+                          <input 
+                            ref={newsVideoInputRef}
+                            type="file" 
+                            accept="video/mp4,video/webm,video/ogg,video/quicktime,video/*" 
+                            className="hidden" 
+                            onChange={handleNewsVideoSelect}
+                          />
+                        </label>
+                        <Input 
+                          placeholder="Or paste Video URL (YouTube, Vimeo, MP4)..." 
+                          value={newsVideoUrl} 
+                          onChange={(e) => setNewsVideoUrl(e.target.value)}
+                          className="text-xs flex-1 bg-white"
+                        />
+                        {newsVideoUrl && (
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-xs text-rose-600 hover:text-rose-700 h-9 px-2"
+                            onClick={() => { setNewsVideoUrl(""); setNewsVideoFileMeta(null); }}
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Video Quick Presets */}
+                      <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                        <span className="text-[11px] text-slate-500 font-medium">Sample Videos:</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewsVideoUrl("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4");
+                            setNewsVideoFileMeta({ name: "SportsDayHighlights.mp4", size: "14.8 MB" });
+                          }}
+                          className="text-[10px] px-2 py-0.5 rounded bg-white hover:bg-purple-100 text-purple-800 border border-purple-200 font-medium flex items-center gap-1"
+                        >
+                          <Play size={10} /> Sports Day Reel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewsVideoUrl("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
+                            setNewsVideoFileMeta({ name: "ScienceFairWalkthrough.mp4", size: "19.2 MB" });
+                          }}
+                          className="text-[10px] px-2 py-0.5 rounded bg-white hover:bg-purple-100 text-purple-800 border border-purple-200 font-medium flex items-center gap-1"
+                        >
+                          <Play size={10} /> Science Exhibition
+                        </button>
+                      </div>
+
+                      {/* Live Video Preview in Modal */}
+                      {newsVideoUrl && (
+                        <div className="space-y-1.5 pt-2">
+                          <p className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                            <Eye size={12} /> Video Player Preview:
+                          </p>
+                          <div className="max-w-md mx-auto rounded-xl overflow-hidden shadow-sm">
+                            <VideoPlayer src={newsVideoUrl} title="Preview Video" controls />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center gap-2 text-xs text-purple-950">
@@ -1116,120 +1351,522 @@ export default function StudentPortalManager() {
 
       {activeTab === "gallery" && (
         <div className="space-y-6">
-          <Card className="border border-slate-200">
-            <CardHeader className="bg-slate-50/50 border-b border-slate-200 pb-4">
-              <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Camera className="text-purple-600" size={20} /> Add New Gallery Image
-              </CardTitle>
+          {/* UPLOAD NEW MEDIA CARD */}
+          <Card className="border border-slate-200 shadow-sm overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-purple-50 via-slate-50 to-white border-b border-slate-200 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <Video className="text-purple-600" size={20} /> Publish Campus Media & Videos
+                  </CardTitle>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Upload sports day reels, science fair videos, classroom clips, and campus photos to the public website and student portal.
+                  </p>
+                </div>
+                {/* Media Type Selector */}
+                <div className="inline-flex bg-slate-100 p-1 rounded-xl border border-slate-200 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGalleryMediaType("video");
+                      setNewGalleryUrl("");
+                      setVideoFileMeta(null);
+                    }}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      galleryMediaType === "video"
+                        ? "bg-purple-900 text-white shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <Video size={14} /> Video / Clip
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGalleryMediaType("image");
+                      setNewGalleryUrl("");
+                      setVideoFileMeta(null);
+                    }}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      galleryMediaType === "image"
+                        ? "bg-purple-900 text-white shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <Camera size={14} /> Photograph
+                  </button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="p-6">
-              <form onSubmit={handleAddGalleryItem} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label>Image URL</Label>
-                    <div className="flex gap-2">
-                      <Input 
-                        required 
-                        value={newGalleryUrl} 
-                        onChange={e => setNewGalleryUrl(e.target.value)} 
-                        placeholder="e.g. https://images.unsplash.com/photo-..." 
-                      />
-                      <Label className="cursor-pointer flex items-center justify-center bg-slate-100 border border-slate-200 rounded-md px-3 hover:bg-slate-200 transition-colors">
-                        <Upload size={16} className="text-slate-500 mr-2" />
-                        <span className="text-xs text-slate-600 font-medium whitespace-nowrap">Upload Image</span>
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setNewGalleryUrl(reader.result as string);
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }} />
-                      </Label>
+              <form onSubmit={handleAddGalleryItem} className="space-y-5">
+                {/* VIDEO UPLOAD FORM */}
+                {galleryMediaType === "video" ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2 md:col-span-2">
+                        <Label className="text-slate-900 font-semibold flex items-center justify-between">
+                          <span>Video File Upload</span>
+                          {videoFileMeta && (
+                            <span className="text-xs font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                              Selected: {videoFileMeta.name} ({videoFileMeta.size})
+                            </span>
+                          )}
+                        </Label>
+
+                        {/* Dropzone Container */}
+                        <div 
+                          onClick={() => galleryVideoInputRef.current?.click()}
+                          className="border-2 border-dashed border-purple-200 hover:border-purple-500 bg-purple-50/40 hover:bg-purple-50/80 rounded-2xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 group"
+                        >
+                          <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+                            <UploadCloud size={24} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-slate-800">
+                              Click or Drag & Drop Video File to Upload
+                            </p>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              Supports MP4, WebM, OGG, MOV (QuickTime) video formats
+                            </p>
+                          </div>
+                          <input 
+                            ref={galleryVideoInputRef}
+                            type="file" 
+                            accept="video/mp4,video/webm,video/ogg,video/quicktime,video/*" 
+                            className="hidden" 
+                            onChange={handleVideoFileSelect}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 md:col-span-2">
+                        <Label className="text-slate-900 font-semibold">Or Stream from URL (YouTube, Vimeo, or MP4 URL)</Label>
+                        <div className="flex gap-2">
+                          <Input 
+                            value={newGalleryUrl} 
+                            onChange={e => {
+                              setNewGalleryUrl(e.target.value);
+                              setVideoFileMeta(null);
+                            }} 
+                            placeholder="e.g. https://www.youtube.com/watch?v=... or https://commondatastorage.googleapis.com/...mp4" 
+                            className="text-xs"
+                          />
+                          {newGalleryUrl && (
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => { setNewGalleryUrl(""); setVideoFileMeta(null); }}
+                              className="text-xs text-rose-600"
+                            >
+                              Clear
+                            </Button>
+                          )}
+                        </div>
+                        {/* Quick video sample chips */}
+                        <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                          <span className="text-[11px] text-slate-400 font-medium">Quick Video Samples:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewGalleryUrl("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4");
+                              setNewGalleryCaption("Campus Sports Day 4x100m Relay Finals");
+                              setNewGalleryCategory("Events");
+                              setNewGalleryDuration("0:15");
+                              setVideoFileMeta({ name: "SportsRelayFinals.mp4", size: "14.8 MB" });
+                            }}
+                            className="text-[10px] px-2.5 py-1 rounded-md bg-slate-100 hover:bg-purple-100 text-purple-900 font-semibold border border-slate-200 transition-colors flex items-center gap-1"
+                          >
+                            <Play size={10} /> Sports Day Relay (14 MB)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewGalleryUrl("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
+                              setNewGalleryCaption("Modern Chemistry Laboratory Tour");
+                              setNewGalleryCategory("Facilities");
+                              setNewGalleryDuration("9:56");
+                              setVideoFileMeta({ name: "ChemistryLabTour.mp4", size: "19.2 MB" });
+                            }}
+                            className="text-[10px] px-2.5 py-1 rounded-md bg-slate-100 hover:bg-purple-100 text-purple-900 font-semibold border border-slate-200 transition-colors flex items-center gap-1"
+                          >
+                            <Play size={10} /> Chemistry Lab Tour
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-900 font-semibold">Video Title / Caption <span className="text-rose-500">*</span></Label>
+                        <Input 
+                          required 
+                          value={newGalleryCaption} 
+                          onChange={e => setNewGalleryCaption(e.target.value)} 
+                          placeholder="e.g. 2026 Inter-House Football Championship Highlights" 
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-slate-900 font-semibold">Category</Label>
+                          <select
+                            className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-purple-500"
+                            value={newGalleryCategory}
+                            onChange={e => setNewGalleryCategory(e.target.value as any)}
+                          >
+                            <option value="Events">School Events & Sports</option>
+                            <option value="Facilities">Campus & Facilities</option>
+                            <option value="Students">Student Activities</option>
+                            <option value="Staff">Faculty & Staff</option>
+                            <option value="Other">Other Documentaries</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-slate-900 font-semibold">Duration (optional)</Label>
+                          <Input 
+                            value={newGalleryDuration} 
+                            onChange={e => setNewGalleryDuration(e.target.value)} 
+                            placeholder="e.g. 2:45 or 12 mins" 
+                          />
+                        </div>
+                      </div>
                     </div>
+
+                    {/* LIVE VIDEO PREVIEW IN UPLOADER */}
+                    {newGalleryUrl && (
+                      <div className="p-4 bg-slate-900 rounded-2xl text-white space-y-2">
+                        <div className="flex items-center justify-between text-xs text-slate-300">
+                          <span className="font-semibold flex items-center gap-1.5">
+                            <Eye size={14} className="text-purple-400" /> Live Video Preview & Player Test:
+                          </span>
+                          <span>Ready to publish</span>
+                        </div>
+                        <div className="max-w-xl mx-auto rounded-xl overflow-hidden shadow-xl bg-black">
+                          <VideoPlayer src={newGalleryUrl} title={newGalleryCaption || "Video Preview"} controls />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Category</Label>
-                    <select
-                      className="w-full h-10 px-3 rounded-md border border-slate-200 bg-white text-sm"
-                      value={newGalleryCategory}
-                      onChange={e => setNewGalleryCategory(e.target.value as any)}
-                    >
-                      <option value="Staff">Staff</option>
-                      <option value="Facilities">Facilities</option>
-                      <option value="Events">Events</option>
-                      <option value="Students">Students</option>
-                      <option value="Other">Other</option>
-                    </select>
+                ) : (
+                  /* IMAGE UPLOAD FORM */
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5 md:col-span-2">
+                        <Label className="text-slate-900 font-semibold">Photograph URL or Upload</Label>
+                        <div className="flex gap-2">
+                          <Input 
+                            required 
+                            value={newGalleryUrl} 
+                            onChange={e => setNewGalleryUrl(e.target.value)} 
+                            placeholder="e.g. https://images.unsplash.com/photo-..." 
+                          />
+                          <Label className="cursor-pointer flex items-center justify-center bg-slate-100 border border-slate-200 rounded-lg px-4 hover:bg-slate-200 transition-colors shrink-0">
+                            <Upload size={16} className="text-slate-600 mr-2" />
+                            <span className="text-xs text-slate-700 font-semibold whitespace-nowrap">Browse File</span>
+                            <input 
+                              ref={galleryImageInputRef}
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    setNewGalleryUrl(reader.result as string);
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }} 
+                            />
+                          </Label>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-900 font-semibold">Category</Label>
+                        <select
+                          className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm"
+                          value={newGalleryCategory}
+                          onChange={e => setNewGalleryCategory(e.target.value as any)}
+                        >
+                          <option value="Staff">Staff</option>
+                          <option value="Facilities">Facilities</option>
+                          <option value="Events">Events</option>
+                          <option value="Students">Students</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-900 font-semibold">Image Caption</Label>
+                        <Input 
+                          required 
+                          value={newGalleryCaption} 
+                          onChange={e => setNewGalleryCaption(e.target.value)} 
+                          placeholder="e.g. Our Dedicated Science Teachers" 
+                        />
+                      </div>
+                    </div>
+
+                    {newGalleryUrl && (
+                      <div className="relative rounded-xl overflow-hidden h-44 max-w-sm border border-slate-200 shadow-sm bg-slate-50">
+                        <img src={newGalleryUrl} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-1.5 md:col-span-2">
-                    <Label>Image Caption</Label>
-                    <Input 
-                      required 
-                      value={newGalleryCaption} 
-                      onChange={e => setNewGalleryCaption(e.target.value)} 
-                      placeholder="e.g. Our Dedicated Teaching Staff" 
-                    />
-                  </div>
-                </div>
-                <Button type="submit" variant="brand" className="w-full">
-                  Add to Gallery
+                )}
+
+                <Button 
+                  type="submit" 
+                  disabled={!newGalleryUrl || !newGalleryCaption}
+                  className="w-full h-11 bg-purple-900 hover:bg-purple-950 text-white font-bold gap-2 text-sm shadow-sm"
+                >
+                  {galleryMediaType === "video" ? (
+                    <>
+                      <Video size={18} /> Publish Video to Campus Gallery
+                    </>
+                  ) : (
+                    <>
+                      <Camera size={18} /> Publish Photo to Campus Gallery
+                    </>
+                  )}
                 </Button>
               </form>
             </CardContent>
           </Card>
 
-          <Card className="border border-slate-200">
+          {/* MANAGE EXISTING GALLERY MEDIA */}
+          <Card className="border border-slate-200 shadow-sm">
             <CardHeader className="bg-slate-50/50 border-b border-slate-200 pb-4">
-              <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <ImageIcon className="text-purple-600" size={20} /> Manage Existing Images
-              </CardTitle>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Film className="text-purple-600" size={20} /> Campus Media Library ({gallery.length})
+                </CardTitle>
+
+                {/* Filter Buttons */}
+                <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                  <button
+                    onClick={() => setGalleryFilter("all")}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      galleryFilter === "all" ? "bg-white text-purple-900 shadow-xs" : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    All Media ({gallery.length})
+                  </button>
+                  <button
+                    onClick={() => setGalleryFilter("videos")}
+                    className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      galleryFilter === "videos" ? "bg-purple-900 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <Video size={12} /> Videos ({gallery.filter(g => g.mediaType === "video").length})
+                  </button>
+                  <button
+                    onClick={() => setGalleryFilter("images")}
+                    className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      galleryFilter === "images" ? "bg-white text-purple-900 shadow-xs" : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <Camera size={12} /> Photos ({gallery.filter(g => g.mediaType !== "video").length})
+                  </button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="p-6">
               {gallery.length === 0 ? (
-                <div className="text-center py-8 text-slate-500">No images in gallery.</div>
+                <div className="text-center py-12 text-slate-500">
+                  <Film size={36} className="mx-auto text-slate-300 mb-2" />
+                  <p className="font-semibold text-slate-700">No media items in gallery.</p>
+                  <p className="text-xs text-slate-400 mt-1">Upload a video or photo using the form above.</p>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                  {gallery.map(item => (
-                    <div key={item.id} className="rounded-xl overflow-hidden shadow-sm border border-slate-200 bg-white flex flex-col">
-                      <div className="aspect-[4/3] overflow-hidden relative">
-                        <img 
-                          src={item.url} 
-                          alt={item.caption} 
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="p-3 flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase rounded-full tracking-wider mb-1">
-                            {item.category}
-                          </span>
-                          <h3 className="font-bold text-slate-900 text-sm truncate" title={item.caption}>{item.caption}</h3>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className="text-rose-500 hover:bg-rose-50 hover:text-rose-700 p-2 h-auto shrink-0 border border-transparent hover:border-rose-100"
-                          onClick={() => {
-                            if(window.confirm("Are you sure you want to delete this image?")) {
-                              setGallery(gallery.filter(g => g.id !== item.id));
-                              setSuccessMsg("Image deleted successfully.");
-                              setTimeout(() => setSuccessMsg(""), 3000);
-                            }
-                          }}
-                          title="Delete Image"
+                  {gallery
+                    .filter(item => {
+                      if (galleryFilter === "videos") return item.mediaType === "video";
+                      if (galleryFilter === "images") return item.mediaType !== "video";
+                      return true;
+                    })
+                    .map(item => {
+                      const isVideo = item.mediaType === "video";
+
+                      return (
+                        <div 
+                          key={item.id} 
+                          className="rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-slate-200 bg-white flex flex-col group"
                         >
-                          <Trash2 size={16} />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                          {/* Media Thumbnail Container */}
+                          <div className="aspect-[16/10] overflow-hidden relative bg-slate-900">
+                            {isVideo ? (
+                              <div 
+                                className="w-full h-full relative cursor-pointer group/vid flex items-center justify-center"
+                                onClick={() => setActiveVideoModal(item)}
+                              >
+                                {item.thumbnail ? (
+                                  <img 
+                                    src={item.thumbnail} 
+                                    alt={item.caption} 
+                                    className="w-full h-full object-cover group-hover/vid:scale-105 transition-transform duration-300"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-gradient-to-tr from-slate-950 via-purple-950 to-indigo-950 flex flex-col items-center justify-center p-4">
+                                    <Video size={36} className="text-purple-400 opacity-60 mb-1" />
+                                    <span className="text-[11px] text-purple-200/80 font-medium">Video Stream</span>
+                                  </div>
+                                )}
+                                
+                                {/* Glowing Play Overlay */}
+                                <div className="absolute inset-0 bg-black/40 group-hover/vid:bg-black/20 flex items-center justify-center transition-colors">
+                                  <div className="w-12 h-12 rounded-full bg-purple-600/90 text-white flex items-center justify-center shadow-lg group-hover/vid:scale-115 group-hover/vid:bg-purple-500 transition-all">
+                                    <Play size={20} className="fill-current ml-0.5" />
+                                  </div>
+                                </div>
+
+                                {/* Video Badge */}
+                                <div className="absolute top-2.5 left-2.5 bg-black/75 backdrop-blur-xs text-purple-300 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 border border-purple-500/30">
+                                  <Video size={11} /> VIDEO
+                                </div>
+
+                                {item.duration && (
+                                  <div className="absolute bottom-2.5 right-2.5 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                    {item.duration}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="w-full h-full relative">
+                                <img 
+                                  src={item.url} 
+                                  alt={item.caption} 
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                                <div className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                                  <Camera size={11} /> PHOTO
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Info Footer */}
+                          <div className="p-4 flex flex-col justify-between flex-1">
+                            <div>
+                              <div className="flex items-center justify-between gap-2 mb-1.5">
+                                <span className="inline-block px-2.5 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold uppercase rounded-md tracking-wider border border-purple-100">
+                                  {item.category}
+                                </span>
+                                {item.fileSize && (
+                                  <span className="text-[10px] text-slate-400 font-medium">
+                                    {item.fileSize}
+                                  </span>
+                                )}
+                              </div>
+                              <h3 className="font-bold text-slate-900 text-sm line-clamp-2 leading-snug" title={item.caption}>
+                                {item.caption}
+                              </h3>
+                            </div>
+
+                            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                              {isVideo ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveVideoModal(item)}
+                                  className="text-xs font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1"
+                                >
+                                  <PlayCircle size={14} /> Play Video
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-slate-400">Photo Asset</span>
+                              )}
+
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                className="text-rose-500 hover:bg-rose-50 hover:text-rose-700 p-1.5 h-8 w-8 rounded-lg shrink-0 border border-transparent hover:border-rose-100"
+                                onClick={() => {
+                                  if (window.confirm(`Are you sure you want to delete this ${isVideo ? "video" : "image"}?`)) {
+                                    setGallery(gallery.filter(g => g.id !== item.id));
+                                    setSuccessMsg(`${isVideo ? "Video" : "Image"} deleted successfully.`);
+                                    setTimeout(() => setSuccessMsg(""), 3000);
+                                  }
+                                }}
+                                title={`Delete ${isVideo ? "Video" : "Image"}`}
+                              >
+                                <Trash2 size={16} />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               )}
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* POPUP VIDEO PLAYER MODAL */}
+      {activeVideoModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in"
+          onClick={() => setActiveVideoModal(null)}
+        >
+          <div 
+            className="w-full max-w-4xl bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-800"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-white">
+                <Video size={18} className="text-purple-400" />
+                <h3 className="font-bold text-sm sm:text-base text-slate-100 truncate max-w-lg">
+                  {activeVideoModal.caption}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setActiveVideoModal(null)}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Video Player Body */}
+            <div className="bg-black aspect-video flex items-center justify-center">
+              <VideoPlayer 
+                src={activeVideoModal.url} 
+                title={activeVideoModal.caption} 
+                autoPlay={true}
+                controls={true}
+              />
+            </div>
+
+            {/* Modal Footer Info */}
+            <div className="p-4 sm:p-5 bg-slate-950/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-300 border-t border-slate-800">
+              <div className="flex items-center gap-3">
+                <span className="px-2.5 py-1 bg-purple-950 text-purple-300 rounded-full font-semibold border border-purple-800">
+                  {activeVideoModal.category}
+                </span>
+                {activeVideoModal.duration && (
+                  <span className="text-slate-400 font-medium">
+                    Duration: <strong className="text-slate-200">{activeVideoModal.duration}</strong>
+                  </span>
+                )}
+                {activeVideoModal.fileSize && (
+                  <span className="text-slate-400 font-medium">
+                    Size: <strong className="text-slate-200">{activeVideoModal.fileSize}</strong>
+                  </span>
+                )}
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setActiveVideoModal(null)}
+                className="text-xs text-slate-300 border-slate-700 hover:bg-slate-800 hover:text-white"
+              >
+                Close Player
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 

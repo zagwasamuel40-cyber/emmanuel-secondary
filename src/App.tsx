@@ -41,6 +41,7 @@ import { AttendanceOfficerManagement } from "./pages/admin/AttendanceOfficerMana
 import ScanAttendancePage from "./pages/staff/ScanAttendancePage";
 import PermissionGuard from "./components/auth/PermissionGuard";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
+import DatabaseManagerPage from "./pages/admin/DatabaseManagerPage";
 
 export default function App() {
   return (
@@ -163,6 +164,13 @@ export default function App() {
             </PermissionGuard>
           } />
 
+          {/* Database & Cloud Synchronization */}
+          <Route path="database" element={
+            <PermissionGuard requiredPermission="database.manage" moduleName="School Database & Cloud Sync">
+              <DatabaseManagerPage />
+            </PermissionGuard>
+          } />
+
           {/* System Settings & User Profile */}
           <Route path="settings" element={
             <PermissionGuard requiredPermission="settings.manage" moduleName="System & School Settings">
@@ -182,6 +190,8 @@ export default function App() {
           <Route index element={<StudentDashboard />} />
           <Route path="id-card" element={<StudentDigitalIDCard />} />
           <Route path="subjects" element={<StudentSubjects />} />
+          <Route path="results" element={<StudentSubjects defaultTab="results" />} />
+          <Route path="cbt" element={<StudentSubjects defaultTab="cbt" />} />
           <Route path="timetable" element={<StudentTimetable />} />
           <Route path="fees" element={<StudentFees />} />
           <Route path="profile" element={<StudentProfile />} />

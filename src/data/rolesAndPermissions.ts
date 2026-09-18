@@ -240,6 +240,7 @@ export const ROLE_PERMISSIONS_MAP: Record<string, Permission[]> = {
     'reports.view',
     'audit.view',
     'settings.manage',
+    'database.manage',
   ],
   'Admin': [
     ...BASE_STAFF_PERMISSIONS,
@@ -262,6 +263,7 @@ export const ROLE_PERMISSIONS_MAP: Record<string, Permission[]> = {
     'reports.view',
     'audit.view',
     'settings.manage',
+    'database.manage',
   ],
 
   // 9. Super Admin = Complete unrestricted access to the entire system

@@ -21,6 +21,11 @@ const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
 ));
 CardContent.displayName = "CardContent";
 
+const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("px-6 py-4 border-t border-slate-100 flex items-center", className)} {...props} />
+));
+CardFooter.displayName = "CardFooter";
+
 const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'default' | 'outline' | 'ghost' | 'brand', size?: 'default' | 'sm' | 'lg' }>(({ className, variant = "default", size = "default", ...props }, ref) => {
   const variants = {
     default: "bg-slate-900 text-white hover:bg-slate-800",
@@ -49,7 +54,7 @@ const Label = React.forwardRef<HTMLLabelElement, React.LabelHTMLAttributes<HTMLL
 ));
 Label.displayName = "Label";
 
-export { Card, CardHeader, CardTitle, CardContent, Button, Input, Label };
+export { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Input, Label };
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(({ className, ...props }, ref) => (
   <textarea className={cn("flex min-h-[80px] w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50 transition-shadow", className)} ref={ref} {...props} />

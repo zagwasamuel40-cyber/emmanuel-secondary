@@ -34,7 +34,8 @@ import {
   Layers,
   Sparkles,
   ArrowRight,
-  CheckCircle
+  CheckCircle,
+  Database
 } from "lucide-react";
 import { Input } from "@/src/components/ui";
 import { usePortalSettings } from "../data/portalSettingsData";
@@ -161,6 +162,7 @@ export default function DashboardLayout() {
       icon: ClipboardList,
       requiredPermission: 'examination.view',
       items: [
+        { name: "View Class Results", href: "/dashboard/examinations?tab=class-results", icon: FileCheck },
         { name: "Examinations Desk", href: "/dashboard/examinations", icon: LayoutDashboard },
         { name: "CBT Question Bank", href: "/dashboard/examinations?tab=questions", icon: BookOpen },
         { name: "AI Question Generator", href: "/dashboard/examinations?tab=ai-generate", icon: Sparkles, badge: "AI" },
@@ -226,6 +228,7 @@ export default function DashboardLayout() {
         { name: "Staff & Role Management", href: "/dashboard/teachers", icon: UserPlus },
         { name: "Student Enrollment", href: "/dashboard/enrollment", icon: UserCheck },
         { name: "Security & Audit Trail", href: "/dashboard/audit-logs", icon: History, badge: "Sec" },
+        { name: "Database & Cloud Sync", href: "/dashboard/database", icon: Database, badge: "Cloud" },
         { name: "Report Center", href: "/dashboard/reports", icon: Printer },
         { name: "School Configuration", href: "/dashboard/settings", icon: Settings },
       ]

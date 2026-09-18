@@ -8,17 +8,21 @@ export interface Announcement {
   active: boolean;
   category?: string;
   image?: string;
+  videoUrl?: string;
+  mediaType?: "image" | "video";
 }
 
 const initialAnnouncements: Announcement[] = [
   { 
     id: 1, 
-    title: "End of Term Holiday", 
-    content: "School will close for the end of term holiday on Dec 15, 2026. All students are expected to clear their lockers and submit borrowed library books.", 
+    title: "End of Term Holiday & Principal's Video Address", 
+    content: "School will close for the end of term holiday on Dec 15, 2026. Watch the Principal's address to parents and students regarding holiday assignments and resumption guidelines.", 
     date: "Dec 15, 2026", 
     active: true, 
     category: "General",
-    image: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80"
+    image: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80",
+    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    mediaType: "video"
   },
   { 
     id: 2, 

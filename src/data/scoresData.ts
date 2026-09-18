@@ -38,7 +38,21 @@ export const initialScores: ScoreRecord[] = [
   { id: "SCR-112", studentId: "ESS/2026/004", studentName: "Grace Okhiria", class: "SSS 3C", subject: "English Language", session: "2025/2026 - First Term", ca1: 6, ca2: 6, ca3: 7, ca4: 6, exam: 35, total: 60, grade: "B", remark: "Very Good", position: "3rd", annualScore: 180, teacherNote: "Good comprehension skills" },
 
   { id: "SCR-113", studentId: "ESS/2026/005", studentName: "David Emmanuel", class: "JSS 3B", subject: "Mathematics", session: "2025/2026 - First Term", ca1: 8, ca2: 9, ca3: 9, ca4: 8, exam: 48, total: 82, grade: "A", remark: "Excellent", position: "2nd", annualScore: 245, teacherNote: "Keen analytical skills" },
-  { id: "SCR-114", studentId: "ESS/2026/005", studentName: "David Emmanuel", class: "JSS 3B", subject: "English Language", session: "2025/2026 - First Term", ca1: 8, ca2: 8, ca3: 8, ca4: 9, exam: 46, total: 79, grade: "A", remark: "Excellent", position: "1st", annualScore: 237, teacherNote: "Excellent vocabulary and grammar" }
+  { id: "SCR-114", studentId: "ESS/2026/005", studentName: "David Emmanuel", class: "JSS 3B", subject: "English Language", session: "2025/2026 - First Term", ca1: 8, ca2: 8, ca3: 8, ca4: 9, exam: 46, total: 79, grade: "A", remark: "Excellent", position: "1st", annualScore: 237, teacherNote: "Excellent vocabulary and grammar" },
+
+  // Fatima Bello - SSS 3A
+  { id: "SCR-115", studentId: "ESS/2026/006", studentName: "Fatima Bello", class: "SSS 3A", subject: "Mathematics", session: "2025/2026 - First Term", ca1: 8, ca2: 8, ca3: 7, ca4: 8, exam: 48, total: 79, grade: "A", remark: "Excellent", position: "2nd", annualScore: 235, teacherNote: "Consistent and dedicated work" },
+  { id: "SCR-116", studentId: "ESS/2026/006", studentName: "Fatima Bello", class: "SSS 3A", subject: "English Language", session: "2025/2026 - First Term", ca1: 9, ca2: 8, ca3: 8, ca4: 8, exam: 49, total: 82, grade: "A", remark: "Excellent", position: "1st", annualScore: 245, teacherNote: "Superb language command" },
+  { id: "SCR-117", studentId: "ESS/2026/006", studentName: "Fatima Bello", class: "SSS 3A", subject: "Physics", session: "2025/2026 - First Term", ca1: 7, ca2: 8, ca3: 7, ca4: 8, exam: 46, total: 76, grade: "A", remark: "Excellent", position: "2nd", annualScore: 228, teacherNote: "Very good grasp of mechanics" },
+  { id: "SCR-118", studentId: "ESS/2026/006", studentName: "Fatima Bello", class: "SSS 3A", subject: "Chemistry", session: "2025/2026 - First Term", ca1: 8, ca2: 7, ca3: 8, ca4: 7, exam: 47, total: 77, grade: "A", remark: "Excellent", position: "2nd", annualScore: 231, teacherNote: "Well prepared in lab work" },
+  { id: "SCR-119", studentId: "ESS/2026/006", studentName: "Fatima Bello", class: "SSS 3A", subject: "Biology", session: "2025/2026 - First Term", ca1: 8, ca2: 8, ca3: 7, ca4: 7, exam: 48, total: 78, grade: "A", remark: "Excellent", position: "1st", annualScore: 234, teacherNote: "Impressive botanical insights" },
+
+  // Emeka Okafor - SSS 3A
+  { id: "SCR-120", studentId: "ESS/2026/007", studentName: "Emeka Okafor", class: "SSS 3A", subject: "Mathematics", session: "2025/2026 - First Term", ca1: 7, ca2: 7, ca3: 8, ca4: 7, exam: 44, total: 73, grade: "A", remark: "Excellent", position: "3rd", annualScore: 219, teacherNote: "Solid analytical capability" },
+  { id: "SCR-121", studentId: "ESS/2026/007", studentName: "Emeka Okafor", class: "SSS 3A", subject: "English Language", session: "2025/2026 - First Term", ca1: 7, ca2: 6, ca3: 7, ca4: 7, exam: 43, total: 70, grade: "A", remark: "Excellent", position: "3rd", annualScore: 210, teacherNote: "Good composition and reading" },
+  { id: "SCR-122", studentId: "ESS/2026/007", studentName: "Emeka Okafor", class: "SSS 3A", subject: "Physics", session: "2025/2026 - First Term", ca1: 7, ca2: 7, ca3: 7, ca4: 7, exam: 43, total: 71, grade: "A", remark: "Excellent", position: "3rd", annualScore: 213, teacherNote: "Active participant in class" },
+  { id: "SCR-123", studentId: "ESS/2026/007", studentName: "Emeka Okafor", class: "SSS 3A", subject: "Chemistry", session: "2025/2026 - First Term", ca1: 8, ca2: 6, ca3: 7, ca4: 8, exam: 45, total: 74, grade: "A", remark: "Excellent", position: "3rd", annualScore: 222, teacherNote: "Consistent performance" },
+  { id: "SCR-124", studentId: "ESS/2026/007", studentName: "Emeka Okafor", class: "SSS 3A", subject: "Biology", session: "2025/2026 - First Term", ca1: 7, ca2: 7, ca3: 7, ca4: 7, exam: 46, total: 74, grade: "A", remark: "Excellent", position: "3rd", annualScore: 222, teacherNote: "Good theoretical understanding" }
 ];
 
 export function getStoredScores(): ScoreRecord[] {
@@ -46,7 +60,17 @@ export function getStoredScores(): ScoreRecord[] {
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Ensure baseline initial scores are merged if missing
+        const existingIds = new Set(parsed.map(p => p.id));
+        const missing = initialScores.filter(init => !existingIds.has(init.id));
+        if (missing.length > 0) {
+          const combined = [...parsed, ...missing];
+          localStorage.setItem("ess_scores", JSON.stringify(combined));
+          return combined;
+        }
+        return parsed;
+      }
     } catch (e) {}
   }
   return initialScores;

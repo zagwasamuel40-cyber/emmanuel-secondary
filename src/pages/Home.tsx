@@ -8,7 +8,7 @@ import { useTeachers } from "../data/teachersData";
 import { ParentCommentForm } from "../components/ParentCommentForm";
 import { MessageSquare, Star } from "lucide-react";
 
-import { ArrowRight, BookOpen, Users, Trophy, ChevronRight, Send, CheckCircle2 } from "lucide-react";
+import { ArrowRight, BookOpen, Users, Trophy, ChevronRight, Send, CheckCircle2, Target, Compass } from "lucide-react";
 import { Button, Card, CardContent, Input, Label } from "@/src/components/ui";
 import { TeamGallery } from "../components/TeamGallery";
 
@@ -139,6 +139,43 @@ export default function Home() {
             <div className="text-center px-4">
               <p className="text-4xl font-heading font-bold text-slate-900 mb-2">15+</p>
               <p className="text-sm text-slate-500 font-medium">Years of Excellence</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Mission & Vision Section */}
+      <section className="py-16 bg-white border-b border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="p-8 rounded-2xl bg-gradient-to-br from-brand-50/70 to-white border border-brand-100 shadow-xs relative overflow-hidden">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-xs">
+                  <Target size={24} />
+                </div>
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-brand-700">Our Purpose</span>
+                  <h3 className="font-heading text-2xl font-bold text-slate-900">Our Mission</h3>
+                </div>
+              </div>
+              <p className="text-slate-700 text-base leading-relaxed whitespace-pre-line">
+                {portalSettings.mission || "To provide comprehensive education that empowers students with the knowledge, skills, and values needed to excel in a rapidly changing world."}
+              </p>
+            </div>
+
+            <div className="p-8 rounded-2xl bg-gradient-to-br from-amber-50/70 to-white border border-amber-100 shadow-xs relative overflow-hidden">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs">
+                  <Compass size={24} />
+                </div>
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-700">Our Aspiration</span>
+                  <h3 className="font-heading text-2xl font-bold text-slate-900">Our Vision</h3>
+                </div>
+              </div>
+              <p className="text-slate-700 text-base leading-relaxed whitespace-pre-line">
+                {portalSettings.vision || "To be the premier secondary educational institution in Nigeria, recognized globally for academic excellence and character development."}
+              </p>
             </div>
           </div>
         </div>
