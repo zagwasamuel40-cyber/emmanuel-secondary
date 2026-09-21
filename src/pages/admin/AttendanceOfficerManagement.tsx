@@ -166,7 +166,7 @@ export const AttendanceOfficerManagement: React.FC = () => {
       password: officer.password || '',
       role: officer.role,
       department: officer.department,
-      gender: officer.gender,
+      gender: (officer.gender === 'Female' ? 'Female' : 'Male') as 'Male' | 'Female',
       status: (officer.status as any) || 'Active',
       permissions: { ...defaultOfficerPermissions }
     });

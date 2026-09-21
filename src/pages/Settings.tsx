@@ -639,7 +639,7 @@ export default function Settings() {
                                     const reader = new FileReader();
                                     reader.onloadend = () => {
                                       const newTeam = [...portalSettings.dedicatedTeam];
-                                      newTeam[index].photoUrl = reader.result;
+                                      newTeam[index].photoUrl = reader.result as string;
                                       setPortalSettings({ dedicatedTeam: newTeam });
                                     };
                                     reader.readAsDataURL(file);

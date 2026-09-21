@@ -16,7 +16,12 @@ const revenueData = [
 export default function Finance() {
   const [transactions, setTransactions] = useTransactions();
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
-  const [newTransaction, setNewTransaction] = useState({
+  const [newTransaction, setNewTransaction] = useState<{
+    description: string;
+    amount: string;
+    type: "income" | "expense";
+    date: string;
+  }>({
     description: "",
     amount: "",
     type: "income",
@@ -456,7 +461,7 @@ export default function Finance() {
                       required
                       className="flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                       value={newTransaction.type}
-                      onChange={(e) => setNewTransaction({...newTransaction, type: e.target.value})}
+                      onChange={(e) => setNewTransaction({...newTransaction, type: e.target.value as "income" | "expense"})}
                     >
                       <option value="income">Income / Fee</option>
                       <option value="expense">Expense</option>

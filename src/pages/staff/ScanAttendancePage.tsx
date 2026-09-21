@@ -77,7 +77,7 @@ export default function ScanAttendancePage() {
     title: string;
     message: string;
     timestamp: string;
-    action?: 'check_in' | 'check_out';
+    action?: 'check_in' | 'check_out' | 'duplicate';
   } | null>(null);
 
   // Manual fallback search

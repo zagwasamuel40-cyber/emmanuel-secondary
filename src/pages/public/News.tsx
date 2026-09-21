@@ -5,7 +5,19 @@ import { useAnnouncements, Announcement } from "@/src/data/announcementsData";
 import { Bell, Calendar, Sparkles, X, Image as ImageIcon, FileText, Download, Video, Play } from "lucide-react";
 import { VideoPlayer } from "@/src/components/ui/VideoPlayer";
 
-const staticNewsItems = [
+interface NewsItem {
+  id: string;
+  title: string;
+  date: string;
+  category: string;
+  summary: string;
+  image?: string;
+  videoUrl?: string;
+  mediaType?: string;
+  isAnnouncement?: boolean;
+}
+
+const staticNewsItems: NewsItem[] = [
   {
     id: "s1",
     title: "Emmanuel Sec School Wins State Science Fair",

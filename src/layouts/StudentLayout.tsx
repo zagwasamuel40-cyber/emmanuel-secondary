@@ -28,6 +28,7 @@ const navigation = [
 export default function StudentLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [portalSettings] = usePortalSettings();
   const [students] = useStudents();
   const [student, setStudent] = useState<Student | null>(null);
@@ -80,12 +81,12 @@ export default function StudentLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-      <aside className="w-full md:w-64 bg-brand-900 text-slate-300 md:min-h-screen flex-shrink-0 flex flex-col print:hidden">
+      <aside className={`w-full md:w-64 bg-brand-900 text-slate-300 md:min-h-screen flex-shrink-0 flex flex-col print:hidden ${mobileMenuOpen ? 'block' : 'hidden md:flex'}`}>
         <div className="h-16 flex items-center px-6 bg-brand-950/50 justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={handleLogout} title="Click to logout">
+          <Link to="/student" className="flex items-center gap-2" title="Go to Dashboard">
             {portalSettings.logoUrl && <img src={portalSettings.logoUrl} alt="School Logo" className="w-8 h-8 rounded-full object-cover" />}
             <span className="font-heading font-bold text-white text-lg tracking-wide line-clamp-1">Student Portal</span>
-          </div>
+          </Link>
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
           {navigation.map((item) => {
@@ -97,6 +98,7 @@ export default function StudentLayout() {
               <Link
                 key={item.name}
                 to={item.href}
+                onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive 
                     ? 'bg-brand-600 text-white shadow-sm' 
@@ -134,7 +136,11 @@ export default function StudentLayout() {
         )}
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 lg:px-8 print:hidden">
           <div className="flex items-center gap-4 flex-1">
-            <button className="md:hidden text-slate-500 hover:text-slate-700">
+            <button 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden text-slate-500 hover:text-slate-700 p-1"
+              aria-label="Toggle navigation menu"
+            >
               <Menu size={24} />
             </button>
             <div className="font-medium text-slate-900">

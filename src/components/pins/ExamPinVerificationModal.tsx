@@ -17,8 +17,10 @@ interface ExamPinVerificationModalProps {
     duration?: string;
     accessCode?: string;
   };
-  onVerified: () => void;
-  onCancel: () => void;
+  onVerified?: () => void;
+  onCancel?: () => void;
+  onClose?: () => void;
+  onSuccess?: () => void;
 }
 
 export const ExamPinVerificationModal: React.FC<ExamPinVerificationModalProps> = ({
@@ -27,7 +29,11 @@ export const ExamPinVerificationModal: React.FC<ExamPinVerificationModalProps> =
   exam,
   onVerified,
   onCancel,
+  onClose,
+  onSuccess,
 }) => {
+  const handleSuccess = onSuccess || onVerified || (() => {});
+  const handleClose = onClose || onCancel || (() => {});
   const [pinInput, setPinInput] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
@@ -73,7 +79,7 @@ export const ExamPinVerificationModal: React.FC<ExamPinVerificationModalProps> =
 
       if (matchesStudentPin || isExamCode || isMasterCbtCode) {
         setIsVerifying(false);
-        onVerified();
+        handleSuccess();
       } else {
         setIsVerifying(false);
         setErrorMessage("Invalid CBT Examination PIN. Please verify the PIN issued to your student account or check with the exam invigilator.");
@@ -150,7 +156,7 @@ export const ExamPinVerificationModal: React.FC<ExamPinVerificationModalProps> =
               <Button
                 type="button"
                 variant="outline"
-                onClick={onCancel}
+                onClick={handleClose}
                 className="h-11 border-slate-300 text-slate-700"
               >
                 Cancel

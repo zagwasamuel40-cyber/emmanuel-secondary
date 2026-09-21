@@ -50,7 +50,7 @@ export default function Reports() {
                   <GraduationCap className="text-white" size={40} />
                 </div>
                 <h1 className="text-4xl font-black font-heading tracking-wider uppercase text-center">{portalSettings.schoolName}</h1>
-                <p className="text-slate-700 font-bold mt-2">{portalSettings.schoolAddress} | {portalSettings.schoolContactPhone}</p>
+                <p className="text-slate-700 font-bold mt-2">{portalSettings.address} | {portalSettings.contactPhone}</p>
                 <div className="mt-4 px-6 py-2 bg-slate-900 text-white font-bold uppercase tracking-widest text-lg rounded-t-lg">
                   Student Terminal Report
                 </div>
@@ -199,7 +199,7 @@ export default function Reports() {
   const [transactions] = useTransactions();
   const [scores] = useScores();
   const [portalSettings] = usePortalSettings();
-  const [sessions] = useSessions();
+  const [sessions, , currentSession] = useSessions();
 
   const [selectedSections, setSelectedSections] = useState({
     summary: true,
@@ -246,7 +246,7 @@ export default function Reports() {
     }, 400);
   };
 
-  const activeSession = sessions.find(s => s.isCurrent)?.name || "2025/2026 - First Term";
+  const activeSession = currentSession || (sessions[0] ? `${sessions[0]} - First Term` : "2025/2026 - First Term");
   const currentDate = new Date().toLocaleDateString();
 
   // Helper for rendering the header for every page/section
@@ -331,18 +331,18 @@ export default function Reports() {
               <div className="flex gap-8 mb-8 border-b pb-6">
                 <div className="w-32 h-32 bg-slate-100 rounded border border-slate-200 overflow-hidden flex items-center justify-center">
                   {s.passportUrl ? (
-                    <img src={s.passportUrl} alt={s.firstName} className="w-full h-full object-cover" />
+                    <img src={s.passportUrl} alt={s.name} className="w-full h-full object-cover" />
                   ) : (
                     <User size={48} className="text-slate-300" />
                   )}
                 </div>
                 <div className="flex-1 grid grid-cols-2 gap-4 text-sm">
-                  <div><span className="text-slate-500 font-medium">Admission No:</span> <span className="font-bold">{s.admissionNumber}</span></div>
+                  <div><span className="text-slate-500 font-medium">Admission No:</span> <span className="font-bold">{s.applicationNumber || s.id}</span></div>
                   <div><span className="text-slate-500 font-medium">Class:</span> <span className="font-bold">{s.class}</span></div>
                   <div><span className="text-slate-500 font-medium">Gender:</span> <span className="font-bold">{s.gender}</span></div>
                   <div><span className="text-slate-500 font-medium">Date of Birth:</span> <span className="font-bold">{s.dob || "N/A"}</span></div>
-                  <div><span className="text-slate-500 font-medium">Parent/Guardian:</span> <span className="font-bold">{s.parentName}</span></div>
-                  <div><span className="text-slate-500 font-medium">Phone:</span> <span className="font-bold">{s.parentPhone}</span></div>
+                  <div><span className="text-slate-500 font-medium">Parent/Guardian:</span> <span className="font-bold">{s.parentNumber || "Guardian"}</span></div>
+                  <div><span className="text-slate-500 font-medium">Phone:</span> <span className="font-bold">{s.parentPhone || s.parentNumber || "N/A"}</span></div>
                 </div>
               </div>
               
@@ -514,12 +514,12 @@ export default function Reports() {
           <tbody>
             {students.map(s => (
               <tr key={`${s.id}`}>
-                <td className="border p-2 font-medium">{s.admissionNumber}</td>
+                <td className="border p-2 font-medium">{s.applicationNumber || s.id}</td>
                 <td className="border p-2 font-bold">{s.name}</td>
                 <td className="border p-2">{s.gender}</td>
                 <td className="border p-2">{s.class}</td>
-                <td className="border p-2">{s.parentName}</td>
-                <td className="border p-2">{s.parentPhone}</td>
+                <td className="border p-2">{s.parentNumber || "Guardian"}</td>
+                <td className="border p-2">{s.parentPhone || s.parentNumber || "N/A"}</td>
                 <td className="border p-2">{s.status}</td>
               </tr>
             ))}

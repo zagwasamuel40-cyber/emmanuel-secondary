@@ -103,6 +103,8 @@ export default function Teachers() {
     | "admin_management" 
     | "my_profile" 
     | "change_staff_number" 
+    | "assign_role"
+    | "change_status"
     | null
   >(null);
 

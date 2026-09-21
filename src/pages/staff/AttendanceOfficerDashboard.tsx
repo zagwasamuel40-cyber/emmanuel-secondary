@@ -139,7 +139,7 @@ export default function AttendanceOfficerDashboard() {
     message: string;
     person?: any;
     personType?: 'Student' | 'Staff';
-    action?: 'check_in' | 'check_out';
+    action?: 'check_in' | 'check_out' | 'duplicate';
     time?: string;
     status?: string;
   } | null>(null);

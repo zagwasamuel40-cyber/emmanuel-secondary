@@ -9,7 +9,7 @@ import { useSessions, TERMS } from "../data/sessionsData";
 import { useInquiries } from "../data/inquiriesData";
 import { usePortalSettings, useAdmissionSettings } from "../data/portalSettingsData";
 import { useCbtQuestions } from "../data/cbtQuestions";
-import { useEntranceExams, generateAccessCode } from "../data/entranceExamsData";
+import { useEntranceExams, generateAccessCode, EntranceExam } from "../data/entranceExamsData";
 
 import { 
   Button, 
@@ -70,9 +70,9 @@ export default function AdmissionsManagement() {
     maxCandidates: 50,
   });
   
-  const handleScheduleExam = (e) => {
+  const handleScheduleExam = (e: React.FormEvent) => {
     e.preventDefault();
-    const newExam = {
+    const newExam: EntranceExam = {
       id: "ENT-" + Date.now(),
       ...examForm,
       status: "Scheduled"

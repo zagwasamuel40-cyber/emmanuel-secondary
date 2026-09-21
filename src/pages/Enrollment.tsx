@@ -63,7 +63,7 @@ export default function Enrollment() {
   const [findSession, setFindSession] = useState(SESSIONS[1]);
   const [findTerm, setFindTerm] = useState(TERMS[0]);
   const [findClass, setFindClass] = useState(CLASSES[0]);
-  const [foundStudents, setFoundStudents] = useState<StudentEnrollment[] | null>(null);
+  const [foundStudents, setFoundStudents] = useState<Student[] | null>(null);
 
   // Upload Enrollment States
   const [uploadSession, setUploadSession] = useState(SESSIONS[1]);
