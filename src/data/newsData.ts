@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { safeStorage } from "../utils/safeStorage";
 
 export interface NewsItem {
   id: string;
@@ -13,7 +14,7 @@ const initialNews: NewsItem[] = [
 
 export function useNews() {
   const [news, setNews] = useState<NewsItem[]>(() => {
-    const saved = localStorage.getItem("ess_news");
+    const saved = safeStorage.getItem("ess_news");
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -21,7 +22,7 @@ export function useNews() {
   });
 
   useEffect(() => {
-    localStorage.setItem("ess_news", JSON.stringify(news));
+    safeStorage.setItem("ess_news", JSON.stringify(news));
   }, [news]);
 
   return [news, setNews] as const;

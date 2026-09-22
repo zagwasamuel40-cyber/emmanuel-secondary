@@ -430,6 +430,175 @@ async function startServer() {
     }
   });
 
+  // =========================================================================
+  // PAYSTACK PAYMENT GATEWAY API (Server-Side Proxy & Verification)
+  // =========================================================================
+
+  // Paystack Keys
+  const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || "sk_test_ccb71ef4c75797d7598ce11d7a0fa6b5cf328fe7";
+  const PAYSTACK_PUBLIC_KEY = process.env.VITE_PAYSTACK_PUBLIC_KEY || "pk_test_81bb385c507469abcb61fdd0285c04382036fd6e";
+
+  // 1. Get Paystack Client Configuration (Public Key only)
+  app.get("/api/paystack/config", (_req, res) => {
+    res.json({
+      publicKey: PAYSTACK_PUBLIC_KEY,
+      isConfigured: true,
+      mode: PAYSTACK_SECRET_KEY.startsWith("sk_test_") ? "test" : "live",
+      accountName: "Emmanuel Secondary School, Makurdi"
+    });
+  });
+
+  // 2. Test Paystack Connection / Credentials Check
+  app.get("/api/paystack/test-connection", async (_req, res) => {
+    try {
+      const response = await fetch("https://api.paystack.co/transaction?perPage=1", {
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json"
+        }
+      });
+      const data = await response.json();
+      if (response.ok && data.status) {
+        res.json({
+          status: "connected",
+          mode: PAYSTACK_SECRET_KEY.startsWith("sk_test_") ? "test" : "live",
+          message: "Paystack test credentials verified successfully with Paystack API.",
+          publicKey: PAYSTACK_PUBLIC_KEY
+        });
+      } else {
+        res.status(400).json({
+          status: "error",
+          message: data.message || "Paystack rejected credentials.",
+          details: data
+        });
+      }
+    } catch (err: any) {
+      console.error("Paystack test-connection error:", err);
+      res.status(500).json({
+        status: "network_error",
+        message: "Failed to communicate with Paystack API.",
+        error: err.message
+      });
+    }
+  });
+
+  // 3. Initialize Paystack Transaction
+  app.post("/api/paystack/initialize", async (req, res) => {
+    try {
+      const { email, amount, reference, metadata, callbackUrl } = req.body;
+
+      if (!email || !amount) {
+        return res.status(400).json({ error: "Missing required fields: email and amount (Naira) are mandatory." });
+      }
+
+      // Convert Naira to Kobo (Paystack expects amount in Kobo)
+      const amountInKobo = Math.round(Number(amount) * 100);
+      const generatedRef = reference || `ESS-PAY-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const paystackPayload: Record<string, any> = {
+        email,
+        amount: amountInKobo,
+        reference: generatedRef,
+        metadata: {
+          ...metadata,
+          custom_fields: [
+            ...(metadata?.custom_fields || []),
+            { display_name: "School", variable_name: "school", value: "Emmanuel Secondary School" }
+          ]
+        }
+      };
+
+      if (callbackUrl) {
+        paystackPayload.callback_url = callbackUrl;
+      }
+
+      const response = await fetch("https://api.paystack.co/transaction/initialize", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(paystackPayload)
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.status) {
+        res.json({
+          status: "success",
+          authorization_url: data.data.authorization_url,
+          access_code: data.data.access_code,
+          reference: data.data.reference,
+          publicKey: PAYSTACK_PUBLIC_KEY
+        });
+      } else {
+        console.warn("Paystack initialize warning:", data);
+        res.status(response.status || 400).json({
+          status: "failed",
+          message: data.message || "Failed to initialize Paystack transaction",
+          details: data
+        });
+      }
+    } catch (err: any) {
+      console.error("Error in /api/paystack/initialize:", err);
+      res.status(500).json({
+        status: "error",
+        message: "Paystack initialization error",
+        error: err.message
+      });
+    }
+  });
+
+  // 4. Verify Paystack Transaction
+  app.get("/api/paystack/verify/:reference", async (req, res) => {
+    try {
+      const { reference } = req.params;
+      if (!reference) {
+        return res.status(400).json({ error: "Transaction reference is required." });
+      }
+
+      const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.status && data.data) {
+        const tx = data.data;
+        res.json({
+          status: tx.status, // "success", "failed", "abandoned"
+          isSuccess: tx.status === "success",
+          amount: tx.amount ? tx.amount / 100 : 0, // convert kobo back to Naira
+          currency: tx.currency,
+          channel: tx.channel,
+          paidAt: tx.paid_at || new Date().toISOString(),
+          reference: tx.reference,
+          gateway_response: tx.gateway_response,
+          customer: tx.customer,
+          metadata: tx.metadata,
+          receiptNumber: `REC-${new Date().getFullYear()}-${reference.replace(/\D/g, "").slice(-6) || Math.floor(100000 + Math.random() * 900000)}`
+        });
+      } else {
+        res.status(response.status || 400).json({
+          status: "failed",
+          message: data.message || "Verification failed on Paystack",
+          details: data
+        });
+      }
+    } catch (err: any) {
+      console.error("Error in /api/paystack/verify:", err);
+      res.status(500).json({
+        status: "error",
+        message: "Failed to verify transaction with Paystack",
+        error: err.message
+      });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

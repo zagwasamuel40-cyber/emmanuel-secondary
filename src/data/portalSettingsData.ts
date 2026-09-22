@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { safeStorage } from "../utils/safeStorage";
 
 export interface TeamMember {
   id: string;
@@ -74,7 +75,7 @@ const defaultPortalSettings: PortalSettings = {
 
 export function usePortalSettings() {
   const [settings, setSettings] = useState<PortalSettings>(() => {
-    const saved = localStorage.getItem("ess_portal_settings");
+    const saved = safeStorage.getItem("ess_portal_settings");
     if (saved) {
       try {
         return { ...defaultPortalSettings, ...JSON.parse(saved) };
@@ -86,7 +87,7 @@ export function usePortalSettings() {
   });
 
   useEffect(() => {
-    localStorage.setItem("ess_portal_settings", JSON.stringify(settings));
+    safeStorage.setItem("ess_portal_settings", JSON.stringify(settings));
   }, [settings]);
 
   const updateSettings = (partial: Partial<PortalSettings>) => {
@@ -108,6 +109,10 @@ export interface AdmissionSettings {
   bankName: string;
   accountName: string;
   accountNumber: string;
+  paystackPublicKey?: string;
+  paystackSecretKey?: string;
+  paystackAccountName?: string;
+  paystackEnabled?: boolean;
   guidelines: string;
   galleryImages: string[];
   imageRotationInterval: number;
@@ -125,6 +130,10 @@ const defaultAdmissionSettings: AdmissionSettings = {
   bankName: "Guaranty Trust Bank (GTB)",
   accountName: "Emmanuel Secondary School",
   accountNumber: "0123456789",
+  paystackPublicKey: "pk_test_81bb385c507469abcb61fdd0285c04382036fd6e",
+  paystackSecretKey: "sk_test_ccb71ef4c75797d7598ce11d7a0fa6b5cf328fe7",
+  paystackAccountName: "Emmanuel Secondary School, Makurdi",
+  paystackEnabled: true,
   guidelines: `ADMISSION APPLICATION GUIDELINES\n\nDear Applicant,\n\nPlease follow the instructions below carefully when applying for admission:\n\n### 1. Complete Your Registration Carefully\nFill in all required information correctly. Make sure your name, date of birth, contact details, academic information, and other details are accurate before submitting your application.\n\n### 2. Save Your Application Code\nAfter completing your registration, **save or write down your Application Code/Number and password**. You will need these details to log in, check your application status, access your examination information, and continue with the admission process.\n\n### 3. Check Your Information\nBefore submitting your application, carefully review all the information you entered. **Incorrect or false information may lead to the rejection of your application.**\n\n### 4. Upload the Correct Documents\nMake sure all required documents are clear, valid, and correctly uploaded. Do not upload the wrong document or someone else's document. Incorrect or incomplete documentation may result in **admission rejection**.\n\n### 5. Take the CBT Examination\nAfter successful registration, log in to your applicant dashboard and check your **CBT examination date, time, and instructions**. Make sure you sit for the examination as scheduled.\n\n### 6. Keep Your Login Details Safe\nDo not share your Application Code, password, or other login details with anyone. Keep them safe for future use.\n\n### 7. Check Your Admission Status\nAfter completing your registration and CBT examination, regularly log in to your applicant dashboard to check for updates concerning your admission status.\n\n---\n\n## IMPORTANT NOTICE\n\nApplicants are advised to carefully verify all information and documents before submitting their application. The institution will not be responsible for errors caused by applicants during registration.\n\n**Incorrect information, invalid documents, or failure to follow the admission instructions may result in the rejection of your application.**\n\n**Good luck with your application and CBT examination!**`,
   galleryImages: [
     "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1200&q=80",
@@ -136,7 +145,7 @@ const defaultAdmissionSettings: AdmissionSettings = {
 
 export function useAdmissionSettings() {
   const [settings, setSettings] = useState<AdmissionSettings>(() => {
-    const saved = localStorage.getItem("ess_admission_settings");
+    const saved = safeStorage.getItem("ess_admission_settings");
     if (saved) {
       try {
         return { ...defaultAdmissionSettings, ...JSON.parse(saved) };
@@ -148,7 +157,7 @@ export function useAdmissionSettings() {
   });
 
   useEffect(() => {
-    localStorage.setItem("ess_admission_settings", JSON.stringify(settings));
+    safeStorage.setItem("ess_admission_settings", JSON.stringify(settings));
   }, [settings]);
 
   const updateSettings = (partial: Partial<AdmissionSettings>) => {

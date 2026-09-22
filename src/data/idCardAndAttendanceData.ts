@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { safeStorage } from "../utils/safeStorage";
 import { 
   IDCard, 
   AttendanceRecord, 
@@ -557,7 +558,7 @@ export function getStoredIdCards(): IDCard[] {
     });
 
     if (updated && typeof window !== "undefined") {
-      localStorage.setItem("ess_student_id_cards", JSON.stringify(cards));
+      safeStorage.setItem("ess_student_id_cards", JSON.stringify(cards));
     }
   } catch (err) {
     console.error("Error ensuring staff id cards:", err);
@@ -598,13 +599,13 @@ export function generateStaffIdCardsForAll(): { createdCount: number; totalStaff
 
 export function saveStoredIdCards(cards: IDCard[]) {
   if (typeof window === "undefined") return;
-  localStorage.setItem("ess_student_id_cards", JSON.stringify(cards));
+  safeStorage.setItem("ess_student_id_cards", JSON.stringify(cards));
   window.dispatchEvent(new Event("ess_id_cards_change"));
 }
 
 export function getStoredStaffAttendance(): StaffAttendanceRecord[] {
   if (typeof window === "undefined") return initialStaffAttendance;
-  const saved = localStorage.getItem("ess_staff_attendance");
+  const saved = safeStorage.getItem("ess_staff_attendance");
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
@@ -616,13 +617,13 @@ export function getStoredStaffAttendance(): StaffAttendanceRecord[] {
 
 export function saveStoredStaffAttendance(records: StaffAttendanceRecord[]) {
   if (typeof window === "undefined") return;
-  localStorage.setItem("ess_staff_attendance", JSON.stringify(records));
+  safeStorage.setItem("ess_staff_attendance", JSON.stringify(records));
   window.dispatchEvent(new Event("ess_staff_attendance_change"));
 }
 
 export function getStoredAttendance(): AttendanceRecord[] {
   if (typeof window === "undefined") return initialAttendance;
-  const saved = localStorage.getItem("ess_student_attendance");
+  const saved = safeStorage.getItem("ess_student_attendance");
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
@@ -634,13 +635,13 @@ export function getStoredAttendance(): AttendanceRecord[] {
 
 export function saveStoredAttendance(records: AttendanceRecord[]) {
   if (typeof window === "undefined") return;
-  localStorage.setItem("ess_student_attendance", JSON.stringify(records));
+  safeStorage.setItem("ess_student_attendance", JSON.stringify(records));
   window.dispatchEvent(new Event("ess_attendance_change"));
 }
 
 export function getStoredScanLogs(): QRScanLog[] {
   if (typeof window === "undefined") return initialScanLogs;
-  const saved = localStorage.getItem("ess_qr_scan_logs");
+  const saved = safeStorage.getItem("ess_qr_scan_logs");
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
@@ -652,13 +653,15 @@ export function getStoredScanLogs(): QRScanLog[] {
 
 export function saveStoredScanLogs(logs: QRScanLog[]) {
   if (typeof window === "undefined") return;
-  localStorage.setItem("ess_qr_scan_logs", JSON.stringify(logs));
+  // Keep latest 40 logs to prevent unbounded quota growth
+  const trimmed = logs.slice(0, 40);
+  safeStorage.setItem("ess_qr_scan_logs", JSON.stringify(trimmed));
   window.dispatchEvent(new Event("ess_scan_logs_change"));
 }
 
 export function getStoredIDCardDesign(): IDCardCustomization {
   if (typeof window === "undefined") return defaultIDCardDesign;
-  const saved = localStorage.getItem("ess_id_card_design");
+  const saved = safeStorage.getItem("ess_id_card_design");
   if (saved) {
     try {
       return { ...defaultIDCardDesign, ...JSON.parse(saved) };
@@ -683,7 +686,7 @@ export const defaultAttendanceSettings: AttendanceSettings = {
 
 export function getStoredAttendanceSettings(): AttendanceSettings {
   if (typeof window === "undefined") return defaultAttendanceSettings;
-  const saved = localStorage.getItem("ess_attendance_settings");
+  const saved = safeStorage.getItem("ess_attendance_settings");
   if (saved) {
     try {
       return { ...defaultAttendanceSettings, ...JSON.parse(saved) };
@@ -694,7 +697,7 @@ export function getStoredAttendanceSettings(): AttendanceSettings {
 
 export function saveStoredAttendanceSettings(settings: AttendanceSettings) {
   if (typeof window === "undefined") return;
-  localStorage.setItem("ess_attendance_settings", JSON.stringify(settings));
+  safeStorage.setItem("ess_attendance_settings", JSON.stringify(settings));
   window.dispatchEvent(new Event("ess_attendance_settings_change"));
 }
 
@@ -773,7 +776,7 @@ export function isPastCheckOutTime(timeStr: string, thresholdTime24: string): bo
 
 export function saveStoredIDCardDesign(design: IDCardCustomization) {
   if (typeof window === "undefined") return;
-  localStorage.setItem("ess_id_card_design", JSON.stringify(design));
+  safeStorage.setItem("ess_id_card_design", JSON.stringify(design));
   window.dispatchEvent(new Event("ess_id_card_design_change"));
 }
 

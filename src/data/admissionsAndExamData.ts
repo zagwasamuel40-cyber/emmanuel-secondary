@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { safeStorage, sanitizeStorageData } from "../utils/safeStorage";
 
 export type AdmissionPortalStatus = "open" | "closed" | "not_yet_open";
 
@@ -635,7 +636,7 @@ export function validateApplicantExamAccess(
 // React Hooks
 export function useAdmissionPortal() {
   const [control, setControl] = useState<AdmissionPortalControl>(() => {
-    const saved = localStorage.getItem("ess_admission_portal_control");
+    const saved = safeStorage.getItem("ess_admission_portal_control");
     if (saved) {
       try {
         return { ...defaultAdmissionPortalControl, ...JSON.parse(saved) };
@@ -647,7 +648,7 @@ export function useAdmissionPortal() {
   });
 
   useEffect(() => {
-    localStorage.setItem("ess_admission_portal_control", JSON.stringify(control));
+    safeStorage.setItem("ess_admission_portal_control", JSON.stringify(control));
   }, [control]);
 
   const updateControl = (partial: Partial<AdmissionPortalControl>) => {
@@ -661,10 +662,13 @@ export function useAdmissionPortal() {
 
 export function useAdmissionApplicants() {
   const [applicants, setApplicants] = useState<ApplicantProfile[]>(() => {
-    const saved = localStorage.getItem("ess_admission_applicants");
+    const saved = safeStorage.getItem("ess_admission_applicants");
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return sanitizeStorageData(parsed);
+        }
       } catch (e) {
         console.error("Failed to parse admission applicants", e);
       }
@@ -673,7 +677,8 @@ export function useAdmissionApplicants() {
   });
 
   useEffect(() => {
-    localStorage.setItem("ess_admission_applicants", JSON.stringify(applicants));
+    const sanitized = sanitizeStorageData(applicants);
+    safeStorage.setItem("ess_admission_applicants", JSON.stringify(sanitized));
   }, [applicants]);
 
   const addApplicant = (app: Omit<ApplicantProfile, "id" | "applicationNumber">) => {
@@ -702,7 +707,7 @@ export function useAdmissionApplicants() {
 
 export function useEntranceExamsList() {
   const [exams, setExams] = useState<EntranceExamSchedule[]>(() => {
-    const saved = localStorage.getItem("ess_entrance_exam_schedules");
+    const saved = safeStorage.getItem("ess_entrance_exam_schedules");
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -714,7 +719,7 @@ export function useEntranceExamsList() {
   });
 
   useEffect(() => {
-    localStorage.setItem("ess_entrance_exam_schedules", JSON.stringify(exams));
+    safeStorage.setItem("ess_entrance_exam_schedules", JSON.stringify(exams));
   }, [exams]);
 
   const addExam = (exam: Omit<EntranceExamSchedule, "id" | "createdAt" | "updatedAt">) => {
@@ -741,7 +746,7 @@ export function useEntranceExamsList() {
 
 export function useAdmissionAuditLogs() {
   const [logs, setLogs] = useState<AdmissionAuditLog[]>(() => {
-    const saved = localStorage.getItem("ess_admission_audit_logs");
+    const saved = safeStorage.getItem("ess_admission_audit_logs");
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -753,7 +758,9 @@ export function useAdmissionAuditLogs() {
   });
 
   useEffect(() => {
-    localStorage.setItem("ess_admission_audit_logs", JSON.stringify(logs));
+    // Keep max 50 logs in storage
+    const trimmed = logs.slice(0, 50);
+    safeStorage.setItem("ess_admission_audit_logs", JSON.stringify(trimmed));
   }, [logs]);
 
   const addLog = (
@@ -786,7 +793,7 @@ export function addAdmissionAuditLog(
   targetId?: string
 ) {
   try {
-    const saved = localStorage.getItem("ess_admission_audit_logs");
+    const saved = safeStorage.getItem("ess_admission_audit_logs");
     const logs: AdmissionAuditLog[] = saved ? JSON.parse(saved) : defaultAdmissionAuditLogs;
     const newLog: AdmissionAuditLog = {
       id: `LOG-${Date.now().toString(36).toUpperCase()}`,
@@ -797,7 +804,8 @@ export function addAdmissionAuditLog(
       details,
       targetId
     };
-    localStorage.setItem("ess_admission_audit_logs", JSON.stringify([newLog, ...logs]));
+    const trimmed = [newLog, ...logs].slice(0, 50);
+    safeStorage.setItem("ess_admission_audit_logs", JSON.stringify(trimmed));
   } catch (e) {
     console.error("Failed to append audit log", e);
   }
@@ -939,7 +947,7 @@ export const defaultQuestionBank: QuestionBankItem[] = [
 export function useAdmissionQuestionBank() {
   const [bankQuestions, setBankQuestions] = useState<QuestionBankItem[]>(() => {
     try {
-      const saved = localStorage.getItem("ess_admission_question_bank");
+      const saved = safeStorage.getItem("ess_admission_question_bank");
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error(e);
@@ -948,7 +956,7 @@ export function useAdmissionQuestionBank() {
   });
 
   useEffect(() => {
-    localStorage.setItem("ess_admission_question_bank", JSON.stringify(bankQuestions));
+    safeStorage.setItem("ess_admission_question_bank", JSON.stringify(bankQuestions));
   }, [bankQuestions]);
 
   const addQuestionToBank = (item: Omit<QuestionBankItem, "bankId">): QuestionBankItem => {

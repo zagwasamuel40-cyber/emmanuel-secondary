@@ -48,7 +48,10 @@ import {
   MessageSquare,
   X,
   Edit2,
-  Save
+  Save,
+  Lock,
+  Zap,
+  Key
 } from "lucide-react";
 
 export default function AdmissionsManagement() {
@@ -165,6 +168,48 @@ export default function AdmissionsManagement() {
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(""), 3500);
+  };
+
+  // Paystack Connection Test State
+  const [paystackTestStatus, setPaystackTestStatus] = useState<{
+    testing: boolean;
+    result?: { success: boolean; message: string; mode?: string; publicKey?: string };
+  }>({ testing: false });
+
+  const handleTestPaystack = async () => {
+    setPaystackTestStatus({ testing: true });
+    try {
+      const res = await fetch("/api/paystack/test-connection");
+      const data = await res.json();
+      if (res.ok && data.connected) {
+        setPaystackTestStatus({
+          testing: false,
+          result: {
+            success: true,
+            message: data.message || "Paystack connection authorized and active!",
+            mode: data.mode,
+            publicKey: data.publicKey
+          }
+        });
+        showToast("Paystack Gateway connection verified successfully!");
+      } else {
+        setPaystackTestStatus({
+          testing: false,
+          result: {
+            success: false,
+            message: data.message || data.error || "Paystack API verification returned an error"
+          }
+        });
+      }
+    } catch (err: any) {
+      setPaystackTestStatus({
+        testing: false,
+        result: {
+          success: false,
+          message: "Unable to reach server proxy: " + (err.message || "Network error")
+        }
+      });
+    }
   };
 
   // Filtered applicants list
@@ -1626,6 +1671,113 @@ export default function AdmissionsManagement() {
                     onChange={(e) => setAdmissionSettings({ ...admissionSettings, accountNumber: e.target.value })}
                     placeholder="0123456789"
                   />
+                </div>
+              </div>
+
+              {/* Paystack Payment Gateway Configuration */}
+              <div className="p-5 bg-gradient-to-br from-emerald-50/70 via-slate-50 to-teal-50/40 border border-emerald-200/80 rounded-2xl space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+                      <Lock size={16} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                        Paystack Online Payment Gateway
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          Active &bull; Test Mode
+                        </span>
+                      </h4>
+                      <p className="text-xs text-slate-500">
+                        Processes student school fees, admission application fees, and acceptance fee settlements.
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={paystackTestStatus.testing}
+                    onClick={handleTestPaystack}
+                    className="border-emerald-300 text-emerald-800 hover:bg-emerald-100/70 text-xs font-bold gap-1.5 self-start sm:self-auto"
+                  >
+                    <Zap size={14} className={paystackTestStatus.testing ? "animate-spin text-amber-500" : "text-emerald-600"} />
+                    {paystackTestStatus.testing ? "Testing Handshake..." : "Test Connection"}
+                  </Button>
+                </div>
+
+                {paystackTestStatus.result && (
+                  <div className={`p-3 rounded-xl text-xs flex items-center gap-2 border ${
+                    paystackTestStatus.result.success
+                      ? "bg-emerald-100/70 text-emerald-900 border-emerald-300"
+                      : "bg-rose-50 text-rose-800 border-rose-200"
+                  }`}>
+                    {paystackTestStatus.result.success ? (
+                      <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
+                    ) : (
+                      <AlertCircle size={16} className="text-rose-600 flex-shrink-0" />
+                    )}
+                    <span className="font-medium">{paystackTestStatus.result.message}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                      <Key size={13} className="text-emerald-600" />
+                      Paystack Public Key (Client-Safe)
+                    </Label>
+                    <Input
+                      type="text"
+                      className="font-mono text-xs bg-white border-slate-200"
+                      value={admissionSettings.paystackPublicKey || "pk_test_81bb385c507469abcb61fdd0285c04382036fd6e"}
+                      onChange={(e) => setAdmissionSettings({ ...admissionSettings, paystackPublicKey: e.target.value })}
+                      placeholder="pk_test_..."
+                    />
+                    <span className="text-[10px] text-slate-400">Used for client-side card initialization & inline popups</span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                      <ShieldCheck size={13} className="text-emerald-600" />
+                      Paystack Secret Key (Stored Server-Side)
+                    </Label>
+                    <Input
+                      type="password"
+                      className="font-mono text-xs bg-white border-slate-200"
+                      value={admissionSettings.paystackSecretKey || "sk_test_ccb71ef4c75797d7598ce11d7a0fa6b5cf328fe7"}
+                      onChange={(e) => setAdmissionSettings({ ...admissionSettings, paystackSecretKey: e.target.value })}
+                      placeholder="sk_test_..."
+                    />
+                    <span className="text-[10px] text-slate-400">Proxied via server endpoints (/api/paystack/*)</span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-700">Paystack Registered Account Name</Label>
+                    <Input
+                      type="text"
+                      className="text-xs bg-white border-slate-200"
+                      value={admissionSettings.paystackAccountName || "Emmanuel Secondary School, Makurdi"}
+                      onChange={(e) => setAdmissionSettings({ ...admissionSettings, paystackAccountName: e.target.value })}
+                      placeholder="School Name"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-700">Supported Settlement Channels</Label>
+                    <div className="flex flex-wrap gap-2 text-xs pt-1">
+                      <span className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg font-medium text-slate-700 flex items-center gap-1">
+                        <CreditCard size={12} className="text-emerald-600" /> Master/Visa/Verve
+                      </span>
+                      <span className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg font-medium text-slate-700 flex items-center gap-1">
+                        <Building2 size={12} className="text-blue-600" /> Bank Transfer
+                      </span>
+                      <span className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg font-medium text-slate-700 flex items-center gap-1">
+                        <Phone size={12} className="text-purple-600" /> Instant USSD
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 

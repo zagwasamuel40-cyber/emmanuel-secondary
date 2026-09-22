@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { safeStorage, sanitizeStorageData } from "../utils/safeStorage";
 
 export const CLASSES = [
   "JSS 1A", "JSS 1B", "JSS 1C", "JSS 1D",
@@ -143,7 +144,7 @@ export function generateNextStudentId(existingStudents: any[]): string {
 }
 
 export function getStoredStudents(): Student[] {
-  const saved = localStorage.getItem("ess_students");
+  const saved = safeStorage.getItem("ess_students");
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
@@ -175,7 +176,7 @@ export function useStudents() {
     const current = getStoredStudents();
     const nextVal = typeof newStudents === "function" ? newStudents(current) : newStudents;
     const sanitized = sanitizeStudentsList(nextVal);
-    localStorage.setItem("ess_students", JSON.stringify(sanitized));
+    safeStorage.setItem("ess_students", JSON.stringify(sanitized));
     setStudentsState(sanitized);
     window.dispatchEvent(new Event("ess_students_change"));
     window.dispatchEvent(new Event("storage"));
@@ -329,14 +330,53 @@ export const initialAdmissionApps = [
 
 export function useAdmissionApps() {
   const [apps, setAppsState] = useState<any[]>(() => {
-    const saved = localStorage.getItem("ess_admission_apps");
-    if (saved) return JSON.parse(saved);
+    try {
+      const saved = safeStorage.getItem("ess_admission_apps");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return sanitizeStorageData(parsed);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load admission apps:", e);
+    }
     return initialAdmissionApps;
   });
 
   useEffect(() => {
-    localStorage.setItem("ess_admission_apps", JSON.stringify(apps));
-  }, [apps]);
+    const handleUpdate = () => {
+      try {
+        const saved = safeStorage.getItem("ess_admission_apps");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            setAppsState(sanitizeStorageData(parsed));
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to update admission apps:", e);
+      }
+    };
 
-  return [apps, setAppsState] as const;
+    window.addEventListener("ess_admission_apps_change", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+
+    return () => {
+      window.removeEventListener("ess_admission_apps_change", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
+  }, []);
+
+  const setApps = (newApps: any[] | ((prev: any[]) => any[])) => {
+    setAppsState(prev => {
+      const nextVal = typeof newApps === "function" ? newApps(prev) : newApps;
+      const sanitized = sanitizeStorageData(nextVal);
+      safeStorage.setItem("ess_admission_apps", JSON.stringify(sanitized));
+      window.dispatchEvent(new Event("ess_admission_apps_change"));
+      return sanitized;
+    });
+  };
+
+  return [apps, setApps] as const;
 }

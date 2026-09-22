@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, Award, Printer, UserCheck, AlertCircle, Clock, MapPin, Building2, ChevronRight, Download, Monitor } from "lucide-react";
+import { Search, Award, Printer, UserCheck, AlertCircle, Clock, MapPin, Building2, ChevronRight, Download, Monitor, CreditCard, CheckCircle2, ShieldCheck } from "lucide-react";
 import { Button, Input, Card, CardContent } from "@/src/components/ui";
 import { useAdmissionApps } from "../../data/studentsData";
 import { usePortalSettings, useAdmissionSettings } from "../../data/portalSettingsData";
 import { useEntranceExams } from "../../data/entranceExamsData";
+import { OnlinePaymentModal, PaymentResult } from "../../components/payment/OnlinePaymentModal";
 
 export default function AdmissionStatus() {
-  const [apps] = useAdmissionApps();
+  const [apps, setApps] = useAdmissionApps();
   const { exams, codes } = useEntranceExams();
   const [portalSettings] = usePortalSettings();
   const [admissionSettings] = useAdmissionSettings();
@@ -16,6 +17,73 @@ export default function AdmissionStatus() {
   const [searchedApp, setSearchedApp] = useState<any | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
+
+  // Payment modal state
+  const [paymentConfig, setPaymentConfig] = useState<{
+    isOpen: boolean;
+    type: "application_fee" | "acceptance_fee";
+    amount: number;
+    title: string;
+    purpose: string;
+    category: "admission" | "school_fee" | "acceptance";
+  }>({
+    isOpen: false,
+    type: "application_fee",
+    amount: 5000,
+    title: "Application Fee",
+    purpose: "Application Form Fee",
+    category: "admission"
+  });
+
+  const appFeeAmount = parseInt(admissionSettings.appFee || "5000", 10) || 5000;
+  const acceptanceFeeAmount = parseInt(admissionSettings.acceptanceFee || "25000", 10) || 25000;
+
+  const handleOpenPayment = (type: "application_fee" | "acceptance_fee") => {
+    if (!searchedApp) return;
+    if (type === "application_fee") {
+      setPaymentConfig({
+        isOpen: true,
+        type: "application_fee",
+        amount: appFeeAmount,
+        title: "Admission Application Fee",
+        purpose: `Application Form Fee - ${searchedApp.class || "JSS 1"}`,
+        category: "admission"
+      });
+    } else {
+      setPaymentConfig({
+        isOpen: true,
+        type: "acceptance_fee",
+        amount: acceptanceFeeAmount,
+        title: "Provisional Admission Acceptance Fee",
+        purpose: `Acceptance Fee for ${searchedApp.name} (${searchedApp.assignedClass || searchedApp.class})`,
+        category: "acceptance"
+      });
+    }
+  };
+
+  const handlePaymentSuccess = (result: PaymentResult) => {
+    if (!searchedApp) return;
+
+    const updatedApp = {
+      ...searchedApp,
+      ...(paymentConfig.type === "application_fee"
+        ? {
+            payment: "Paid",
+            paymentReference: result.reference,
+            paymentDate: result.paidAt,
+            paymentAmount: result.amount
+          }
+        : {
+            acceptanceFee: "Paid",
+            acceptanceFeeReference: result.reference,
+            acceptanceFeeDate: result.paidAt,
+            acceptanceFeeAmount: result.amount
+          })
+    };
+
+    setSearchedApp(updatedApp);
+    setApps(prev => prev.map(a => a.id === updatedApp.id ? updatedApp : a));
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,6 +206,24 @@ export default function AdmissionStatus() {
                           <span className="text-slate-600">Entrance Exam:</span>
                           <span className="font-bold text-slate-900">{searchedApp.examScore ? `${searchedApp.examScore}% (${searchedApp.examStatus})` : 'Not Taken'}</span>
                         </div>
+                        <div className="flex items-center justify-between text-sm py-2 border-b border-slate-100">
+                          <span className="text-slate-600">Application Fee:</span>
+                          {searchedApp.payment === "Paid" ? (
+                            <span className="inline-flex items-center gap-1 font-bold text-emerald-600 text-xs">
+                              <CheckCircle2 size={13} /> Paid (₦{appFeeAmount.toLocaleString()})
+                            </span>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[11px] font-bold text-emerald-700 border-emerald-300 hover:bg-emerald-50 px-2 gap-1"
+                              onClick={() => handleOpenPayment("application_fee")}
+                            >
+                              <CreditCard size={12} /> Pay ₦{appFeeAmount.toLocaleString()} Online
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -221,13 +307,44 @@ export default function AdmissionStatus() {
                       We are pleased to inform you that following your child's recent entrance evaluation and document verification, <strong>{searchedApp.name}</strong> has been offered provisional admission into <strong>{searchedApp.assignedClass || searchedApp.class}</strong> at {portalSettings.schoolName} for the <strong>{admissionSettings.activeSession}</strong> academic session.
                     </p>
 
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                       <p className="font-bold text-slate-900 border-b pb-1">Admission Requirements & Next Steps:</p>
                       <ul className="list-disc list-inside space-y-1 text-slate-700">
-                        <li>Payment of Non-refundable Acceptance Fee of <strong>₦{parseInt(admissionSettings.acceptanceFee).toLocaleString()}</strong> within 14 days.</li>
+                        <li>Payment of Non-refundable Acceptance Fee of <strong>₦{acceptanceFeeAmount.toLocaleString()}</strong> within 14 days.</li>
                         <li>Submission of original copies of Birth Certificate & Previous Academic Transcripts during physical orientation.</li>
                         <li>Resumption Date: <strong>September 14, 2026</strong>.</li>
                       </ul>
+
+                      {/* Online Acceptance Fee Payment Action */}
+                      <div className="mt-3 pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-3 rounded-lg border border-slate-200">
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Acceptance Fee (₦{acceptanceFeeAmount.toLocaleString()})</span>
+                          <span className="text-xs font-semibold text-slate-700">
+                            {searchedApp.acceptanceFee === "Paid" ? (
+                              <span className="text-emerald-700 font-bold flex items-center gap-1">
+                                <CheckCircle2 size={13} /> Paid & Cleared (Ref: {searchedApp.acceptanceFeeReference || "ESS-ACC-VERIFIED"})
+                              </span>
+                            ) : (
+                              <span className="text-amber-700 font-medium">Pending Acceptance Payment</span>
+                            )}
+                          </span>
+                        </div>
+                        {searchedApp.acceptanceFee === "Paid" ? (
+                          <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full">
+                            VERIFIED
+                          </span>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="brand"
+                            size="sm"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 h-9 shrink-0 shadow-sm"
+                            onClick={() => handleOpenPayment("acceptance_fee")}
+                          >
+                            <CreditCard size={14} /> Pay ₦{acceptanceFeeAmount.toLocaleString()} Online Now
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     <p>Congratulations on your child's admission into {portalSettings.schoolName}!</p>
@@ -266,6 +383,24 @@ export default function AdmissionStatus() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Online Payment Modal */}
+        {searchedApp && (
+          <OnlinePaymentModal
+            isOpen={paymentConfig.isOpen}
+            onClose={() => setPaymentConfig(prev => ({ ...prev, isOpen: false }))}
+            amount={paymentConfig.amount}
+            title={paymentConfig.title}
+            itemDescription={`${paymentConfig.title} for ${searchedApp.name}`}
+            payerName={searchedApp.name}
+            payerEmail={searchedApp.email || "applicant@example.com"}
+            payerPhone={searchedApp.phone}
+            identifier={searchedApp.id}
+            purpose={paymentConfig.purpose}
+            category={paymentConfig.category}
+            onSuccess={handlePaymentSuccess}
+          />
         )}
       </div>
     </div>

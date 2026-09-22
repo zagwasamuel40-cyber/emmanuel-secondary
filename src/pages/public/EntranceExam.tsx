@@ -9,6 +9,7 @@ import {
 } from "../../data/admissionsAndExamData";
 import { useAdmissionApps } from "../../data/studentsData";
 import { usePortalSettings } from "../../data/portalSettingsData";
+import { safeStorage } from "../../utils/safeStorage";
 import { SecureExamRunner } from "../../components/exam/SecureExamRunner";
 import {
   Button,
@@ -315,9 +316,9 @@ export default function EntranceExam() {
     setCurrentExam(exam || null);
 
     // Persist verified application credentials for seamless re-visits
-    localStorage.setItem("ess_latest_app_id", applicant.applicationNumber);
-    localStorage.setItem("ess_admission_app_num", applicant.applicationNumber);
-    localStorage.setItem(
+    safeStorage.setItem("ess_latest_app_id", applicant.applicationNumber);
+    safeStorage.setItem("ess_admission_app_num", applicant.applicationNumber);
+    safeStorage.setItem(
       "ess_latest_applicant",
       JSON.stringify({
         applicationNumber: applicant.applicationNumber,

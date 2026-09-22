@@ -37,8 +37,24 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   private handleClearStorageAndReload = () => {
-    if (window.confirm("This will refresh session state and reload the application. Continue?")) {
-      sessionStorage.clear();
+    if (window.confirm("This will clear cached data and reload the application safely. Continue?")) {
+      try {
+        sessionStorage.clear();
+        // Clear oversized items in localStorage
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k) {
+            const val = localStorage.getItem(k);
+            if (val && val.length > 50000) {
+              keysToRemove.push(k);
+            }
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+      } catch (e) {
+        console.warn("Storage cleanup failed:", e);
+      }
       window.location.reload();
     }
   };

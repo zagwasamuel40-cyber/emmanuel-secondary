@@ -4,8 +4,10 @@ import { Button, Input, Label, Card, CardContent, CardHeader, CardTitle } from "
 import { useAdmissionApps } from "../../data/studentsData";
 import { usePortalSettings, useAdmissionSettings } from "../../data/portalSettingsData";
 import { useAdmissionPortal, useAdmissionApplicants, addAdmissionAuditLog, ApplicantProfile } from "../../data/admissionsAndExamData";
-import { UploadCloud, FileText, CheckCircle2, Trash2, ShieldAlert, Award, FileCheck, Search, Image as ImageIcon, ClipboardList, LogIn, Save, ArrowRight, Eye, Check, Monitor, Clock, AlertTriangle } from "lucide-react";
+import { safeStorage, compressImage } from "../../utils/safeStorage";
+import { UploadCloud, FileText, CheckCircle2, Trash2, ShieldAlert, Award, FileCheck, Search, Image as ImageIcon, ClipboardList, LogIn, Save, ArrowRight, Eye, Check, Monitor, Clock, AlertTriangle, CreditCard, Printer } from "lucide-react";
 import { Link } from "react-router-dom";
+import { OnlinePaymentModal, PaymentResult } from "../../components/payment/OnlinePaymentModal";
 
 export default function Admissions() {
   const [admissionApps, setAdmissionApps] = useAdmissionApps();
@@ -18,6 +20,17 @@ export default function Admissions() {
   const [view, setView] = useState<"inquiry" | "guidelines" | "resume" | "apply" | "review" | "success" | "cbt">("inquiry");
 
   const [galleryIndex, setGalleryIndex] = useState(0);
+
+  // Online Payment Plugin State
+  const appFeeAmount = parseInt(admissionSettings.appFee || "5000", 10) || 5000;
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentInfo, setPaymentInfo] = useState<{
+    paid: boolean;
+    reference?: string;
+    receiptNumber?: string;
+    paidAt?: string;
+    amount?: number;
+  }>({ paid: false });
 
   // Form Data
   const [formData, setFormData] = useState({
@@ -116,31 +129,52 @@ export default function Admissions() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setFile: React.Dispatch<React.SetStateAction<File | null>>, setBase64: React.Dispatch<React.SetStateAction<string>>) => {
+  const handleFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setFile: React.Dispatch<React.SetStateAction<File | null>>,
+    setBase64: React.Dispatch<React.SetStateAction<string>>
+  ) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-         const b64 = reader.result as string;
-         setBase64(b64);
-         if (draftAppId) {
-             const updatedApps = admissionApps.map(app => {
-               if (app.id === draftAppId) {
-                 return { 
-                   ...app, 
-                   documentsUrls: { 
-                     ...app.documentsUrls,
-                     [e.target.name]: b64
-                   } 
-                 };
-               }
-               return app;
-             });
-             setAdmissionApps(updatedApps);
-         }
-      };
-      reader.readAsDataURL(file);
+
+      try {
+        let b64 = "";
+        if (file.type.startsWith("image/")) {
+          // Compress user camera or photo upload to lightweight JPEG (<25KB)
+          b64 = await compressImage(file, 480, 0.65);
+        } else {
+          // If small document (<50KB), read as data URL, otherwise store lightweight document token
+          if (file.size <= 50000) {
+            b64 = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(file);
+            });
+          } else {
+            b64 = `[Uploaded Document: ${file.name} (${Math.round(file.size / 1024)} KB)]`;
+          }
+        }
+
+        setBase64(b64);
+        if (draftAppId) {
+          const updatedApps = admissionApps.map(app => {
+            if (app.id === draftAppId) {
+              return { 
+                ...app, 
+                documentsUrls: { 
+                  ...app.documentsUrls,
+                  [e.target.name]: b64
+                } 
+              };
+            }
+            return app;
+          });
+          setAdmissionApps(updatedApps);
+        }
+      } catch (err) {
+        console.warn("[Admissions] Error processing file upload:", err);
+      }
     }
   };
 
@@ -190,6 +224,14 @@ export default function Admissions() {
         setMedicalCertBase64(existing.documentsUrls.medicalCert || "");
         setOtherDocBase64(existing.documentsUrls.otherDoc || "");
       }
+      if (existing.payment === "Paid") {
+        setPaymentInfo({
+          paid: true,
+          reference: existing.paymentReference || "ESS-PAY-VERIFIED",
+          amount: existing.paymentAmount || appFeeAmount,
+          paidAt: existing.paymentDate || new Date().toISOString()
+        });
+      }
       setView("apply");
     } else {
       setResumeError("Invalid Application Code or Password.");
@@ -197,6 +239,38 @@ export default function Admissions() {
   };
 
   const [assignedAppNumber, setAssignedAppNumber] = useState("");
+
+  const handleAdmissionPaymentSuccess = (result: PaymentResult) => {
+    setPaymentInfo({
+      paid: true,
+      reference: result.reference,
+      receiptNumber: result.receiptNumber,
+      paidAt: result.paidAt,
+      amount: result.amount
+    });
+
+    const targetAppCode = assignedAppNumber || draftAppId;
+    if (targetAppCode) {
+      setAdmissionApps(prev => prev.map(app => {
+        if (app.id === draftAppId || app.applicationNumber === targetAppCode || app.id === targetAppCode) {
+          return {
+            ...app,
+            payment: "Paid",
+            paymentReference: result.reference,
+            paymentDate: result.paidAt,
+            paymentAmount: result.amount
+          };
+        }
+        return app;
+      }));
+    }
+
+    addAdmissionAuditLog(
+      "Application Fee Payment",
+      `Applicant ${formData.firstName} ${formData.lastName} (${targetAppCode || 'Draft'}) paid Application Fee of ₦${result.amount.toLocaleString()} online (Ref: ${result.reference}).`,
+      "Paystack Online Gateway"
+    );
+  };
 
   const submitFinal = () => {
     if (!confirmed) return;
@@ -210,6 +284,8 @@ export default function Admissions() {
     const appNumber = `ESS/ADM/2026/${String(Math.floor(100 + Math.random() * 900))}`;
     setAssignedAppNumber(appNumber);
 
+    const paymentStatus = paymentInfo.paid ? "Paid" : "Pending";
+
     // Update legacy apps
     const updatedApps = admissionApps.map(app => {
       if (app.id === draftAppId) {
@@ -220,7 +296,10 @@ export default function Admissions() {
           date: new Date().toISOString().split("T")[0],
           name: `${formData.firstName} ${formData.lastName}`.trim(),
           class: formData.classApplying,
-          payment: "Pending"
+          payment: paymentStatus,
+          paymentReference: paymentInfo.reference,
+          paymentDate: paymentInfo.paidAt,
+          paymentAmount: paymentInfo.amount || appFeeAmount
         };
       }
       return app;
@@ -264,9 +343,9 @@ export default function Admissions() {
     );
 
     // Save app id and applicant profile for immediate lookup and detection in CBT portal
-    localStorage.setItem("ess_latest_app_id", appNumber);
-    localStorage.setItem("ess_admission_app_num", appNumber);
-    localStorage.setItem(
+    safeStorage.setItem("ess_latest_app_id", appNumber);
+    safeStorage.setItem("ess_admission_app_num", appNumber);
+    safeStorage.setItem(
       "ess_latest_applicant",
       JSON.stringify({
         applicationNumber: appNumber,
@@ -702,6 +781,45 @@ export default function Admissions() {
           </CardContent>
         </Card>
 
+        {/* Application Fee Card */}
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+              <CreditCard size={24} />
+            </div>
+            <div>
+              <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wider">Official Application Fee</span>
+              <p className="text-2xl font-black text-brand-950 font-heading">
+                ₦{appFeeAmount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {paymentInfo.paid ? (
+                  <span className="text-emerald-700 font-bold flex items-center gap-1">
+                    <CheckCircle2 size={14} /> Paid Online (Ref: {paymentInfo.reference})
+                  </span>
+                ) : (
+                  "Payable online with Card, Bank Transfer, or USSD via Paystack"
+                )}
+              </p>
+            </div>
+          </div>
+
+          {!paymentInfo.paid ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsPaymentModalOpen(true)}
+              className="gap-2 font-bold text-emerald-700 border-emerald-300 hover:bg-emerald-50 text-xs h-10 w-full sm:w-auto"
+            >
+              <CreditCard size={15} /> Pay Fee Online Now
+            </Button>
+          ) : (
+            <span className="px-3 py-1 bg-emerald-100 text-emerald-800 font-bold text-xs rounded-full">
+              FEE CLEARED
+            </span>
+          )}
+        </div>
+
         <div className="bg-brand-50 border border-brand-200 rounded-xl p-6 mb-8">
           <label className="flex items-start gap-3 cursor-pointer">
             <input type="checkbox" className="mt-1 w-5 h-5 text-brand-600 rounded focus:ring-brand-500 border-slate-300" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
@@ -713,6 +831,22 @@ export default function Admissions() {
           <Button variant="outline" size="lg" onClick={() => setView("apply")}>Back to Edit</Button>
           <Button variant="brand" size="lg" disabled={!confirmed} onClick={submitFinal}>SUBMIT APPLICATION</Button>
         </div>
+
+        {/* Online Payment Modal */}
+        <OnlinePaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          amount={appFeeAmount}
+          title="Admission Application Fee"
+          itemDescription={`Application Fee for ${formData.firstName} ${formData.lastName}`}
+          payerName={`${formData.firstName} ${formData.lastName}`.trim() || "Applicant"}
+          payerEmail={formData.email || formData.parentEmail || "applicant@example.com"}
+          payerPhone={formData.phone || formData.parentPhone}
+          identifier={assignedAppNumber || draftAppId || "ESS-ADM-DRAFT"}
+          purpose={`Application Form Fee - ${formData.classApplying || "JSS 1"}`}
+          category="admission"
+          onSuccess={handleAdmissionPaymentSuccess}
+        />
       </div>
     );
   }
@@ -742,6 +876,57 @@ export default function Admissions() {
             </div>
           </div>
 
+          {/* Application Fee Payment Status Banner */}
+          <div className="mb-8 text-left">
+            {paymentInfo.paid ? (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                    <CheckCircle2 size={22} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-bold text-emerald-950">Application Fee Paid (₦{appFeeAmount.toLocaleString()})</p>
+                      <span className="px-2 py-0.5 bg-emerald-200 text-emerald-900 font-extrabold text-[10px] rounded-md">VERIFIED</span>
+                    </div>
+                    <p className="text-[11px] text-emerald-700 font-mono mt-0.5">
+                      Ref: {paymentInfo.reference || "ESS-PAY-VERIFIED"}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs bg-white border-emerald-300 text-emerald-900 font-bold hover:bg-emerald-50"
+                  onClick={() => setIsPaymentModalOpen(true)}
+                >
+                  <Printer size={14} /> View Receipt
+                </Button>
+              </div>
+            ) : (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider block">Application Payment Required</span>
+                  <p className="text-sm font-bold text-amber-950 mt-0.5">
+                    Application Fee: ₦{appFeeAmount.toLocaleString()} (Pending)
+                  </p>
+                  <p className="text-xs text-amber-800/80 mt-0.5">
+                    Pay securely online using Debit Card, Bank Transfer, or USSD to activate exam readiness.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="brand"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 text-xs h-11 shrink-0 w-full sm:w-auto shadow-md shadow-emerald-600/20"
+                  onClick={() => setIsPaymentModalOpen(true)}
+                >
+                  <CreditCard size={16} /> Pay ₦{appFeeAmount.toLocaleString()} Online
+                </Button>
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to={`/entrance-exam?appId=${encodeURIComponent(finalAppNumber)}`} className="w-full sm:w-auto">
               <Button variant="brand" size="lg" className="w-full gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
@@ -760,11 +945,28 @@ export default function Admissions() {
             </Link>
           </div>
         </div>
+
+        {/* Online Payment Modal */}
+        <OnlinePaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          amount={appFeeAmount}
+          title="Admission Application Fee"
+          itemDescription={`Application Fee for ${formData.firstName} ${formData.lastName}`}
+          payerName={`${formData.firstName} ${formData.lastName}`.trim() || "Applicant"}
+          payerEmail={formData.email || formData.parentEmail || "applicant@example.com"}
+          payerPhone={formData.phone || formData.parentPhone}
+          identifier={finalAppNumber}
+          purpose={`Application Form Fee - ${formData.classApplying || "JSS 1"}`}
+          category="admission"
+          onSuccess={handleAdmissionPaymentSuccess}
+        />
       </div>
     );
   }
 
   if (view === "cbt") {
+    const finalAppNumber = assignedAppNumber || draftAppId;
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
         <div className="flex items-center gap-4 mb-8">
@@ -779,9 +981,28 @@ export default function Admissions() {
             <CardTitle>Application Status</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <span className="px-4 py-2 bg-emerald-100 text-emerald-800 rounded-full font-bold text-sm">Submitted</span>
-              <p className="text-slate-600">Application Code: <strong>{draftAppId}</strong></p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <span className="px-4 py-2 bg-emerald-100 text-emerald-800 rounded-full font-bold text-sm">Submitted</span>
+                <p className="text-slate-600">Application Code: <strong>{draftAppId}</strong></p>
+              </div>
+              <div className="flex items-center gap-3">
+                {paymentInfo.paid ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold">
+                    <CheckCircle2 size={14} className="text-emerald-600" /> Fee Paid (₦{appFeeAmount.toLocaleString()})
+                  </span>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="brand"
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-xs font-bold"
+                    onClick={() => setIsPaymentModalOpen(true)}
+                  >
+                    <CreditCard size={14} /> Pay Fee (₦{appFeeAmount.toLocaleString()}) Online
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -824,6 +1045,22 @@ export default function Admissions() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Online Payment Modal */}
+        <OnlinePaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          amount={appFeeAmount}
+          title="Admission Application Fee"
+          itemDescription={`Application Fee for ${formData.firstName} ${formData.lastName}`}
+          payerName={`${formData.firstName} ${formData.lastName}`.trim() || "Applicant"}
+          payerEmail={formData.email || formData.parentEmail || "applicant@example.com"}
+          payerPhone={formData.phone || formData.parentPhone}
+          identifier={finalAppNumber}
+          purpose={`Application Form Fee - ${formData.classApplying || "JSS 1"}`}
+          category="admission"
+          onSuccess={handleAdmissionPaymentSuccess}
+        />
       </div>
     );
   }
